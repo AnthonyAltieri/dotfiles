@@ -1,20 +1,32 @@
 {
+  // Editor
+  "editor.accessibilitySupport" : "off",
+  "editor.fontSize" : 14,
   "editor.fontFamily": "Fira Code Retina",
-  "editor.fontSize": 14,
-  "editor.fontLigatures": false,
-  "editor.tabSize": 2,
-  "[javascript]": {
-    "editor.tabSize": 2
+  "editor.minimap.enabled" : false,
+
+  // Workbench
+  "workbench.editor.enablePreviewFromQuickOpen" : false,
+  "workbench.startupEditor" : "newUntitledFile",
+  "workbench.editor.enablePreview": false,
+
+  // Terminal
+  "terminal.integrated.env.osx": {
+    "FIG_NEW_SESSION": "1"
   },
-  "[json]": {
-    "editor.tabSize": 2
+
+  // Javascript
+  "javascript.updateImportsOnFileMove.enabled" : "always",
+
+  // Typescript
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "[typescript]" : {
+    "editor.tabSize" : 2,
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
-  "editor.detectIndentation": false,
-  "tailwindCSS.includeLanguages": {
-    "typescript": "javascript"
-  },
-  "editor.minimap.enabled": false,
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "workbench.editorAssociations": []
+
+  // Vim
+  "vim.vimrc.enable": true,
+  "circleci.API-token": "2b262e438a383fb78d449361b73a23dbec98ae70",
+  "window.zoomLevel": 1
 }
