@@ -1,4 +1,5 @@
 {
+
   // Editor
   "editor.accessibilitySupport" : "off",
   "editor.fontSize" : 14,
@@ -6,6 +7,7 @@
   "editor.minimap.enabled" : false,
 
   // Workbench
+  "workbench.colorTheme": "GitHub Dark",
   "workbench.editor.enablePreviewFromQuickOpen" : false,
   "workbench.startupEditor" : "newUntitledFile",
   "workbench.editor.enablePreview": false,
@@ -20,6 +22,7 @@
 
   // Typescript
   "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
   "[typescript]" : {
     "editor.tabSize" : 2,
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
@@ -28,5 +31,17 @@
   // Vim
   "vim.vimrc.enable": true,
   "circleci.API-token": "2b262e438a383fb78d449361b73a23dbec98ae70",
-  "window.zoomLevel": 1
+
+
+  // Eslint
+  "eslint.format.enable": true,
+  "eslint.packageManager": "yarn",
+  "eslint.run": "onSave",
+  "eslint.trace.server": "on",
+
+  // Git Lens
+  "gitlens.currentLine.enabled": false,
+  "gitlens.hovers.currentLine.over": "line",
+  "gitlens.codeLens.enabled": false,
+  "gitlens.hovers.enabled": false
 }
