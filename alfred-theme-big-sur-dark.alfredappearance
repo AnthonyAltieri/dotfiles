@@ -1,0 +1,64 @@
+{
+  "alfredtheme" : {
+    "result" : {
+      "textSpacing" : 5,
+      "subtext" : {
+        "size" : 8,
+        "colorSelected" : "#BCBCBC65",
+        "font" : "System",
+        "color" : "#BCBCBC65"
+      },
+      "shortcut" : {
+        "size" : 11,
+        "colorSelected" : "#BCBCBC65",
+        "font" : "System Light",
+        "color" : "#BCBCBC65"
+      },
+      "backgroundSelected" : "#56585857",
+      "text" : {
+        "size" : 14,
+        "colorSelected" : "#FDFCFFFF",
+        "font" : "System",
+        "color" : "#FDFCFFFF"
+      },
+      "iconPaddingHorizontal" : 11,
+      "roundness" : 0,
+      "paddingVertical" : 6,
+      "iconSize" : 22
+    },
+    "search" : {
+      "backgroundSelected" : "#FEFFFE05",
+      "paddingHorizontal" : 8,
+      "spacing" : 8,
+      "text" : {
+        "size" : 26,
+        "colorSelected" : "#FDFCFFFF",
+        "font" : "System Light",
+        "color" : "#FDFCFFFF"
+      },
+      "background" : "#1C1C1C00",
+      "roundness" : 0,
+      "paddingVertical" : 0
+    },
+    "window" : {
+      "color" : "#26262600",
+      "paddingHorizontal" : 6,
+      "width" : 515,
+      "borderPadding" : 2,
+      "borderColor" : "#1C1C1C7F",
+      "blur" : 40,
+      "roundness" : 4,
+      "paddingVertical" : 8
+    },
+    "credit" : "mayuzumi",
+    "separator" : {
+      "color" : "#CBCBCBF3",
+      "thickness" : 0
+    },
+    "scrollbar" : {
+      "color" : "#DAE0DA27",
+      "thickness" : 3
+    },
+    "name" : "Big Sur Dark"
+  }
+}
