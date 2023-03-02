@@ -25,7 +25,8 @@
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "[typescript]" : {
     "editor.tabSize" : 2,
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.formatOnSave": true
   },
 
   // Vim
