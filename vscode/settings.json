@@ -31,8 +31,7 @@
 
   // Vim
   "vim.vimrc.enable": true,
-  "circleci.API-token": "2b262e438a383fb78d449361b73a23dbec98ae70",
-
+  "editor.cursorSurroundingLines": 8, // scrolloff=8 hack https://github.com/VSCodeVim/Vim/issues/1427#issuecomment-520499830
 
   // Eslint
   "eslint.format.enable": true,

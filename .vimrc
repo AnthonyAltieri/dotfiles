@@ -6,13 +6,16 @@ let &t_EI = "\<Esc>]50;CursorShape=0\x7"
 nmap ss :split<Return><C-w>w
 nmap sv :vsplit<Return><C-w>w
 " Move window
-map sh <C-w>h
-map sk <C-w>k
-map sj <C-w>j
-map sl <C-w>l
+map <C-h> <C-w>h
+map <C-k> <C-w>k
+map <C-j> <C-w>j
+map <C-l> <C-w>l
 " Switch tab
 nmap <S-Tab> :tabprev<Return>
 nmap <Tab> :tabnext<Return>
+" Navigate
+map <C-d> <C-d>zz
+map <C-u> <C-u>zz
 
 """ always show status line
 set laststatus=2
@@ -24,4 +27,10 @@ set title
 set noshowcmd
 set noruler
 set tabstop=2
+set number
+set relativenumber
+set nohlsearch
+set incsearch
+set scrolloff=8
+
 syntax on
