@@ -7,16 +7,28 @@ return require('packer').startup(function(use)
   -- Packer can manage itself
   use 'wbthomason/packer.nvim'
 
-  use "nvim-lua/plenary.nvim" -- essential utils required by most other plugins
+  use {
+    'nvim-telescope/telescope.nvim', tag = '0.1.0',
+    -- or                            , branch = '0.1.x',
+    requires = { { 'nvim-lua/plenary.nvim' } }
+  }
+  use {
+    "nvim-telescope/telescope-file-browser.nvim",
+    requires = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" }
+  }
 
-  -- Theme
-  -- use({
-  --   'rose-pine/neovim',
-  --   as = 'rose-pine',
-  --   config = function()
-  -- 	  vim.cmd('colorscheme rose-pine')
-  --   end
-  -- })
+  use({
+    "folke/trouble.nvim",
+    config = function()
+      require("trouble").setup {
+        icons = false,
+        -- your configuration comes here
+        -- or leave it empty to use the default settings
+        -- refer to the configuration section below
+      }
+    end
+  })
+
   use({
     'ellisonleao/gruvbox.nvim',
     as = 'gruvbox',
@@ -25,40 +37,39 @@ return require('packer').startup(function(use)
     end
   })
 
-
+  use({ "nvim-treesitter/nvim-treesitter", run = ":TSUpdate" })
+  use("nvim-treesitter/playground")
+  use("theprimeagen/harpoon")
+  use("theprimeagen/refactoring.nvim")
+  use("mbbill/undotree")
+  use("tpope/vim-fugitive")
+  use("nvim-treesitter/nvim-treesitter-context");
 
   ---------
   -- LSP --
   ---------
-  -- LSP Support
-  use 'neovim/nvim-lspconfig' -- LSP
-  -- Syntax Highlighting
   use {
-    'nvim-treesitter/nvim-treesitter',
-    run = function() require('nvim-treesitter.install').update({ with_sync = true }) end,
-  }
-  use("nvim-treesitter/playground")
-  use 'jose-elias-alvarez/null-ls.nvim' -- Use Neovim as a language server to inject LSP diagnostics, code actions, and more via Lua
-  -- LSP language installation
-  use 'williamboman/mason.nvim'
-  use 'williamboman/mason-lspconfig.nvim'
-  -- Autocompletion
-  use 'hrsh7th/nvim-cmp'     -- Completion
-  use 'hrsh7th/cmp-buffer'   -- nvim-cmp source for buffer words
-  use 'hrsh7th/cmp-path'     -- nvim-cmp source for filesystem paths
-  use 'hrsh7th/cmp-nvim-lsp' -- nvim-cmp source for neovim's built-in LSP
-  use 'hrsh7th/cmp-nvim-lua' -- nvim-cmp source for lua
-  -- LSP UI
-  use 'onsails/lspkind-nvim' -- vscode-like pictograms
-  use({
-    "glepnir/lspsaga.nvim",
+    'VonHeikemen/lsp-zero.nvim',
+    branch = 'v1.x',
     requires = {
-      { "nvim-tree/nvim-web-devicons" },
-      --Please make sure you install markdown and markdown_inline parser
-      { "nvim-treesitter/nvim-treesitter" }
-    }
-  }) -- LSP UI
+      -- LSP Support
+      { 'neovim/nvim-lspconfig' },
+      { 'williamboman/mason.nvim' },
+      { 'williamboman/mason-lspconfig.nvim' },
 
+      -- Autocompletion
+      { 'hrsh7th/nvim-cmp' },
+      { 'hrsh7th/cmp-buffer' },
+      { 'hrsh7th/cmp-path' },
+      { 'saadparwaiz1/cmp_luasnip' },
+      { 'hrsh7th/cmp-nvim-lsp' },
+      { 'hrsh7th/cmp-nvim-lua' },
+
+      -- Snippets
+      { 'L3MON4D3/LuaSnip' },
+      { 'rafamadriz/friendly-snippets' },
+    }
+  }
 
   ----------------
   -- Auto-Pairs --
@@ -69,30 +80,15 @@ return require('packer').startup(function(use)
   ----------------
   -- Commenting --
   ----------------
-  -- comment selected code with a keypress
-  use { 'numToStr/Comment.nvim',
-    requires = { 'JoosepAlviste/nvim-ts-context-commentstring' }
-  }
 
   ------------
   -- Colors --
   ------------
   use 'norcalli/nvim-colorizer.lua' -- show colors inline over hex codes
 
-
-  ----------------
-  -- Navigation --
-  ----------------
-  --use 'theprimeagen/harpoon'
-  use 'nvim-telescope/telescope.nvim'
-  use 'nvim-telescope/telescope-file-browser.nvim'
-
-
   ------------
   -- Others --
   ------------
-  use("mbbill/undotree") -- show local history (without git)
-
   use({
     "christoomey/vim-tmux-navigator",
     lazy = false
