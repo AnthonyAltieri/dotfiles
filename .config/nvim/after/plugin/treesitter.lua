@@ -1,18 +1,6 @@
-require 'nvim-treesitter.configs'.setup {
+require'nvim-treesitter.configs'.setup {
   -- A list of parser names, or "all"
-  ensure_installed = {
-    "vim",
-    "vimdoc",
-    "query",
-    "javascript",
-    "typescript",
-    "c",
-    "lua",
-    "rust",
-    "python",
-    "markdown",
-    "markdown_inline"
-  },
+  ensure_installed = { "javascript", "typescript", "css", "html", "python", "lua", "rust" },
 
   -- Install parsers synchronously (only applied to `ensure_installed`)
   sync_install = false,
@@ -21,9 +9,14 @@ require 'nvim-treesitter.configs'.setup {
   -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
   auto_install = true,
 
+  indent = {
+    enable = true,
+  },
+
   highlight = {
     -- `false` will disable the whole extension
     enable = true,
+
     -- Setting this to true will run `:h syntax` and tree-sitter at the same time.
     -- Set this to `true` if you depend on 'syntax' being enabled (like for indentation).
     -- Using this option may slow down your editor, and you may see some duplicate highlights.
@@ -31,3 +24,4 @@ require 'nvim-treesitter.configs'.setup {
     additional_vim_regex_highlighting = false,
   },
 }
+

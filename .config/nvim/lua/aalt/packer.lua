@@ -1,96 +1,91 @@
 -- This file can be loaded by calling `lua require('plugins')` from your init.vim
 
 -- Only required if you have packer configured as `opt`
-vim.cmd [[packadd packer.nvim]]
+vim.cmd.packadd('packer.nvim')
 
 return require('packer').startup(function(use)
-  -- Packer can manage itself
   use 'wbthomason/packer.nvim'
 
   use {
-    'nvim-telescope/telescope.nvim', tag = '0.1.0',
-    -- or                            , branch = '0.1.x',
-    requires = { { 'nvim-lua/plenary.nvim' } }
-  }
-  use {
-    "nvim-telescope/telescope-file-browser.nvim",
-    requires = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" }
-  }
-
-  use({
-    "folke/trouble.nvim",
-    config = function()
-      require("trouble").setup {
-        icons = false,
-        -- your configuration comes here
-        -- or leave it empty to use the default settings
-        -- refer to the configuration section below
-      }
-    end
-  })
-
-  use({
-    'ellisonleao/gruvbox.nvim',
-    as = 'gruvbox',
-    config = function()
-      vim.cmd('colorscheme gruvbox')
-    end
-  })
-
-  use({ "nvim-treesitter/nvim-treesitter", run = ":TSUpdate" })
-  use("nvim-treesitter/playground")
-  use("theprimeagen/harpoon")
-  use("theprimeagen/refactoring.nvim")
-  use("mbbill/undotree")
-  use("tpope/vim-fugitive")
-  use("nvim-treesitter/nvim-treesitter-context");
-
-  ---------
-  -- LSP --
-  ---------
-  use {
-    'VonHeikemen/lsp-zero.nvim',
-    branch = 'v1.x',
-    requires = {
-      -- LSP Support
-      { 'neovim/nvim-lspconfig' },
-      { 'williamboman/mason.nvim' },
-      { 'williamboman/mason-lspconfig.nvim' },
-
-      -- Autocompletion
-      { 'hrsh7th/nvim-cmp' },
-      { 'hrsh7th/cmp-buffer' },
-      { 'hrsh7th/cmp-path' },
-      { 'saadparwaiz1/cmp_luasnip' },
-      { 'hrsh7th/cmp-nvim-lsp' },
-      { 'hrsh7th/cmp-nvim-lua' },
-
-      -- Snippets
-      { 'L3MON4D3/LuaSnip' },
-      { 'rafamadriz/friendly-snippets' },
+    'nvim-telescope/telescope.nvim', tag = '0.1.4',
+	  requires = {
+      {'nvim-lua/plenary.nvim'},
+      {'debugloop/telescope-undo.nvim'},
     }
   }
 
-  ----------------
-  -- Auto-Pairs --
-  ----------------
-  use 'windwp/nvim-autopairs'  -- automatic closing pair symbols
-  use 'windwp/nvim-ts-autotag' -- automatic closing tags (ie. html, react)
+  use({'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'})
+  use 'nvim-treesitter/nvim-treesitter-textobjects' -- Additional textobjects for treesitter
+  use 'nvim-treesitter/nvim-treesitter-context'
+  use('nvim-treesitter/playground')
+  use {
+      "ThePrimeagen/harpoon",
+      branch = "harpoon2",
+      requires = { {"nvim-lua/plenary.nvim"} }
+  }
+  use('mbbill/undotree')
+  use('tpope/vim-fugitive')
+  use {
+    "folke/todo-comments.nvim",
+    requires = "nvim-lua/plenary.nvim",
+    config = function() require("todo-comments").setup {} end
+  }
+  use('sindrets/diffview.nvim')
 
-  ----------------
-  -- Commenting --
-  ----------------
+  -- colorschemes
+  use { "catppuccin/nvim", as = "catppuccin" }
+  use("ellisonleao/gruvbox.nvim")
+  use('navarasu/onedark.nvim')
+  use('folke/tokyonight.nvim')
+  use({ 'rose-pine/neovim', as = 'rose-pine' })
 
-  ------------
-  -- Colors --
-  ------------
-  use 'norcalli/nvim-colorizer.lua' -- show colors inline over hex codes
+  use {
+	  'VonHeikemen/lsp-zero.nvim',
+    branch = 'v3.x',
+	  requires = {
+		  -- LSP Support
+		  {'neovim/nvim-lspconfig'},
+		  {'williamboman/mason.nvim'},
+		  {'williamboman/mason-lspconfig.nvim'},
 
-  ------------
-  -- Others --
-  ------------
-  use({
-    "christoomey/vim-tmux-navigator",
-    lazy = false
-  }) -- navigate between tmux and vim
+      -- Autocompletion
+      {'hrsh7th/nvim-cmp'},
+      {'hrsh7th/cmp-buffer'},
+      {'hrsh7th/cmp-path'},
+      {'saadparwaiz1/cmp_luasnip'},
+      {'hrsh7th/cmp-nvim-lsp'},
+      {'hrsh7th/cmp-nvim-lua'},
+
+		  -- Snippets
+		  {'L3MON4D3/LuaSnip'},
+		  {'rafamadriz/friendly-snippets'},
+	  }
+  }
+  use('onsails/lspkind.nvim')
+
+  use('jose-elias-alvarez/null-ls.nvim')
+  use('MunifTanjim/prettier.nvim')
+  use("github/copilot.vim")
+
+  use 'windwp/nvim-ts-autotag'
+  use 'nvim-lualine/lualine.nvim' -- Fancier statusline
+  use 'numToStr/Comment.nvim'
+  use {
+		"windwp/nvim-autopairs",
+		config = function() require("nvim-autopairs").setup {} end
+	}
+  use { 'lewis6991/gitsigns.nvim', requires = { 'nvim-lua/plenary.nvim' } } -- Add git related info in the signs columns and popups
+  use 'kyazdani42/nvim-web-devicons'
+
+  use{
+    'folke/trouble.nvim',
+    requires = 'kyazdani42/nvim-web-devicons'
+  }
+
+  use {
+    "pmizio/typescript-tools.nvim",
+    requires = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
+  }
+
 end)
+
