@@ -56,6 +56,10 @@ return {
               }
             }
           }
+
+          vim.keymap.set("n", "<leader>fi", function()
+            organize_imports()
+          end)
         end,
         ["lua_ls"] = function()
           local lspconfig = require("lspconfig")
