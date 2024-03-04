@@ -49,6 +49,11 @@ return {
           local lspconfig = require("lspconfig")
           lspconfig.tsserver.setup {
             capabilities = capabilities,
+            init_options = {
+              preferences = {
+                importModuleSpecifierPreference = "non-relative"
+              }
+            },
             commands = {
               OrganizeImports = {
                 organize_imports,
