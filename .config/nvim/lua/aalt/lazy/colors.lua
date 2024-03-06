@@ -13,6 +13,10 @@ end
 
 return {{
     "catppuccin/nvim",
+    -- Load during startup
+    lazy = false,
+    -- Load this before all other plugins
+    priority = 1000,
     config = function()
         require("catppuccin").setup({
             flavour = "mocha", -- latte, frappe, macchiato, mocha
@@ -57,7 +61,5 @@ return {{
         })
 
         vim.cmd("colorscheme catppuccin")
-
-        ColorMyPencils()
     end
 }}

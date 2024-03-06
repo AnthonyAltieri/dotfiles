@@ -1,0 +1,39 @@
+-- Line Numbers
+vim.opt.number = true
+vim.opt.relativenumber = true
+
+-- Spacing
+vim.opt.tabstop = 2
+vim.opt.softtabstop = 2
+vim.opt.shiftwidth = 2
+vim.opt.expandtab = true
+vim.opt.smartindent = true
+vim.opt.wrap = false
+
+-- Search
+-- case-insensitive searching UNLESS \C or capital in search
+vim.opt.ignorecase = true
+vim.opt.smartcase = true
+vim.opt.incsearch = true
+
+-- Preview substitutions live, as you type!
+vim.opt.inccommand = 'split'
+
+-- Don't use swapfiles, use an undofile instead
+vim.opt.swapfile = false
+vim.opt.backup = false
+vim.opt.undodir = os.getenv("HOME") .. "/.vim/undodir"
+vim.opt.undofile = true
+
+-- Decrease update time
+vim.opt.updatetime = 250
+vim.opt.timeoutlen = 300
+
+-- Minimal number of screen lines to keep above and below the cursor.
+vim.opt.scrolloff = 10
+
+-- Colors
+vim.opt.termguicolors = true
+
+vim.opt.signcolumn = "yes"
+vim.opt.isfname:append("@-@")
