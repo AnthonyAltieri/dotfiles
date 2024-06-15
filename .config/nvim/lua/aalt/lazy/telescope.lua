@@ -53,9 +53,7 @@ return { -- Fuzzy Finder (files, lsp, etc)
 			--
 			defaults = {
 				mappings = {
-					i = {
-						["<esc>"] = actions.close,
-					},
+					i = { ["<esc>"] = actions.close },
 				},
 			},
 			-- pickers = {}
@@ -82,15 +80,6 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		vim.keymap.set("n", "<leader>sr", builtin.resume, { desc = "[S]earch [R]esume" })
 		vim.keymap.set("n", "<leader>s.", builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
 		vim.keymap.set("n", "<leader><leader>", builtin.buffers, { desc = "[ ] Find existing buffers" })
-
-		-- Also possible to pass additional configuration options.
-		--  See `:help telescope.builtin.live_grep()` for information about particular keys
-		vim.keymap.set("n", "<leader>s/", function()
-			builtin.live_grep({
-				grep_open_files = true,
-				prompt_title = "Live Grep in Open Files",
-			})
-		end, { desc = "[S]earch [/] in Open Files" })
 
 		-- Shortcut for searching your neovim configuration files
 		vim.keymap.set("n", "<leader>sn", function()
