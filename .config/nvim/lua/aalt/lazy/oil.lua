@@ -4,7 +4,8 @@ return {
 		dependencies = { "nvim-tree/nvim-web-devicons" },
 		config = function()
 			CustomOilBar = function()
-				local path = vim.fn.expand("%")
+				local expanded = vim.fn.expand("%")
+				local path = type(expanded) == "table" and expanded[1] or expanded
 				path = path:gsub("oil://", "")
 
 				return "  " .. vim.fn.fnamemodify(path, ":.")
@@ -19,7 +20,7 @@ return {
 					["<C-j>"] = false,
 					["<M-h>"] = "actions.select_split",
 					["<C-p>"] = false,
-					["<leader>op"] = "actions.preview",
+					["<M-p>"] = "actions.preview",
 				},
 				win_options = {
 					winbar = "%{v:lua.CustomOilBar()}",
