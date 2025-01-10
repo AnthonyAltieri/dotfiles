@@ -75,7 +75,7 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		vim.keymap.set("n", "<leader>fp", builtin.find_files, { desc = "[F]ind [P]roject (Telescope)" })
 		vim.keymap.set("n", "<C-p>", builtin.git_files, { desc = "Find Git Files (Telescope)" })
 		vim.keymap.set("n", "<leader>fw", builtin.grep_string, { desc = "[F]ind current [W]ord (Telescope)" })
-		vim.keymap.set("n", "<leader>fg", builtin.live_grep, { desc = "[F]ind by [G]rep (Telescope)" })
+		vim.keymap.set("n", "<m-g>", builtin.live_grep, { desc = "Find by Grep (Telescope)" })
 		vim.keymap.set("n", "<leader>fd", builtin.diagnostics, { desc = "[F]ind [D]iagnostics (Telescope)" })
 		vim.keymap.set(
 			"n",
