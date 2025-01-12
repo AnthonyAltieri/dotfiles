@@ -161,6 +161,7 @@
     "key": "ctrl+cmd+o",
     "command": "extension.multiCommand.execute",
     "args": {
+      "interval": 100,
       "sequence": [
         "typescript.removeUnusedImports",
         "typescript.sortImports",
@@ -168,4 +169,27 @@
     },
     "when": "editorTextFocus"
   },
+  // toggle signature help
+  {
+    "key": "alt+h",
+    "command": "editor.action.triggerParameterHints",
+    "when": "editorHasSignatureHelpProvider && editorTextFocus"
+  },
+  {
+    "key": "alt+h",
+    "command": "closeParameterHints",
+    "when": "editorHasSignatureHelpProvider && editorTextFocus && parameterHintsVisible"
+  },
+  // show hover with keyboard
+  {
+    "key": "alt+v",
+    "command": "editor.action.showHover",
+    "when": "editorTextFocus"
+  },
+  // Extension: VSCode Harpoon
+  {
+    "key": "alt+h",
+    "command": "vscode-harpoon.editEditors",
+    "when": "editGlobalEditors"
+  }
 ]
