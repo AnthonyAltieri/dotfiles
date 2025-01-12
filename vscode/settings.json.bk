@@ -1,0 +1,98 @@
+{
+    "editor.accessibilitySupport": "off",
+    "editor.fontSize": 14,
+    "editor.fontFamily": "TX-02",
+    "editor.minimap.enabled": false,
+    "workbench.colorTheme": "GitHub Dark Dimmed",
+    "workbench.editor.enablePreviewFromQuickOpen": false,
+    "workbench.editor.enablePreview": false,
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "typescript.tsserver.maxTsServerMemory": 4096,
+    "typescript.preferences.importModuleSpecifier": "non-relative",
+    "[typescript]": {
+        "editor.tabSize": 2,
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+        "editor.formatOnSave": true
+    },
+    "editor.cursorSurroundingLines": 8,
+    "vim.vimrc.enable": true,
+    "vim.leader": " ",
+    "vim.normalModeKeyBindingsNonRecursive": [
+        {
+            "before": [
+                "]",
+                "d"
+            ],
+            "commands": [
+                "editor.action.marker.nextInFiles"
+            ],
+            "silent": true
+        },
+        {
+            "before": [
+                "[",
+                "d"
+            ],
+            "commands": [
+                "editor.action.marker.prevInFiles"
+            ],
+            "silent": true
+        },
+        // required VSCode Harpoon extension
+        {
+            "before": ["<leader>", "a"],
+            "commands": ["vscode-harpoon.addEditor"],
+        },
+        {
+            "before": ["<leader>", "1"],
+            "commands": ["vscode-harpoon.gotoEditor1"],
+        },
+        {
+            "before": ["<leader>", "2"],
+            "commands": ["vscode-harpoon.gotoEditor2"],
+        },
+        {
+            "before": ["<leader>", "3"],
+            "commands": ["vscode-harpoon.gotoEditor3"],
+        },
+        {
+            "before": ["<leader>", "4"],
+            "commands": ["vscode-harpoon.gotoEditor4"],
+        },
+        {
+            "before": ["<leader>", "5"],
+            "commands": ["vscode-harpoon.gotoEditor5"],
+        }
+    ],
+    "python.testing.pytestArgs": [
+        "--no-cov"
+    ],
+    "python.testing.pytestEnabled": true,
+    "eslint.format.enable": true,
+    "eslint.run": "onSave",
+    "gitlens.currentLine.enabled": false,
+    "gitlens.hovers.currentLine.over": "line",
+    "gitlens.codeLens.enabled": false,
+    "gitlens.hovers.enabled": false,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "explorer.confirmDelete": false,
+    "editor.lineNumbers": "relative",
+    "editor.inlineSuggest.enabled": true,
+    "jupyter.askForKernelRestart": false,
+    "editor.unicodeHighlight.allowedCharacters": {
+        "›": true
+    },
+    "nxConsole.showNodeVersionOnStartup": false,
+    "catppuccin.italicKeywords": false,
+    "catppuccin.italicComments": false,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "editor.snippets.codeActions.enabled": false,
+    "editor.snippetSuggestions": "none",
+    "editor.suggest.showSnippets": false,
+    "javascript.suggest.classMemberSnippets.enabled": false,
+    "typescript.suggest.classMemberSnippets.enabled": false,
+    "typescript.suggest.objectLiteralMethodSnippets.enabled": false
+}

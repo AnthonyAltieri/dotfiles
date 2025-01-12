@@ -1,43 +1,60 @@
 {
-
   // Editor
   "editor.accessibilitySupport" : "off",
   "editor.fontSize" : 14,
   "editor.fontFamily": "Fira Code Retina",
+  "editor.lineNumbers": "relative",
   "editor.minimap.enabled" : false,
+  // scrolloff=8 hack https://github.com/VSCodeVim/Vim/issues/1427#issuecomment-520499830
+  "editor.cursorSurroundingLines": 8,
+
+  // Explorer
+  "explorer.confirmDelete": false,
 
   // Workbench
   "workbench.colorTheme": "GitHub Dark",
   "workbench.editor.enablePreviewFromQuickOpen" : false,
-  "workbench.startupEditor" : "newUntitledFile",
   "workbench.editor.enablePreview": false,
-
-  // Terminal
-  "terminal.integrated.env.osx": {
-    "FIG_NEW_SESSION": "1"
-  },
 
   // Javascript
   "javascript.updateImportsOnFileMove.enabled" : "always",
 
   // Typescript
-  "typescript.tsserver.maxTsServerMemory": 4096,
-  "typescript.preferences.importModuleSpecifier": "non-relative",
   "[typescript]" : {
     "editor.tabSize" : 2,
     "editor.defaultFormatter": "dbaeumer.vscode-eslint",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+  },
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "typescript.suggest.classMemberSnippets.enabled": false,
+  "typescript.suggest.objectLiteralMethodSnippets.enabled": false,
+
+  // Python
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter":  "charliermarsh.ruff"
   },
 
   // Vim
   "vim.vimrc.enable": true,
-  "editor.cursorSurroundingLines": 8, // scrolloff=8 hack https://github.com/VSCodeVim/Vim/issues/1427#issuecomment-520499830
+  "vim.leader": " ",
+  "vim.normalModeKeyBindingsNonRecursive": [
+      { "before": ["]", "d"], "commands": ["editor.action.marker.next"], "silent": true },
+      { "before": ["[", "d"], "commands": ["editor.action.marker.prev"], "silent": true },
+      // required VSCode Harpoon extension https://marketplace.visualstudio.com/items?itemName=tobias-z.vscode-harpoon
+      { "before": ["<leader>", "a"], "commands": ["vscode-harpoon.addEditor"] },
+      { "before": ["<leader>", "1"], "commands": ["vscode-harpoon.gotoEditor1"] },
+      { "before": ["<leader>", "2"], "commands": ["vscode-harpoon.gotoEditor2"] },
+      { "before": ["<leader>", "3"], "commands": ["vscode-harpoon.gotoEditor3"] },
+      { "before": ["<leader>", "4"], "commands": ["vscode-harpoon.gotoEditor4"] },
+      { "before": ["<leader>", "5"], "commands": ["vscode-harpoon.gotoEditor5"] }
+  ],
 
   // Eslint
   "eslint.format.enable": true,
-  "eslint.packageManager": "yarn",
   "eslint.run": "onSave",
-  "eslint.trace.server": "on",
+  "eslint.trace.server": "messages",
 
   // Git Lens
   "gitlens.currentLine.enabled": false,
