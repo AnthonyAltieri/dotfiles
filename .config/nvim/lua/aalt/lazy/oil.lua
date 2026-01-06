@@ -2,6 +2,11 @@ return {
 	{
 		"stevearc/oil.nvim",
 		dependencies = { "nvim-tree/nvim-web-devicons" },
+		lazy = false, -- Load early to hijack directory buffers (netrw replacement)
+		keys = {
+			{ "-", "<CMD>Oil<CR>", desc = "Open parent dir in current window (Oil)" },
+			{ "<space>-", function() require("oil").toggle_float() end, desc = "Open parent dir in floating window (Oil)" },
+		},
 		config = function()
 			CustomOilBar = function()
 				local expanded = vim.fn.expand("%")
@@ -21,6 +26,11 @@ return {
 					["<M-h>"] = "actions.select_split",
 					["<C-p>"] = false,
 					["<M-p>"] = "actions.preview",
+					["<M-/>"] = function()
+						if _G.show_cheatsheet then
+							_G.show_cheatsheet()
+						end
+					end,
 				},
 				win_options = {
 					winbar = "%{v:lua.CustomOilBar()}",
@@ -33,17 +43,6 @@ return {
 					end,
 				},
 			})
-
-			-- Open parent directory in current window
-			vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent dir in current window (Oil)" })
-
-			-- Open parent directory in floating window
-			vim.keymap.set(
-				"n",
-				"<space>-",
-				require("oil").toggle_float,
-				{ desc = "Open parent dir in floating window (Oil)" }
-			)
 		end,
 	},
 }

@@ -1,11 +1,11 @@
 return {
-
-    {
-        "nvim-lua/plenary.nvim",
-        name = "plenary"
-    },
-
-    "github/copilot.vim",
-    "gpanders/editorconfig.nvim",
+	{
+		"nvim-lua/plenary.nvim",
+		name = "plenary",
+		lazy = true,
+	},
+	{
+		"github/copilot.vim",
+		event = "InsertEnter",
+	},
 }
-

@@ -17,5 +17,19 @@ vim.opt.rtp:prepend(lazypath)
 
 -- Load Lazy plugins
 require("lazy").setup({
-    spec = { import = "aalt.lazy" }
+    spec = { import = "aalt.lazy" },
+    performance = {
+        rtp = {
+            disabled_plugins = {
+                "gzip",
+                "matchit",
+                "matchparen",
+                "netrwPlugin",
+                "tarPlugin",
+                "tohtml",
+                "tutor",
+                "zipPlugin",
+            },
+        },
+    },
 })

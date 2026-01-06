@@ -79,8 +79,8 @@ return {
 
 					-- Opens a popup that displays documentation about the word under your cursor
 					--  See `:help K` for why this keymap
-					vim.keymap.set("n", "<m-h>", vim.lsp.buf.hover, opts("Hover Documentation (lsp)"))
-					vim.keymap.set("i", "<m-h>", vim.lsp.buf.signature_help, opts("Signature Help (lsp)"))
+					vim.keymap.set("n", "<m-h>", "<cmd>Lspsaga hover_doc<CR>", opts("Hover Documentation (lsp)"))
+					vim.keymap.set("i", "<m-h>", "<cmd>Lspsaga hover_doc<CR>", opts("Signature Help (lsp)"))
 
 					-- WARN: This is not Goto Definition, this is Goto Declaration.
 					--  For example, in C this would take you to the header
