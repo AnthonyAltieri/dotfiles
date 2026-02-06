@@ -22,6 +22,13 @@ vim.keymap.set("n", "J", "mzJ`z")
 vim.keymap.set("n", "<C-d>", "<C-d>zz")
 vim.keymap.set("n", "<C-u>", "<C-u>zz")
 
+-- Scroll window without moving cursor
+-- 2 lines per repeat so perceived speed roughly matches holding j/k, which at
+-- KeyRepeat=2 (~33 rps) batches cursor moves and visually jumps 2-3 lines.
+-- See: .chezmoiscripts/darwin/run_once_before_03-configure-macos-keyboard.sh.tmpl
+vim.keymap.set("n", "<M-j>", "2<C-e>", { desc = "Scroll window down" })
+vim.keymap.set("n", "<M-k>", "2<C-y>", { desc = "Scroll window up" })
+
 -- Keep screen in center while navigating search results
 vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
