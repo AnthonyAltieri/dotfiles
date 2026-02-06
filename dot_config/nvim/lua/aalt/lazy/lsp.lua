@@ -149,7 +149,7 @@ return {
 				-- But for many setups, the LSP (`tsserver`) will work just fine
 				pyright = {},
 				ruff_lsp = {},
-				tsserver = {
+				ts_ls = {
 					init_options = {
 						preferences = {
 							-- Prefer absolute imports
@@ -201,17 +201,18 @@ return {
 
 			-- You can add other tools here that you want Mason to install
 			-- for you, so that they are available from within Neovim.
-			local ensure_installed = vim.tbl_keys(servers or {})
-			vim.list_extend(ensure_installed, {
-				"stylua", -- Used to format lua code
-				"eslint_d",
-				"oxfmt",
-				"oxlint",
-				"prettierd",
+			require("mason-tool-installer").setup({
+				ensure_installed = {
+					"stylua", -- Used to format lua code
+					"eslint_d",
+					"oxfmt",
+					"oxlint",
+					"prettierd",
+				},
 			})
-			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
 			require("mason-lspconfig").setup({
+				ensure_installed = vim.tbl_keys(servers or {}),
 				handlers = {
 					function(server_name)
 						local server = servers[server_name] or {}
