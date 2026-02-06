@@ -2,6 +2,7 @@ return {
 	-- Adds git related signs to the gutter, as well as utilities for managing changes
 	{
 		"lewis6991/gitsigns.nvim",
+		event = { "BufReadPre", "BufNewFile" },
 		opts = {
 			signs = {
 				add = { text = "+" },
@@ -14,9 +15,11 @@ return {
 	},
 	{
 		"tpope/vim-fugitive",
+		cmd = "Git",
+		keys = {
+			{ "<leader>gs", "<cmd>Git<CR>", desc = "Git status" },
+		},
 		config = function()
-			vim.keymap.set("n", "<leader>gs", vim.cmd.Git)
-
 			local AAlt_Fugitive = vim.api.nvim_create_augroup("AAlt_Fugitive", {})
 
 			local autocmd = vim.api.nvim_create_autocmd
@@ -47,4 +50,3 @@ return {
 		end,
 	},
 }
-

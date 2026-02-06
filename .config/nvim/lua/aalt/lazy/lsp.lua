@@ -13,6 +13,10 @@ return {
 			{ "j-hui/fidget.nvim", opts = {} },
 		},
 		config = function()
+			vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "rounded" })
+			vim.lsp.handlers["textDocument/signatureHelp"] =
+				vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded" })
+
 			-- This function gets run when an LSP attaches to a particular buffer.
 			--  That is to say, every time a new file is opened that is associated with
 			--  an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
@@ -79,8 +83,8 @@ return {
 
 					-- Opens a popup that displays documentation about the word under your cursor
 					--  See `:help K` for why this keymap
-					vim.keymap.set("n", "<m-h>", vim.lsp.buf.hover, opts("Hover Documentation (lsp)"))
-					vim.keymap.set("i", "<m-h>", vim.lsp.buf.signature_help, opts("Signature Help (lsp)"))
+					vim.keymap.set("n", "<m-v>", vim.lsp.buf.hover, opts("Hover Documentation (lsp)"))
+					vim.keymap.set("i", "<m-v>", vim.lsp.buf.signature_help, opts("Signature Help (lsp)"))
 
 					-- WARN: This is not Goto Definition, this is Goto Declaration.
 					--  For example, in C this would take you to the header
@@ -124,6 +128,24 @@ return {
 				})
 			end
 
+			-- oxlint (via `oxlint --lsp`) isn't yet shipped in every nvim-lspconfig version,
+			-- so we register it here when missing.
+			do
+				local lspconfig = require("lspconfig")
+				local configs = require("lspconfig.configs")
+
+				if not configs.oxlint then
+					configs.oxlint = {
+						default_config = {
+							cmd = { "oxlint", "--lsp" },
+							filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+							root_dir = lspconfig.util.root_pattern("package.json", "tsconfig.json", ".git"),
+							single_file_support = true,
+						},
+					}
+				end
+			end
+
 			-- Enable the following language servers
 			--  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
 			--
@@ -145,6 +167,7 @@ return {
 				-- But for many setups, the LSP (`tsserver`) will work just fine
 				pyright = {},
 				ruff_lsp = {},
+				oxlint = {},
 				tsserver = {
 					init_options = {
 						preferences = {
@@ -200,6 +223,8 @@ return {
 			local ensure_installed = vim.tbl_keys(servers or {})
 			vim.list_extend(ensure_installed, {
 				"stylua", -- Used to format lua code
+				"oxfmt",
+				"prettierd",
 			})
 			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
@@ -215,6 +240,14 @@ return {
 					end,
 				},
 			})
+
+			-- mason-lspconfig doesn't currently ship oxlint mappings in this repo lock,
+			-- so we setup oxlint directly.
+			do
+				local server = servers.oxlint or {}
+				server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
+				require("lspconfig").oxlint.setup(server)
+			end
 
 			-- Bind any language specific commands
 			-- TODO: language specific commands

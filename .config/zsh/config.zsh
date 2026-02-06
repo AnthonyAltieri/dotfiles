@@ -7,15 +7,8 @@ fi
 
 # path setup
 export PATH="${HOME}/.local/bin:${PATH}"
-export PATH="${HOME}/.poetry/bin:${PATH}"
-export PATH="${PATH}:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
 
 # load other .zsh files
-for f in ~/.config/zsh/features/*.zsh; do
-  if [[ -r ${f} ]] ; then
-    source "${f}"
-  fi
-done
 for f in ~/.config/zsh/functions/*.zsh; do
   if [[ -r ${f} ]] ; then
     source "${f}"
