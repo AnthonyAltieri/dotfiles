@@ -52,6 +52,7 @@ return { -- Fuzzy Finder (files, lsp, etc)
 			--  All the info you're looking for is in `:help telescope.setup()`
 			--
 			defaults = {
+				file_ignore_patterns = { "node_modules" },
 				mappings = {
 					i = { ["<esc>"] = actions.close },
 				},
@@ -73,14 +74,6 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		vim.keymap.set("n", "<leader>fh", builtin.help_tags, { desc = "[F]ind [H]elp (Telescope)" })
 		vim.keymap.set("n", "<leader>fk", builtin.keymaps, { desc = "[F]ind [K]eymaps (Telescope)" })
 		vim.keymap.set("n", "<leader>fp", builtin.find_files, { desc = "[F]ind [P]roject (Telescope)" })
-		vim.keymap.set("n", "<C-p>", function()
-			vim.fn.system("git rev-parse --is-inside-work-tree")
-			if vim.v.shell_error == 0 then
-				builtin.git_files()
-			else
-				builtin.find_files()
-			end
-		end, { desc = "Find Files (git or fallback)" })
 		vim.keymap.set("n", "<leader>fw", builtin.grep_string, { desc = "[F]ind current [W]ord (Telescope)" })
 		vim.keymap.set("n", "<m-g>", builtin.live_grep, { desc = "Find by Grep (Telescope)" })
 		vim.keymap.set("n", "<leader>fd", builtin.diagnostics, { desc = "[F]ind [D]iagnostics (Telescope)" })
@@ -95,6 +88,5 @@ return { -- Fuzzy Finder (files, lsp, etc)
 		vim.keymap.set("n", "<leader>fv", function()
 			builtin.find_files({ cwd = vim.fn.stdpath("config") })
 		end, { desc = "[F]ind neo[V]im files" })
-
 	end,
 }

@@ -48,7 +48,7 @@ _G.show_cheatsheet = function()
 
 	local commands = {
 		-- Search
-		{ cat = "Search", key = "<C-p>", desc = "Find files (git or all)" },
+		{ cat = "Search", key = "<C-p>", desc = "Quick Open (files)" },
 		{ cat = "Search", key = "<leader>fp", desc = "Find all files" },
 		{ cat = "Search", key = "<M-g>", desc = "Live grep" },
 		{ cat = "Search", key = "<leader>fw", desc = "Grep current word" },
@@ -57,8 +57,8 @@ _G.show_cheatsheet = function()
 		{ cat = "Search", key = "<leader>fk", desc = "Keymaps" },
 
 		-- Hover & Documentation
-		{ cat = "Hover/Docs", key = "<M-h>", desc = "Hover documentation (normal mode)" },
-		{ cat = "Hover/Docs", key = "<M-h>", desc = "Signature help (insert mode)" },
+		{ cat = "Hover/Docs", key = "<M-v>", desc = "Hover documentation (normal mode)" },
+		{ cat = "Hover/Docs", key = "<M-v>", desc = "Signature help (insert mode)" },
 		{ cat = "Hover/Docs", key = "<leader>D", desc = "Type definition" },
 		{ cat = "Hover/Docs", key = "<leader>ds", desc = "Document symbols" },
 		{ cat = "Hover/Docs", key = "<leader>ws", desc = "Workspace symbols" },
