@@ -1,0 +1,17 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+set -euo pipefail
+
+echo "Configuring macOS keyboard repeat rate..."
+
+# Shorter delay before key repeat begins (default: 25, range: 1-120, lower = shorter delay)
+defaults write -g InitialKeyRepeat -int 15
+
+# Faster key repeat rate (default: 6, range: 1-120, lower = faster)
+# At KeyRepeat=2 (~33 rps), nvim batches cursor moves so holding j/k visually
+# jumps 2-3 lines. The <M-j>/<M-k> scroll mappings use 2<C-e>/2<C-y> to match.
+# See: dot_config/nvim/lua/aalt/set.lua
+defaults write -g KeyRepeat -int 2
+
+echo "Keyboard repeat rate configured. Log out and back in for changes to take effect."
+{{ end -}}

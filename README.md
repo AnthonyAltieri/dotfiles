@@ -42,6 +42,71 @@ Pull and apply updates:
 chezmoi update
 ```
 
+## How chezmoi works
+
+[chezmoi](https://www.chezmoi.io/) manages dotfiles by keeping a **source directory** (this repo) that maps to files in your home directory. It never symlinks — it copies files into place, so your home directory has normal files and chezmoi owns the "source of truth" in the repo.
+
+### File naming conventions
+
+chezmoi uses special prefixes in the source directory to control how files are deployed:
+
+| Source (this repo)                  | Deployed to                        |
+|-------------------------------------|------------------------------------|
+| `dot_zshrc`                         | `~/.zshrc`                         |
+| `dot_config/nvim/init.lua`          | `~/.config/nvim/init.lua`          |
+| `dot_config/starship.toml`          | `~/.config/starship.toml`          |
+| `executable_dev`                    | `dev` (with `chmod +x`)            |
+
+The `dot_` prefix becomes a `.` in the target path. The `executable_` prefix sets the file as executable. Directories map 1:1 (minus the prefixes).
+
+### Bootstrap scripts
+
+Scripts in `.chezmoiscripts/` run automatically during `chezmoi apply`. The naming controls **when** and **how often** they run:
+
+```
+.chezmoiscripts/
+├── darwin/                          # macOS-only scripts
+│   ├── run_once_before_01-install-homebrew.sh.tmpl
+│   ├── run_once_before_02-install-brews.sh.tmpl
+│   └── run_once_before_03-configure-macos-keyboard.sh.tmpl
+├── run_once_before_03-install-oh-my-zsh.sh
+├── run_once_before_04-install-zsh-plugins.sh
+├── run_once_before_05-install-tpm.sh
+└── run_once_before_06-install-nvm.sh
+```
+
+Breaking down the name `run_once_before_01-install-homebrew.sh.tmpl`:
+
+- **`run_once`** — chezmoi tracks a hash of the script and only re-runs it if the contents change. Without this, it would run on every `chezmoi apply`.
+- **`before`** — run before any files are copied into place (use `after` for the opposite).
+- **`01-`** — controls execution order. Scripts run in lexicographic order, so `01-` runs before `02-`, etc.
+- **`.tmpl`** — the file is a chezmoi template. This lets you use Go template syntax like `{{ if eq .chezmoi.os "darwin" }}` to conditionally include content (e.g., skip macOS-specific scripts on Linux).
+
+### Templates
+
+Files ending in `.tmpl` are processed through Go's `text/template` engine before being deployed. This repo uses templates mainly for OS guards in scripts:
+
+```bash
+{{ if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+# This only runs on macOS
+{{ end -}}
+```
+
+The trailing `-` trims whitespace so the rendered output is clean.
+
+### Key commands
+
+| Command             | What it does                                           |
+|---------------------|--------------------------------------------------------|
+| `chezmoi add FILE`  | Copy a file from `~` into the source directory         |
+| `chezmoi edit FILE` | Open the source version of a file in your editor       |
+| `chezmoi diff`      | Show what `apply` would change (dry-run diff)          |
+| `chezmoi apply`     | Deploy everything: run scripts + copy files to `~`     |
+| `chezmoi update`    | `git pull` the source repo then `apply`                |
+
+After editing files in this repo directly (not via `chezmoi edit`), run `chezmoi apply` to push changes to your home directory.
+
 ## What's included
 
 - **zsh** — Oh My Zsh with zsh-autosuggestions and F-Sy-H
