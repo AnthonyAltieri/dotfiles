@@ -35,7 +35,7 @@ export NVM_DIR="$HOME/.nvm"
 
 
 # pnpm
-export PNPM_HOME="/Users/aalt/Library/pnpm"
+export PNPM_HOME="$HOME/Library/pnpm"
 case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
@@ -43,7 +43,7 @@ esac
 # pnpm end
 
 # bun completions
-[ -s "/Users/aalt/.bun/_bun" ] && source "/Users/aalt/.bun/_bun"
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 # bun
 export BUN_INSTALL="$HOME/.bun"
@@ -61,4 +61,4 @@ if [[ -f "${HOME}/.env" ]]; then
 fi
 
 # WarpStream
-export PATH="/Users/aalt/.warpstream:$PATH"
+export PATH="$HOME/.warpstream:$PATH"
