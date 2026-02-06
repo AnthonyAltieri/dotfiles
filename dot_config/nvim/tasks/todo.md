@@ -1,41 +1,99 @@
-# Neovim config updates
+# Neovim monorepo formatting/linting verification
 
 ## Goal
-- Make LSP hover/signature use native handlers on `<M-v>`.
-- Make `<C-p>` act like VSCode “Quick Open” (normal + insert), including hidden files, respecting `.gitignore`, but always showing `.env*`.
-- Add smoother/faster-feeling scrolling with `neoscroll.nvim` + acceleration for `j/k` and `<Up>/<Down>`.
-- Add JS/TS lint + format support preferring `oxlint` and `oxfmt`.
+- Ensure auto formatting and linting on save works in `~/code/webapps-clone` with path-aware tool routing.
+- Use `biome` for `apps/signal` and `packages/sf`.
+- Use `eslint` + `prettier` for other JS/TS projects in the monorepo.
 
 ## Success criteria
-- `<M-v>` shows hover docs in normal mode and signature help in insert mode.
-- `<C-p>` opens a fast file picker in normal + insert and includes `.env*` even when ignored.
-- Holding `j/k` or `<Up>/<Down>` speeds up movement; scrolling feels smoother.
-- JS/TS shows lint diagnostics (oxlint) and formats on save with oxfmt when available.
+- Saving files in `apps/signal` or `packages/sf` runs Biome formatting/linting behavior.
+- Saving files outside those paths runs Prettier formatting and ESLint diagnostics.
+- No double-formatting or conflicting diagnostics from multiple JS/TS linters on save.
+- Behavior is stable regardless of opened cwd inside `~/code/webapps-clone`.
 
 ## Assumptions / constraints
-- macOS + Homebrew available for installing `fzf`.
-- New plugins will be installed by Lazy on next Neovim start (or via `:Lazy sync`).
-- Mason will manage `oxlint`/`oxfmt` binaries (download on demand).
+- `~/code/webapps-clone` has mixed tool configs for Biome and ESLint/Prettier.
+- Neovim config changes happen only in this `dotfiles` repo.
+- We will validate with targeted test files and repeatable commands.
 
 ## Plan
-- [x] Switch hover/signature keymaps to native LSP and remove lspsaga usage.
-- [x] Add `fzf-lua` quick open on `<C-p>` (n+i), and remap nvim-cmp’s `<C-p>` to avoid conflict.
-- [x] Add `neoscroll.nvim` and `accelerated-jk` for smooth + accelerated movement.
-- [x] Prefer `oxfmt` in Conform; add `oxlint` LSP setup and Mason installs.
-- [x] Format Lua (stylua) and run a headless Neovim syntax load.
+- [x] Capture baseline behavior from current config and test against representative monorepo files.
+- [x] Build an explicit JS/TS path matrix (Biome scopes and ESLint/Prettier scopes).
+- [x] Implement path-aware formatter selection in Conform for save-time formatting.
+- [x] Implement path-aware linter selection for diagnostics (Biome in scoped paths, ESLint elsewhere).
+- [x] Prevent formatter/linter overlap and conflicting save hooks.
+- [x] Re-run the full path matrix and iterate until every case passes.
+- [x] Document final results and any follow-up risks in the review section.
 
 ## Risks / edge cases
-- Terminal may not send `<M-v>` consistently depending on settings.
-- `<C-p>` in insert mode conflicts with nvim-cmp’s default mapping (will be remapped).
-- `oxlint` LSP integration relies on `oxlint --lsp` being available from Mason.
+- Monorepo root detection may differ when Neovim launches from nested directories.
+- Missing local configs or binaries can cause fallback behavior to look like routing bugs.
+- Mixed LSP and external linter diagnostics can create duplicate messages.
 
-## Verification
-- [x] Run `~/.local/share/nvim/mason/bin/stylua` on changed Lua files.
-- [x] Run a headless syntax load with `nvim -u NONE --headless` (sandbox blocks writing to `~/.cache`/`~/.local/state`).
+## Verification plan
+- [x] Validate formatter selection on save for at least one file per scope in the matrix.
+- [x] Validate linter diagnostics source for at least one file per scope in the matrix.
+- [x] Verify save behavior from both repo root and a nested package cwd.
+- [x] Confirm no unexpected diagnostics/formatters are triggered in any matrix case.
 
 ## Review
-- Installed `fzf` via Homebrew for `fzf-lua` quick open.
-- Verified Lua formatting with `stylua`.
-- Verified changed Lua files load without syntax/runtime errors via `nvim -u NONE --headless`.
-- Fixed `accelerated-jk` startup error by removing an invalid `require()` (plugin is Vimscript-only).
-- Fixed `fzf-lua` devicons API mismatch by switching file icons to `mini.icons`.
+- Baseline (before changes): JS/TS formatting always selected `oxfmt` first and linting attempted `oxlint` (missing in PATH), so monorepo routing was not working.
+- Added shared path/root detection in `lua/aalt/monorepo.lua` for Biome and ESLint scopes.
+- Conform now routes JS/TS formatters by nearest config:
+- Biome scopes use `biome` first (with fallback only if unavailable), and non-Biome scopes use `prettierd`/`prettier`.
+- Added `nvim-lint` on-save hook (`BufWritePost`) with project-aware linter selection:
+- Biome scopes run `biome`; ESLint scopes run `eslint_d`.
+- Verified matrix from repo root and nested cwd (`packages/ui`) with headless Neovim probes:
+- `apps/signal` and `packages/sf` select Biome formatter/linter.
+- `apps/admin`, `apps/webapp`, and `packages/ui` select Prettier formatter + ESLint diagnostics.
+- Save-time behavior verified with temporary probe files:
+- Formatting on save rewrote content in both Biome and Prettier scopes.
+- Lint-on-save emitted diagnostics from `eslint_d` and `biomejs` in their respective scopes.
+
+## OXC Extension Goal
+- Ensure `oxfmt` + `oxlint` can also be selected and run on save for a monorepo subproject.
+
+## OXC Plan
+- [x] Add OXC root detection and tool selection to monorepo routing.
+- [x] Add Conform formatter routing for OXC scopes (`oxfmt` first).
+- [x] Add `nvim-lint` linter routing for OXC scopes (`oxlint`).
+- [x] Ensure OXC binaries are available for verification (Mason + local fallback).
+- [x] Temporarily switch one subproject in `~/code/webapps-clone` to OXC config.
+- [x] Verify save-format and save-lint diagnostics in that OXC test scope.
+- [x] Revert temporary subproject switch and confirm baseline scopes still route correctly.
+
+## OXC Review
+- Added OXC config detection markers (`.oxlintrc.json`, `.oxfmtrc.json`) to shared monorepo routing.
+- Added `oxfmt` formatter definition and path-aware command/cwd resolution in Conform.
+- Added `oxlint` linter definition in `nvim-lint` with JSON output parsing.
+- Installed `oxfmt` and `oxlint` via Mason for deterministic test execution.
+- Temporary OXC switch performed in `packages/utils` with short-lived `.oxlintrc.json` + `.oxfmtrc.json`.
+- During temporary switch:
+- `packages/utils` selected `["oxfmt","prettierd","prettier"]` for formatting and `["oxlint_monorepo"]` for linting.
+- Save-format rewrote probe file content using `oxfmt`.
+- Save-lint emitted diagnostics with source `oxlint` (plus expected parser diagnostics from `typescript` on invalid syntax probe).
+- Removed temporary OXC config files from `packages/utils` after verification.
+- Post-revert verification confirmed routing returned to:
+- `packages/utils` -> `eslint_d` + `prettierd`/`prettier`
+- `apps/signal` -> `biome`
+- `apps/admin` -> `eslint_d` + `prettierd`/`prettier`
+
+## Performance Pass
+- [x] Commit a checkpoint before optimization work.
+- [x] Run a critical pass to find routing hot paths.
+- [x] Implement optimizations without changing behavior.
+- [x] Benchmark before vs after optimization.
+- [x] Publish benchmark report in `dot_config/nvim/BENCHMARK.md`.
+
+## Performance Review
+- Checkpoint commit: `8306e33`.
+- Optimizations applied:
+- Added positive-result caches for toolchain root detection and local binary resolution in `monorepo.lua`.
+- Added cache invalidation when toolchain marker files are saved.
+- Added filetype gate in lint-on-save callback to avoid routing work for non-JS/TS buffers.
+- Behavior re-verified after optimization for Biome, ESLint/Prettier, and temporary OXC scope.
+- Benchmark results are documented in `dot_config/nvim/BENCHMARK.md`.
+
+## Debug Commands
+- [x] Add `:FormatDebug` to inspect formatter routing/candidate availability for current buffer.
+- [x] Add `:LintDebug` to inspect linter routing/command config and current diagnostic sources.

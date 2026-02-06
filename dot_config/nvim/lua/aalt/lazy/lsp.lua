@@ -128,24 +128,6 @@ return {
 				})
 			end
 
-			-- oxlint (via `oxlint --lsp`) isn't yet shipped in every nvim-lspconfig version,
-			-- so we register it here when missing.
-			do
-				local lspconfig = require("lspconfig")
-				local configs = require("lspconfig.configs")
-
-				if not configs.oxlint then
-					configs.oxlint = {
-						default_config = {
-							cmd = { "oxlint", "--lsp" },
-							filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
-							root_dir = lspconfig.util.root_pattern("package.json", "tsconfig.json", ".git"),
-							single_file_support = true,
-						},
-					}
-				end
-			end
-
 			-- Enable the following language servers
 			--  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
 			--
@@ -167,7 +149,6 @@ return {
 				-- But for many setups, the LSP (`tsserver`) will work just fine
 				pyright = {},
 				ruff_lsp = {},
-				oxlint = {},
 				tsserver = {
 					init_options = {
 						preferences = {
@@ -223,7 +204,9 @@ return {
 			local ensure_installed = vim.tbl_keys(servers or {})
 			vim.list_extend(ensure_installed, {
 				"stylua", -- Used to format lua code
+				"eslint_d",
 				"oxfmt",
+				"oxlint",
 				"prettierd",
 			})
 			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
@@ -240,14 +223,6 @@ return {
 					end,
 				},
 			})
-
-			-- mason-lspconfig doesn't currently ship oxlint mappings in this repo lock,
-			-- so we setup oxlint directly.
-			do
-				local server = servers.oxlint or {}
-				server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-				require("lspconfig").oxlint.setup(server)
-			end
 
 			-- Bind any language specific commands
 			-- TODO: language specific commands
