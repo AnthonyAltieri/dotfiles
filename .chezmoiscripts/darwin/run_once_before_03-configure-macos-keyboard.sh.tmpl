@@ -1,0 +1,14 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+set -euo pipefail
+
+echo "Configuring macOS keyboard repeat rate..."
+
+# Shorter delay before key repeat begins (default: 25, range: 1-120, lower = shorter delay)
+defaults write -g InitialKeyRepeat -int 15
+
+# Faster key repeat rate (default: 6, range: 1-120, lower = faster)
+defaults write -g KeyRepeat -int 2
+
+echo "Keyboard repeat rate configured. Log out and back in for changes to take effect."
+{{ end -}}
