@@ -1,0 +1,77 @@
+# Path to your oh-my-zsh installation.
+export ZSH="/Users/$USER/.oh-my-zsh"
+
+# Set name of the theme to load --- if set to "random", it will
+# load a random theme each time oh-my-zsh is loaded, in which case,
+# to know which specific one was loaded, run: echo $RANDOM_THEME
+# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
+# IMPORTANT: This theme doesn't matter because we use starship
+ZSH_THEME="robbyrussell"
+
+# Plugins
+# see README.md for plugin installation
+plugins=(
+  git 
+  npm
+  z
+  zsh-autosuggestions
+  zsh-syntax-highlighting
+)
+
+source $ZSH/oh-my-zsh.sh
+source ~/.config/zsh/config.zsh
+
+
+# Environment 
+export PATH="$HOME/.poetry/bin:$PATH"
+
+# Start starship CLI https://starship.rs/
+eval "$(starship init zsh)"
+
+# Load nvm
+export NVM_DIR="$HOME/.nvm"
+[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
+[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+
+
+# pnpm
+export PNPM_HOME="/Users/aalt/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+# bun completions
+[ -s "/Users/aalt/.bun/_bun" ] && source "/Users/aalt/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+loadenv() {
+  local env_file="$1"
+  if [[ ! -f "$env_file" ]]; then
+    echo "❌ File not found: $env_file"
+    return 1
+  fi
+
+  # Get path relative to $HOME (fallback to absolute if outside)
+  local abs_path="$(realpath "$env_file")"
+  local rel_path="${abs_path/#$HOME/~}"  # Replace $HOME with ~
+
+  echo "📦 Entering environment from $rel_path"
+  echo "Type 'exit' to return to your default environment."
+
+  (
+    export DOTENV_NAME="$rel_path"
+    export $(grep -v '^#' "$env_file" | xargs)
+    zsh
+  )
+
+  echo "🔙 Environment restored."
+}
+
+
+# WarpStream
+export PATH="/Users/aalt/.warpstream:$PATH"

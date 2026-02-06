@@ -1,0 +1,8 @@
+README.md
+LICENSE
+bootstrap.sh
+.Brewfile
+
+{{ if ne .chezmoi.os "darwin" }}
+.config/ghostty/**
+{{ end }}
