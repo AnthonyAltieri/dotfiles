@@ -2,5 +2,5 @@
 #!/bin/bash
 set -euo pipefail
 
-brew bundle --no-lock --file="{{ .chezmoi.sourceDir }}/.Brewfile"
+brew bundle --file="{{ .chezmoi.sourceDir }}/.Brewfile"
 {{ end -}}
