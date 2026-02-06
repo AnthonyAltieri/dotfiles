@@ -1,23 +1,51 @@
 # dotfiles
 
-Using a lot of stuff from: https://github.com/craftzdog/dotfiles-public
+Managed with [chezmoi](https://www.chezmoi.io/).
 
+## Setup a new machine
 
-## zsh plugins
-
-
-### zsh-autosuggestions
-github: `https://github.com/zsh-users/zsh-autosuggestions`  
-install 
 ```bash
-git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-
+git clone git@github.com:AnthonyAltieri/dotfiles.git ~/code/dotfiles
+~/code/dotfiles/bootstrap.sh
 ```
 
-### fast-syntax-highlighting
-github: `https://github.com/zdharma/fast-syntax-highlighting`
-install 
+This will:
+1. Install Homebrew (macOS, if missing)
+2. Install chezmoi (if missing)
+3. Run chezmoi bootstrap scripts (packages, Oh My Zsh, zsh plugins, TPM, NVM)
+4. Deploy all dotfiles
+
+## Day-to-day usage
+
+Edit a config:
+
 ```bash
-git clone https://github.com/z-shell/F-Sy-H.git \
-  ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/F-Sy-H
+chezmoi edit ~/.zshrc
+chezmoi apply
 ```
+
+Add a new file:
+
+```bash
+chezmoi add ~/.config/some-tool/config
+```
+
+See what would change:
+
+```bash
+chezmoi diff
+```
+
+Pull and apply updates:
+
+```bash
+chezmoi update
+```
+
+## What's included
+
+- **zsh** — Oh My Zsh with zsh-autosuggestions and F-Sy-H
+- **neovim** — Lazy.nvim config with LSP, Telescope, Treesitter
+- **tmux** — TPM with vim-tmux-navigator
+- **starship** — Cross-shell prompt
+- **ghostty** — Terminal config (macOS)

@@ -1,0 +1,7 @@
+brew "chezmoi"
+brew "starship"
+brew "tmux"
+brew "neovim"
+brew "ripgrep"
+brew "fd"
+brew "fzf"
