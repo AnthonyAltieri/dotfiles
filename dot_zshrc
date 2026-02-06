@@ -49,29 +49,16 @@ esac
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-loadenv() {
-  local env_file="$1"
-  if [[ ! -f "$env_file" ]]; then
-    echo "❌ File not found: $env_file"
-    return 1
+# Load ~/.env if it exists and has valid syntax
+if [[ -f "${HOME}/.env" ]]; then
+  if zsh -n "${HOME}/.env" 2>/dev/null; then
+    set -o allexport
+    source "${HOME}/.env"
+    set +o allexport
+  else
+    echo "[.zshrc] Warning: ~/.env has invalid syntax, skipping"
   fi
-
-  # Get path relative to $HOME (fallback to absolute if outside)
-  local abs_path="$(realpath "$env_file")"
-  local rel_path="${abs_path/#$HOME/~}"  # Replace $HOME with ~
-
-  echo "📦 Entering environment from $rel_path"
-  echo "Type 'exit' to return to your default environment."
-
-  (
-    export DOTENV_NAME="$rel_path"
-    export $(grep -v '^#' "$env_file" | xargs)
-    zsh
-  )
-
-  echo "🔙 Environment restored."
-}
-
+fi
 
 # WarpStream
 export PATH="/Users/aalt/.warpstream:$PATH"

@@ -26,11 +26,6 @@ if [[  "$(uname)" == "Darwin" ]]; then
   source ~/.config/zsh/os/config-osx.zsh
 fi
 
-# load environment
-if [[ -f "${HOME}/.env" ]]; then
-  load-env-file "${HOME}/.env" > /dev/null
-fi
- 
 # aliases
 if (( $+commands[nvim] )) then
   alias vim=nvim
