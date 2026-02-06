@@ -1,0 +1,6 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+set -euo pipefail
+
+brew bundle --no-lock --file="{{ .chezmoi.sourceDir }}/.Brewfile"
+{{ end -}}

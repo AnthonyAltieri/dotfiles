@@ -1,0 +1,4 @@
+[custom.dotenv]
+command = "echo $DOTENV_NAME"
+when = "echo $DOTENV_NAME"
+format = "[$output](bold green) "
