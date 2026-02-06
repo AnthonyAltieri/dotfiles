@@ -1,4 +1,12 @@
 local monorepo = require("aalt.monorepo")
+local lint_filetypes = {
+	javascript = true,
+	javascriptreact = true,
+	["javascript.jsx"] = true,
+	typescript = true,
+	typescriptreact = true,
+	["typescript.tsx"] = true,
+}
 
 return {
 	"mfussenegger/nvim-lint",
@@ -109,6 +117,14 @@ return {
 			desc = "Run project-aware lint checks on save",
 			callback = function(args)
 				if vim.bo[args.buf].buftype ~= "" then
+					return
+				end
+
+				if monorepo.is_toolchain_marker_file(vim.api.nvim_buf_get_name(args.buf)) then
+					monorepo.clear_caches()
+				end
+
+				if not lint_filetypes[vim.bo[args.buf].filetype] then
 					return
 				end
 

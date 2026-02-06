@@ -1,4 +1,6 @@
 local M = {}
+local uv = vim.loop
+local PATH_SEP = package.config:sub(1, 1)
 
 local BIOME_CONFIG_FILES = { "biome.json", "biome.jsonc" }
 local OXC_CONFIG_FILES = { ".oxlintrc.json", ".oxfmtrc.json" }
@@ -13,6 +15,23 @@ local ESLINT_CONFIG_FILES = {
 	".eslintrc.yaml",
 	".eslintrc.yml",
 }
+local TOOLCHAIN_MARKER_LOOKUP = {}
+for _, marker in ipairs(BIOME_CONFIG_FILES) do
+	TOOLCHAIN_MARKER_LOOKUP[marker] = true
+end
+for _, marker in ipairs(OXC_CONFIG_FILES) do
+	TOOLCHAIN_MARKER_LOOKUP[marker] = true
+end
+for _, marker in ipairs(ESLINT_CONFIG_FILES) do
+	TOOLCHAIN_MARKER_LOOKUP[marker] = true
+end
+local TOOLCHAIN_MARKERS_BY_KIND = {
+	biome = BIOME_CONFIG_FILES,
+	oxc = OXC_CONFIG_FILES,
+	eslint = ESLINT_CONFIG_FILES,
+}
+local toolchain_cache = {}
+local bin_cache = {}
 
 local function normalize(path)
 	if not path or path == "" then
@@ -30,6 +49,22 @@ local function dirname(path)
 		return normalized
 	end
 	return vim.fs.dirname(normalized)
+end
+
+local function join_path(dir, entry)
+	if dir:sub(-1) == PATH_SEP then
+		return dir .. entry
+	end
+	return dir .. PATH_SEP .. entry
+end
+
+local function root_has_marker(root, markers)
+	for _, marker in ipairs(markers) do
+		if uv.fs_stat(join_path(root, marker)) then
+			return true
+		end
+	end
+	return false
 end
 
 local function find_upward(path, markers)
@@ -52,34 +87,73 @@ function M.buf_path(bufnr)
 	return normalize(name)
 end
 
+local function toolchain_for_path(path)
+	local normalized = normalize(path)
+	if not normalized then
+		return nil, nil
+	end
+
+	local cached = toolchain_cache[normalized]
+	if cached and cached.kind and cached.root then
+		local markers = TOOLCHAIN_MARKERS_BY_KIND[cached.kind]
+		if markers and root_has_marker(cached.root, markers) then
+			return cached.kind, cached.root
+		end
+	end
+
+	local biome_root = find_upward(path, BIOME_CONFIG_FILES)
+	if biome_root then
+		toolchain_cache[normalized] = { kind = "biome", root = biome_root }
+		return "biome", biome_root
+	end
+
+	local oxc_root = find_upward(path, OXC_CONFIG_FILES)
+	if oxc_root then
+		toolchain_cache[normalized] = { kind = "oxc", root = oxc_root }
+		return "oxc", oxc_root
+	end
+
+	local eslint_root = find_upward(path, ESLINT_CONFIG_FILES)
+	if eslint_root then
+		toolchain_cache[normalized] = { kind = "eslint", root = eslint_root }
+		return "eslint", eslint_root
+	end
+
+	toolchain_cache[normalized] = nil
+	return nil, nil
+end
+
 function M.find_biome_root(path)
-	return find_upward(path, BIOME_CONFIG_FILES)
+	local kind, root = toolchain_for_path(path)
+	return kind == "biome" and root or nil
 end
 
 function M.find_eslint_root(path)
-	if M.find_biome_root(path) or M.find_oxc_root(path) then
-		return nil
-	end
-	return find_upward(path, ESLINT_CONFIG_FILES)
+	local kind, root = toolchain_for_path(path)
+	return kind == "eslint" and root or nil
 end
 
 function M.find_oxc_root(path)
-	return find_upward(path, OXC_CONFIG_FILES)
+	local kind, root = toolchain_for_path(path)
+	return kind == "oxc" and root or nil
 end
 
 function M.is_biome_buffer(bufnr)
-	return M.find_biome_root(M.buf_path(bufnr)) ~= nil
+	local kind = toolchain_for_path(M.buf_path(bufnr))
+	return kind == "biome"
 end
 
 function M.is_oxc_buffer(bufnr)
-	return M.find_oxc_root(M.buf_path(bufnr)) ~= nil
+	local kind = toolchain_for_path(M.buf_path(bufnr))
+	return kind == "oxc"
 end
 
 function M.javascript_formatters(bufnr)
-	if M.is_biome_buffer(bufnr) then
+	local kind = toolchain_for_path(M.buf_path(bufnr))
+	if kind == "biome" then
 		return { { "biome", "prettierd", "prettier" } }
 	end
-	if M.is_oxc_buffer(bufnr) then
+	if kind == "oxc" then
 		return { { "oxfmt", "prettierd", "prettier" } }
 	end
 	return { { "prettierd", "prettier" } }
@@ -90,8 +164,18 @@ function M.find_local_bin(path, binary_name)
 	if not start_dir then
 		return nil
 	end
+	local cache_key = start_dir .. "::" .. binary_name
+	local cached = bin_cache[cache_key]
+	if cached and vim.fn.executable(cached) == 1 then
+		return cached
+	end
+
 	local found = vim.fs.find("node_modules/.bin/" .. binary_name, { path = start_dir, upward = true })[1]
-	return normalize(found)
+	local normalized = normalize(found)
+	if normalized then
+		bin_cache[cache_key] = normalized
+	end
+	return normalized
 end
 
 function M.biome_cmd(path)
@@ -151,22 +235,30 @@ function M.linters_for_buf(bufnr)
 		return {}, nil
 	end
 
-	local biome_root = M.find_biome_root(path)
-	if biome_root then
-		return { "biome_monorepo" }, biome_root
-	end
-
-	local oxc_root = M.find_oxc_root(path)
-	if oxc_root then
-		return { "oxlint_monorepo" }, oxc_root
-	end
-
-	local eslint_root = M.find_eslint_root(path)
-	if eslint_root then
-		return { "eslint_d_monorepo" }, eslint_root
+	local kind, root = toolchain_for_path(path)
+	if kind == "biome" then
+		return { "biome_monorepo" }, root
+	elseif kind == "oxc" then
+		return { "oxlint_monorepo" }, root
+	elseif kind == "eslint" then
+		return { "eslint_d_monorepo" }, root
 	end
 
 	return {}, nil
+end
+
+function M.is_toolchain_marker_file(path)
+	local normalized = normalize(path)
+	if not normalized then
+		return false
+	end
+	local basename = vim.fs.basename(normalized)
+	return TOOLCHAIN_MARKER_LOOKUP[basename] == true
+end
+
+function M.clear_caches()
+	toolchain_cache = {}
+	bin_cache = {}
 end
 
 return M

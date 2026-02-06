@@ -77,3 +77,23 @@
 - `packages/utils` -> `eslint_d` + `prettierd`/`prettier`
 - `apps/signal` -> `biome`
 - `apps/admin` -> `eslint_d` + `prettierd`/`prettier`
+
+## Performance Pass
+- [x] Commit a checkpoint before optimization work.
+- [x] Run a critical pass to find routing hot paths.
+- [x] Implement optimizations without changing behavior.
+- [x] Benchmark before vs after optimization.
+- [x] Publish benchmark report in `dot_config/nvim/BENCHMARK.md`.
+
+## Performance Review
+- Checkpoint commit: `8306e33`.
+- Optimizations applied:
+- Added positive-result caches for toolchain root detection and local binary resolution in `monorepo.lua`.
+- Added cache invalidation when toolchain marker files are saved.
+- Added filetype gate in lint-on-save callback to avoid routing work for non-JS/TS buffers.
+- Behavior re-verified after optimization for Biome, ESLint/Prettier, and temporary OXC scope.
+- Benchmark results are documented in `dot_config/nvim/BENCHMARK.md`.
+
+## Debug Commands
+- [x] Add `:FormatDebug` to inspect formatter routing/candidate availability for current buffer.
+- [x] Add `:LintDebug` to inspect linter routing/command config and current diagnostic sources.
