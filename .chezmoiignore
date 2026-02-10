@@ -2,7 +2,26 @@ README.md
 LICENSE
 bootstrap.sh
 .Brewfile
-.claude/**
+# Claude Code: manage settings + statusline, ignore everything else
+.claude/cache/**
+.claude/commands/**
+.claude/debug/**
+.claude/downloads/**
+.claude/file-history/**
+.claude/paste-cache/**
+.claude/plans/**
+.claude/plugins/**
+.claude/projects/**
+.claude/session-env/**
+.claude/shell-snapshots/**
+.claude/skills/**
+.claude/stats-cache.json
+.claude/statsig/**
+.claude/tasks/**
+.claude/telemetry/**
+.claude/todos/**
+.claude/usage-data/**
+.claude/history.jsonl
 
 # Codex runtime and machine-local state (keep out of managed dotfiles)
 .codex/.codex-global-state.json
