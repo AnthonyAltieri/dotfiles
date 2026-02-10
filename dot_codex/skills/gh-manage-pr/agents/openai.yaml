@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Manage PR"
+  short_description: "Create or update a pull request with gh"
+  default_prompt: "Create or update the PR for this branch using a concise, information-dense description based on the branch diff."

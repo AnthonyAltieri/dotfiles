@@ -4,6 +4,24 @@ bootstrap.sh
 .Brewfile
 .claude/**
 
+# Codex runtime and machine-local state (keep out of managed dotfiles)
+.codex/.codex-global-state.json
+.codex/.personality_migration
+.codex/auth.json
+.codex/config.toml
+.codex/history.jsonl
+.codex/models_cache.json
+.codex/version.json
+.codex/archived_sessions/**
+.codex/log/**
+.codex/sessions/**
+.codex/sqlite/**
+.codex/tmp/**
+.codex/worktrees/**
+.codex/vendor_imports/**
+.codex/tasks/**
+.codex/skills/.system/**
+
 {{ if ne .chezmoi.os "darwin" }}
 .config/ghostty/**
 {{ end }}
