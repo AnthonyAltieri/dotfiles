@@ -13,4 +13,6 @@ if ! command -v chezmoi &>/dev/null; then
 fi
 
 # Initialize chezmoi with this repo as source and apply
+echo "Applying dotfiles..."
 chezmoi init --source "$SCRIPT_DIR" --apply --verbose
+echo "Done."
