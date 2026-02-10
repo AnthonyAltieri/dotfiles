@@ -114,3 +114,16 @@ After editing files in this repo directly (not via `chezmoi edit`), run `chezmoi
 - **tmux** — TPM with vim-tmux-navigator
 - **starship** — Cross-shell prompt
 - **ghostty** — Terminal config (macOS)
+
+## Codex configuration
+
+This repo manages a curated subset of `~/.codex` via `dot_codex/`:
+
+- `~/.codex/AGENTS.md`
+- `~/.codex/prompts/pr.md`
+- `~/.codex/rules/default.rules`
+- `~/.codex/skills/{atlas,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture}`
+
+Machine-local Codex state is intentionally not managed, including auth/history/sessions/worktrees/sqlite/logs/cache.
+
+`~/.codex/config.toml` is intentionally local-only so each machine can keep its own trust settings and local runtime preferences.
