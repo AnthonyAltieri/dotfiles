@@ -13,4 +13,4 @@ if ! command -v chezmoi &>/dev/null; then
 fi
 
 # Initialize chezmoi with this repo as source and apply
-chezmoi init --source "$SCRIPT_DIR" --apply
+chezmoi init --source "$SCRIPT_DIR" --apply --verbose
