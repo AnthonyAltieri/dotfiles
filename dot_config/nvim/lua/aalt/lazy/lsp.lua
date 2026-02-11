@@ -214,19 +214,20 @@ return {
 
             require("mason-lspconfig").setup({
                 ensure_installed = vim.tbl_keys(servers or {}),
-                handlers = {
-                    function(server_name)
-                        local server = servers[server_name] or {}
-                        server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-                        require("lspconfig")[server_name].setup(server)
-                    end,
-                },
+                automatic_enable = true,
             })
 
+            -- Configure each mason-managed server with capabilities and custom settings
+            for server_name, server_config in pairs(servers) do
+                server_config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server_config.capabilities or {})
+                vim.lsp.config(server_name, server_config)
+            end
+
             -- tsgo: fast native TypeScript LSP (installed globally via npm, not Mason-managed)
-            require("lspconfig").tsgo.setup({
+            vim.lsp.config("tsgo", {
                 capabilities = capabilities,
             })
+            vim.lsp.enable("tsgo")
 
             -- Bind any language specific commands
             vim.keymap.set("n", "<leader>fi", organize_typescript_imports, { desc = "LSP: [F]ormat [I]mports" })
