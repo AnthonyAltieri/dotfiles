@@ -9,7 +9,7 @@ vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show diagn
 vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostic [Q]uickfix list" })
 
 -- Project
-vim.keymap.set("n", "<leader>pv", vim.cmd.Ex, { desc = "Open [P]roject view" })
+vim.keymap.set("n", "<leader>pv", "<cmd>Neotree focus reveal<CR>", { desc = "Focus file tree at current file" })
 
 -- Move selected lines in visual mode
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
@@ -43,9 +43,15 @@ vim.keymap.set("n", "<leader>Y", [["+Y]])
 vim.keymap.set({ "n", "v" }, "<leader>d", [["_d]])
 
 vim.keymap.set("n", "Q", "<nop>")
+
+-- Window resize
+vim.keymap.set("n", "<C-M-.>", "<cmd>vertical resize +2<CR>", { desc = "Increase window width" })
+vim.keymap.set("n", "<C-M-,>", "<cmd>vertical resize -2<CR>", { desc = "Decrease window width" })
+vim.keymap.set("n", "<C-M-=>", "<C-w>=", { desc = "Equalize window sizes" })
+vim.keymap.set("n", "q:", "<nop>")
 vim.keymap.set("n", "<C-f>", "<cmd>silent !tmux neww tmux-sessionizer<CR>")
 
-vim.keymap.set("n", "<C-\\>", "<cmd>Neotree toggle<CR>")
+vim.keymap.set("n", "<C-\\>", "<cmd>Neotree toggle reveal<CR>", { desc = "Toggle file tree" })
 
 -- Cheat sheet (loads telescope on demand)
 _G.show_cheatsheet = function()
@@ -57,11 +63,15 @@ _G.show_cheatsheet = function()
 		-- Search
 		{ cat = "Search", key = "<C-p>", desc = "Quick Open (files)" },
 		{ cat = "Search", key = "<leader>fp", desc = "Find all files" },
-		{ cat = "Search", key = "<M-g>", desc = "Live grep" },
+		{ cat = "Search", key = "<M-p>", desc = "Live grep" },
 		{ cat = "Search", key = "<leader>fw", desc = "Grep current word" },
 		{ cat = "Search", key = "<leader>f.", desc = "Recent files" },
 		{ cat = "Search", key = "<leader>fh", desc = "Help tags" },
 		{ cat = "Search", key = "<leader>fk", desc = "Keymaps" },
+
+		-- File Tree
+		{ cat = "File Tree", key = "<C-\\>", desc = "Toggle file tree" },
+		{ cat = "File Tree", key = "<leader>pv", desc = "Focus tree at current file" },
 
 		-- Hover & Documentation
 		{ cat = "Hover/Docs", key = "<M-v>", desc = "Hover documentation (normal mode)" },

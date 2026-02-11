@@ -7,7 +7,6 @@ vim.opt.tabstop = 2
 vim.opt.softtabstop = 2
 vim.opt.shiftwidth = 2
 vim.opt.expandtab = true
-vim.opt.smartindent = true
 vim.opt.wrap = false
 
 -- Search
@@ -36,4 +35,7 @@ vim.opt.scrolloff = 10
 vim.opt.termguicolors = true
 
 vim.opt.signcolumn = "yes"
+
+-- Floating window border (0.11+: applies to hover, signature help, diagnostics, etc.)
+vim.o.winborder = "rounded"
 vim.opt.isfname:append("@-@")

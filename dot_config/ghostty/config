@@ -4,6 +4,7 @@ window-title-font-family = "TX-02-Regular"
 font-size = 14
 shell-integration = zsh
 confirm-close-surface = false
+macos-option-as-alt = true
 macos-titlebar-style = tabs
 window-save-state = always
 
@@ -21,3 +22,14 @@ keybind = super+ctrl+j=resize_split:down,10
 keybind = super+ctrl+k=resize_split:up,10
 keybind = super+ctrl+l=resize_split:right,10
 keybind = shift+enter=text:\x1b\r
+
+# Ctrl+N -> tmux prefix (C-Space = \x00) + digit -> select window N
+keybind = ctrl+1=text:\x00\x31
+keybind = ctrl+2=text:\x00\x32
+keybind = ctrl+3=text:\x00\x33
+keybind = ctrl+4=text:\x00\x34
+keybind = ctrl+5=text:\x00\x35
+keybind = ctrl+6=text:\x00\x36
+keybind = ctrl+7=text:\x00\x37
+keybind = ctrl+8=text:\x00\x38
+keybind = ctrl+9=text:\x00\x39

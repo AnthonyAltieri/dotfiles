@@ -8,14 +8,23 @@ return {
             "williamboman/mason-lspconfig.nvim",
             "WhoIsSethDaniel/mason-tool-installer.nvim",
 
+            -- Completion engine (needed for LSP capabilities)
+            "saghen/blink.cmp",
+
             -- Useful status updates for LSP.
             -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
             { "j-hui/fidget.nvim", opts = {} },
         },
         config = function()
-            vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "rounded" })
-            vim.lsp.handlers["textDocument/signatureHelp"] =
-                vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded" })
+            local function organize_typescript_imports()
+                vim.lsp.buf.code_action({
+                    apply = true,
+                    context = {
+                        only = { "source.organizeImports" },
+                        diagnostics = {},
+                    },
+                })
+            end
 
             -- This function gets run when an LSP attaches to a particular buffer.
             --  That is to say, every time a new file is opened that is associated with
@@ -28,50 +37,59 @@ return {
                         return { buffer = event.buf, desc = "LSP: " .. desc }
                     end
 
+                    local telescope_vertical = { layout_strategy = "vertical" }
+
                     -- Jump to the definition of the word under your cursor.
-                    --  This is where a variable was first declared, or where a function is defined, etc.
+                    --  Jumps directly when there is a single result, opens telescope when multiple.
                     --  To jump back, press <C-T>.
-                    vim.keymap.set("n", "gd", require("telescope.builtin").lsp_definitions, opts("[G]oto [D]efinition"))
+                    vim.keymap.set("n", "gd", function()
+                        vim.lsp.buf.definition({
+                            on_list = function(options)
+                                if #options.items == 1 then
+                                    local item = options.items[1]
+                                    vim.cmd("edit " .. vim.fn.fnameescape(item.filename))
+                                    vim.api.nvim_win_set_cursor(0, { item.lnum, item.col - 1 })
+                                else
+                                    require("telescope.builtin").lsp_definitions(telescope_vertical)
+                                end
+                            end,
+                        })
+                    end, opts("[G]oto [D]efinition"))
 
                     -- Find references for the word under your cursor.
-                    vim.keymap.set("n", "gr", require("telescope.builtin").lsp_references, opts("[G]oto [R]eferences"))
+                    vim.keymap.set("n", "gr", function()
+                        require("telescope.builtin").lsp_references(telescope_vertical)
+                    end, opts("[G]oto [R]eferences"))
+
+                    -- Find all usages of the symbol under your cursor.
+                    vim.keymap.set("n", "gu", function()
+                        require("telescope.builtin").lsp_references(telescope_vertical)
+                    end, opts("[G]oto [U]sages"))
 
                     -- Jump to the implementation of the word under your cursor.
                     --  Useful when your language has ways of declaring types without an actual implementation.
-                    vim.keymap.set(
-                        "n",
-                        "gI",
-                        require("telescope.builtin").lsp_implementations,
-                        opts("[G]oto [I]mplementation")
-                    )
+                    vim.keymap.set("n", "gI", function()
+                        require("telescope.builtin").lsp_implementations(telescope_vertical)
+                    end, opts("[G]oto [I]mplementation"))
 
                     -- Jump to the type of the word under your cursor.
                     --  Useful when you're not sure what type a variable is and you want to see
                     --  the definition of its *type*, not where it was *defined*.
-                    vim.keymap.set(
-                        "n",
-                        "<leader>D",
-                        require("telescope.builtin").lsp_type_definitions,
-                        opts("Type [D]efinition")
-                    )
+                    vim.keymap.set("n", "<leader>D", function()
+                        require("telescope.builtin").lsp_type_definitions(telescope_vertical)
+                    end, opts("Type [D]efinition"))
 
                     -- Fuzzy find all the symbols in your current document.
                     --  Symbols are things like variables, functions, types, etc.
-                    vim.keymap.set(
-                        "n",
-                        "<leader>ds",
-                        require("telescope.builtin").lsp_document_symbols,
-                        opts("[D]ocument [S]ymbols")
-                    )
+                    vim.keymap.set("n", "<leader>ds", function()
+                        require("telescope.builtin").lsp_document_symbols(telescope_vertical)
+                    end, opts("[D]ocument [S]ymbols"))
 
                     -- Fuzzy find all the symbols in your current workspace
                     --  Similar to document symbols, except searches over your whole project.
-                    vim.keymap.set(
-                        "n",
-                        "<leader>ws",
-                        require("telescope.builtin").lsp_dynamic_workspace_symbols,
-                        opts("[W]orkspace [S]ymbols")
-                    )
+                    vim.keymap.set("n", "<leader>ws", function()
+                        require("telescope.builtin").lsp_dynamic_workspace_symbols(telescope_vertical)
+                    end, opts("[W]orkspace [S]ymbols"))
 
                     -- Rename the variable under your cursor
                     --  Most Language Servers support renaming across files, etc.
@@ -83,7 +101,9 @@ return {
 
                     -- Opens a popup that displays documentation about the word under your cursor
                     --  See `:help K` for why this keymap
-                    vim.keymap.set("n", "<m-v>", vim.lsp.buf.hover, opts("Hover Documentation (lsp)"))
+                    vim.keymap.set("n", "<m-v>", function()
+                        vim.lsp.buf.hover({ max_width = 80, max_height = 30 })
+                    end, opts("Hover Documentation (lsp)"))
                     vim.keymap.set("i", "<m-v>", vim.lsp.buf.signature_help, opts("Signature Help (lsp)"))
 
                     vim.keymap.set("n", "<m-d>", vim.diagnostic.open_float, opts("Diagnostics (lsp)"))
@@ -101,6 +121,11 @@ return {
                     --
                     -- When you move your cursor, the highlights will be cleared (the second autocommand).
                     local client = vim.lsp.get_client_by_id(event.data.client_id)
+                    if client and client.name == "tsgo" then
+                        vim.keymap.set("n", "<C-M-o>", organize_typescript_imports, opts("[O]rganize Imports"))
+                        vim.keymap.set("n", "<F2>", vim.lsp.buf.rename, opts("[R]ename Symbol"))
+                    end
+
                     if client and client.server_capabilities.documentHighlightProvider then
                         vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
                             buffer = event.buf,
@@ -120,16 +145,7 @@ return {
             --  When you add nvim-cmp, luasnip, etc. Neovim now has *more* capabilities.
             --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
             local capabilities = vim.lsp.protocol.make_client_capabilities()
-            capabilities = vim.tbl_deep_extend("force", capabilities, require("cmp_nvim_lsp").default_capabilities())
-
-            -- functions to use in servers
-            local function organize_typescript_imports()
-                vim.lsp.buf.execute_command({
-                    command = "_typescript.organizeImports",
-                    arguments = { vim.api.nvim_buf_get_name(0) },
-                    title = "",
-                })
-            end
+            capabilities = vim.tbl_deep_extend("force", capabilities, require("blink.cmp").get_lsp_capabilities())
 
             -- Enable the following language servers
             --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -146,26 +162,8 @@ return {
                 -- rust_analyzer = {},
                 -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
                 --
-                -- Some languages (like typescript) have entire language plugins that can be useful:
-                --    https://github.com/pmizio/typescript-tools.nvim
-                --
-                -- But for many setups, the LSP (`tsserver`) will work just fine
                 pyright = {},
-                ruff_lsp = {},
-                tsserver = {
-                    init_options = {
-                        preferences = {
-                            -- Prefer absolute imports
-                            importModuleSpecifierPreference = "non-relative",
-                        },
-                    },
-                    commands = {
-                        OrganizeImports = {
-                            organize_typescript_imports,
-                            description = "Organize Imports",
-                        },
-                    },
-                },
+                ruff = {},
                 lua_ls = {
                     -- cmd = {...},
                     -- filetypes { ...},
@@ -225,8 +223,12 @@ return {
                 },
             })
 
+            -- tsgo: fast native TypeScript LSP (installed globally via npm, not Mason-managed)
+            require("lspconfig").tsgo.setup({
+                capabilities = capabilities,
+            })
+
             -- Bind any language specific commands
-            -- TODO: language specific commands
             vim.keymap.set("n", "<leader>fi", organize_typescript_imports, { desc = "LSP: [F]ormat [I]mports" })
         end,
     },

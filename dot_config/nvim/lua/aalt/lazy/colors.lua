@@ -1,16 +1,3 @@
-function ColorMyPencils(color)
-    color = color or "catppuccin"
-    vim.cmd.colorscheme(color)
-
-    vim.api.nvim_set_hl(0, "Normal", {
-        bg = "none"
-    })
-    vim.api.nvim_set_hl(0, "NormalFloat", {
-        bg = "none"
-    })
-
-end
-
 return {{
     "catppuccin/nvim",
     -- Load during startup
@@ -53,10 +40,14 @@ return {{
             integrations = {
                 cmp = true,
                 gitsigns = true,
+                markdown = true,
+                native_lsp = { enabled = true },
+                neotree = true,
                 nvimtree = false,
                 telescope = true,
+                treesitter = true,
                 notify = false,
-                mini = false
+                mini = false,
                 -- For more plugins integrations please scroll down (https://github.com/catppuccin/nvim#integrations)
             }
         })
