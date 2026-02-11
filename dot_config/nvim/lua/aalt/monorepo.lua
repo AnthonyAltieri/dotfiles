@@ -151,12 +151,12 @@ end
 function M.javascript_formatters(bufnr)
 	local kind = toolchain_for_path(M.buf_path(bufnr))
 	if kind == "biome" then
-		return { { "biome", "prettierd", "prettier" } }
+		return { "biome", "prettierd", "prettier", stop_after_first = true }
 	end
 	if kind == "oxc" then
-		return { { "oxfmt", "prettierd", "prettier" } }
+		return { "oxfmt", "prettierd", "prettier", stop_after_first = true }
 	end
-	return { { "prettierd", "prettier" } }
+	return { "prettierd", "prettier", stop_after_first = true }
 end
 
 function M.find_local_bin(path, binary_name)
