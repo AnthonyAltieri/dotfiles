@@ -1,6 +1,6 @@
 theme = catppuccin-macchiato
 font-family = "Berkeley Mono"
-window-title-font-family = "TX-02-Regular"
+window-title-font-family = "Berkeley Mono"
 font-size = 14
 shell-integration = zsh
 confirm-close-surface = false
