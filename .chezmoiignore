@@ -40,6 +40,7 @@ bootstrap.sh
 .codex/vendor_imports/**
 .codex/tasks/**
 .codex/skills/.system/**
+.codex/rules/**
 
 {{ if ne .chezmoi.os "darwin" }}
 .config/ghostty/**

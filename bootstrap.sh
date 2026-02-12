@@ -14,5 +14,5 @@ fi
 
 # Initialize chezmoi with this repo as source and apply
 echo "Applying dotfiles..."
-chezmoi init --source "$SCRIPT_DIR" --apply --verbose
+chezmoi init --source "$SCRIPT_DIR" --apply --verbose --force
 echo "Done."

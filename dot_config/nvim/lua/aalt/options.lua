@@ -18,6 +18,9 @@ vim.opt.incsearch = true
 -- Preview substitutions live, as you type!
 vim.opt.inccommand = 'split'
 
+-- Allow unsaved buffers to be hidden (needed for LSP go-to-definition, etc.)
+vim.opt.hidden = true
+
 -- Don't use swapfiles, use an undofile instead
 vim.opt.swapfile = false
 vim.opt.backup = false

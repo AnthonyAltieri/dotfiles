@@ -1,3 +1,15 @@
+local function get_launch_root()
+	local arg = vim.fn.argv(0)
+	if arg and arg ~= "" then
+		local path = vim.fn.fnamemodify(arg, ":p")
+		if vim.fn.isdirectory(path) == 1 then
+			return path
+		end
+		return vim.fn.fnamemodify(path, ":h")
+	end
+	return vim.fn.getcwd()
+end
+
 return {
 	{
 		"ibhagwan/fzf-lua",
@@ -21,6 +33,7 @@ return {
 
 					require("fzf-lua").files({
 						cmd = cmd,
+						cwd = get_launch_root(),
 						hidden = true,
 						git_icons = false,
 						file_icons = "mini",

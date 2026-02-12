@@ -1,6 +1,6 @@
 theme = Catppuccin Macchiato
-font-family = "Berkeley Mono"
-window-title-font-family = "Berkeley Mono"
+font-family = "BerkeleyMono"
+window-title-font-family = "BerkeleyMono"
 font-size = 14
 shell-integration = zsh
 confirm-close-surface = false
@@ -22,6 +22,7 @@ keybind = super+ctrl+j=resize_split:down,10
 keybind = super+ctrl+k=resize_split:up,10
 keybind = super+ctrl+l=resize_split:right,10
 keybind = shift+enter=text:\x1b\r
+keybind = ctrl+.=text:\x1b[46;5u
 
 # Ctrl+N -> tmux prefix (C-Space = \x00) + digit -> select window N
 keybind = ctrl+1=text:\x00\x31

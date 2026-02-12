@@ -98,6 +98,9 @@ return {
                     -- Execute a code action, usually your cursor needs to be on top of an error
                     -- or a suggestion from your LSP for this to activate.
                     vim.keymap.set("n", "<leader>.", vim.lsp.buf.code_action, opts("Code Action"))
+                    vim.keymap.set("n", "<C-.>", vim.lsp.buf.code_action, opts("Code Action"))
+                    -- Ghostty sends \x1b[46;5u for Ctrl+. via CSI u encoding
+                    vim.keymap.set("n", "\x1b[46;5u", vim.lsp.buf.code_action, opts("Code Action"))
 
                     -- Opens a popup that displays documentation about the word under your cursor
                     --  See `:help K` for why this keymap
