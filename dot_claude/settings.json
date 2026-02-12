@@ -10,12 +10,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux rename-window \"$(tmux display-message -p '#W')!\""
+            "command": "W=$(tmux display-message -p '#W'); case \"$W\" in *!) ;; *) tmux rename-window \"${W}!\" ;; esac"
           }
         ]
       }
     ],
-    "SessionStart": [
+    "UserPromptSubmit": [
       {
         "hooks": [
           {
