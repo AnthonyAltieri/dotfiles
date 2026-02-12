@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "W=$(tmux display-message -p '#W'); case \"$W\" in *!) ;; *) tmux rename-window \"${W}!\" ;; esac"
+            "command": "bash ~/.claude/tmux-notify.sh on"
           }
         ]
       }
@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux rename-window \"$(tmux display-message -p '#W' | sed 's/!$//')\""
+            "command": "bash ~/.claude/tmux-notify.sh off"
           }
         ]
       }
