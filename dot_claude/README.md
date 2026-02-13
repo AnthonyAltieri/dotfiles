@@ -1,16 +1,17 @@
 # Claude Code Tmux Notifications
 
-Adds `!` to the tmux window name when Claude Code finishes working, so you can see at a glance which tab needs attention. The `!` clears automatically when you switch to that window or submit a new prompt.
+Adds `!` to the tmux window name when Claude Code needs your attention (task complete, plan approval, questions, etc.), so you can see at a glance which tab needs attention. The `!` clears automatically when you switch to that window or submit a new prompt.
 
 ## How it works
 
 ### Hooks (`settings.json`)
 
-Claude Code fires two hooks:
+Claude Code fires three hooks:
 
 | Event               | Action                        |
 |---------------------|-------------------------------|
-| `Stop`              | `tmux-notify.sh on` — append `!` to the window name |
+| `Stop`              | `tmux-notify.sh on` — append `!` (task complete) |
+| `Notification`      | `tmux-notify.sh on` — append `!` (plan approval, questions, etc.) |
 | `UserPromptSubmit`  | `tmux-notify.sh off` — remove `!` from the window name |
 
 ### Window targeting (`$TMUX_PANE`)
