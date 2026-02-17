@@ -14,7 +14,6 @@ bootstrap.sh
 .claude/projects/**
 .claude/session-env/**
 .claude/shell-snapshots/**
-.claude/skills/**
 .claude/stats-cache.json
 .claude/statsig/**
 .claude/tasks/**
