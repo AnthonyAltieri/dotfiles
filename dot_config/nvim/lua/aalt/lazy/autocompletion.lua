@@ -10,7 +10,6 @@ return {
 			["<C-y>"] = { "accept", "fallback" },
 			["<C-Space>"] = { "show", "fallback" },
 			["<C-l>"] = { "snippet_forward", "fallback" },
-			["<C-h>"] = { "snippet_backward", "fallback" },
 		},
 		completion = {
 			-- Disable dot_repeat to work around upstream bug where auto-wrap

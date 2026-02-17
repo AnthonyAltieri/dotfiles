@@ -46,13 +46,13 @@ return {
 							},
 						})
 					end,
-					["<C-M-.>"] = function()
+					["<M-.>"] = function()
 						vim.cmd("vertical resize +2")
 					end,
-					["<C-M-,>"] = function()
+					["<M-,>"] = function()
 						vim.cmd("vertical resize -2")
 					end,
-					["<C-M-=>"] = function()
+					["<M-=>"] = function()
 						vim.cmd("wincmd =")
 					end,
 				},

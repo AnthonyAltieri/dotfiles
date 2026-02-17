@@ -236,6 +236,17 @@ return {
             })
             vim.lsp.enable("tsgo")
 
+            vim.api.nvim_create_user_command("LspInfo", function()
+                local clients = vim.lsp.get_clients({ bufnr = 0 })
+                if #clients == 0 then
+                    print("No LSP clients attached")
+                    return
+                end
+                for _, c in ipairs(clients) do
+                    print(string.format("%s (id=%d, root=%s)", c.name, c.id, c.root_dir or "none"))
+                end
+            end, { desc = "Show LSP clients attached to current buffer" })
+
             -- Bind any language specific commands
             vim.keymap.set("n", "<leader>fi", organize_typescript_imports, { desc = "LSP: [F]ormat [I]mports" })
         end,

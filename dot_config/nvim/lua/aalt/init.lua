@@ -34,3 +34,6 @@ require("lazy").setup({
 		},
 	},
 })
+
+-- Dashboard (after lazy so its VimEnter fires after neo-tree's)
+require("aalt.dashboard")
