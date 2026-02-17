@@ -50,6 +50,7 @@ return {
                                     vim.cmd("edit " .. vim.fn.fnameescape(item.filename))
                                     vim.api.nvim_win_set_cursor(0, { item.lnum, item.col - 1 })
                                 else
+                                    vim.api.nvim_feedkeys("", "n", true)
                                     require("telescope.builtin").lsp_definitions(telescope_vertical)
                                 end
                             end,
@@ -63,6 +64,7 @@ return {
 
                     -- Find all usages of the symbol under your cursor.
                     vim.keymap.set("n", "gu", function()
+                        vim.api.nvim_feedkeys("", "n", true)
                         require("telescope.builtin").lsp_references(telescope_vertical)
                     end, opts("[G]oto [U]sages"))
 
@@ -217,7 +219,9 @@ return {
 
             require("mason-lspconfig").setup({
                 ensure_installed = vim.tbl_keys(servers or {}),
-                automatic_enable = true,
+                automatic_enable = {
+                    exclude = { "ts_ls" },
+                },
             })
 
             -- Configure each mason-managed server with capabilities and custom settings
