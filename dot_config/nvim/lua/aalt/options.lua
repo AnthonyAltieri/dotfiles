@@ -16,7 +16,7 @@ vim.opt.smartcase = true
 vim.opt.incsearch = true
 
 -- Preview substitutions live, as you type!
-vim.opt.inccommand = 'split'
+vim.opt.inccommand = 'nosplit'
 
 -- Allow unsaved buffers to be hidden (needed for LSP go-to-definition, etc.)
 vim.opt.hidden = true
