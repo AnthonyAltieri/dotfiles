@@ -4,12 +4,6 @@
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   },
-  "permissions": {
-    "allow": [
-      "Bash(gh api graphql:*)"
-    ],
-    "deny": []
-  },
   "hooks": {
     "Stop": [
       {
