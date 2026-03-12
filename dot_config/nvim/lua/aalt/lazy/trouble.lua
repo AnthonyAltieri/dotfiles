@@ -8,7 +8,11 @@ return {
 			{ "[t", function() require("trouble").prev({ jump = true }) end, desc = "Previous Trouble Diagnostic" },
 		},
 		opts = {
-			icons = false,
+			icons = {
+				folder_closed = "",
+				folder_open = "",
+				kinds = {},
+			},
 		},
 	},
 }

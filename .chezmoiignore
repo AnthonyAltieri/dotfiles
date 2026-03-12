@@ -4,7 +4,6 @@ bootstrap.sh
 .Brewfile
 # Claude Code: manage settings + statusline, ignore everything else
 .claude/cache/**
-.claude/commands/**
 .claude/debug/**
 .claude/downloads/**
 .claude/file-history/**

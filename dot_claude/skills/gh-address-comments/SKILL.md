@@ -1,8 +1,6 @@
 ---
 name: gh-address-comments
-description: Use when a user asks to review and address GitHub PR comments on the current branch; fetch review threads with gh, triage unresolved items, and apply focused fixes.
-metadata:
-  short-description: Address GitHub PR review comments
+description: Review and address GitHub PR comments on the current branch; fetch review threads with gh, triage unresolved items, apply focused fixes, then reply to and resolve threads.
 ---
 
 # PR Comment Handler
@@ -25,10 +23,45 @@ If no PR exists for the current branch, report this and stop.
    - `gh pr view --json number,url,title,body,baseRefName,headRefName,reviews,state,statusCheckRollup`
    - `gh pr diff`
    - `gh pr checks`
-2. Fetch comments and review threads.
-   - Preferred: run `scripts/fetch_comments.py` for full conversation/review/thread data.
-   - Manual fallback via GraphQL:
-     - `gh api graphql` query for `reviewThreads`, `reviews`, and thread comments.
+2. Fetch comments and review threads via GraphQL.
+   ```bash
+   gh api graphql -f query='
+     query($owner: String!, $repo: String!, $pr: Int!) {
+       repository(owner: $owner, name: $repo) {
+         pullRequest(number: $pr) {
+           reviewThreads(first: 100) {
+             nodes {
+               id
+               isResolved
+               isOutdated
+               path
+               line
+               startLine
+               diffSide
+               comments(first: 20) {
+                 nodes {
+                   id
+                   url
+                   body
+                   author { login }
+                   createdAt
+                   replyTo { id }
+                 }
+               }
+             }
+           }
+           reviews(first: 50) {
+             nodes {
+               author { login }
+               state
+               body
+             }
+           }
+         }
+       }
+     }
+   ' -f owner="{owner}" -f repo="{repo}" -F pr={pr_number}
+   ```
 3. Filter scope.
    - By default, process unresolved threads only.
    - Skip outdated threads unless still relevant.
@@ -58,9 +91,9 @@ If no PR exists for the current branch, report this and stop.
    - **Reply rules:**
      | Classification | Reply | Resolve? |
      |----------------|-------|----------|
-     | False positive | `FROM CODEX: <explanation>` | Yes |
-     | Addressed | `FROM CODEX: Addressed in <sha> — <description>` | Yes |
-     | Question | `FROM CODEX: <answer>` | No |
+     | False positive | `FROM CLAUDE: <explanation>` | Yes |
+     | Addressed | `FROM CLAUDE: Addressed in <sha> — <description>` | Yes |
+     | Question | `FROM CLAUDE: <answer>` | No |
    - **Reply mutation:**
      ```bash
      gh api graphql -f query='
@@ -95,8 +128,11 @@ If no PR exists for the current branch, report this and stop.
    - Before/after snippets grouped by file
 2. Summary Table
    - File, line, reviewer, type, comment, resolution, commit (if any)
+3. Thread Actions
+   - Thread ID, file:line, action taken, reply text, resolved status
 
 ## Notes
 
 - If `gh` auth fails, ask user to run `gh auth login`, then retry.
 - Keep responses concise and factual when a comment is a false positive.
+- Both mutations require repo write access (already assumed by existing workflow).

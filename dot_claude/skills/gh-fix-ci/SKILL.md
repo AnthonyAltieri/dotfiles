@@ -1,6 +1,6 @@
 ---
 name: gh-fix-ci
-description: Use when a user asks to debug or fix failing GitHub PR checks; inspect checks/logs with gh, classify root causes, and propose focused fixes. Prefer GitHub Actions and report external CI URLs when direct tooling is unavailable.
+description: Debug or fix failing GitHub PR checks; inspect checks/logs with gh, classify root causes, and propose focused fixes.
 ---
 
 # PR Checks Review
@@ -22,17 +22,20 @@ If no PR exists for the current branch, report this and stop.
    - `gh pr checks --json name,state,startedAt,completedAt,bucket,description,link`
    - If all checks pass, report success with a brief summary and stop.
 2. Identify failed checks and collect logs.
-   - Preferred quick path:
-     - `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "<number-or-url>"`
-     - Add `--json` for structured summaries.
-   - Manual deep dive:
-     - `gh run view <run_id> --log-failed`
-     - `gh run view <run_id> --json jobs --jq '.jobs[] | {name, status, conclusion, steps}'`
-     - `gh run view <run_id> --job=<job_id> --log`
+   - `gh run view <run_id> --log-failed`
+   - `gh run view <run_id> --json jobs --jq '.jobs[] | {name, status, conclusion, steps}'`
+   - `gh run view <run_id> --job=<job_id> --log`
 3. Handle external CI providers.
    - If a failed check URL is not GitHub Actions, treat it as external.
-   - If CircleCI tooling is available in the environment, use it for deeper details.
-   - Otherwise report the details URL and classify it as out-of-scope for direct retrieval.
+   - For CircleCI jobs (identified by `circleci` in the name or details URL), use CircleCI MCP if available:
+     1. `mcp: circleci_get_project {project_slug}` (slug format: `gh/{org}/{repo}`)
+     2. `mcp: circleci_list_pipelines {project_slug}`
+     3. `mcp: circleci_get_pipeline_workflows {pipeline_id}`
+     4. `mcp: circleci_get_workflow_jobs {workflow_id}`
+     5. `mcp: circleci_get_job_details {project_slug} {job_number}` and `circleci_get_job_logs`
+     6. `mcp: circleci_get_job_tests {project_slug} {job_number}`
+     7. `mcp: circleci_get_job_artifacts {project_slug} {job_number}`
+   - For other external providers without available tooling, report the details URL for manual investigation.
 4. Gather additional context for root-cause analysis.
    - `gh pr diff`
    - `git show HEAD --stat`
@@ -75,15 +78,7 @@ If no PR exists for the current branch, report this and stop.
 5. Recommended Actions
    - Prioritized next steps
 
-## Bundled Resources
+## Notes
 
-### `scripts/inspect_pr_checks.py`
-
-Use for fast inspection of failing checks and extraction of actionable log snippets.
-
-Examples:
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "."`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "123" --json`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "123"`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "https://github.com/org/repo/pull/123" --json`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --max-lines 200 --context 40`
+- If `gh` auth fails, ask user to run `gh auth login`, then retry.
+- For external CI providers without available tooling, report the URL for manual investigation.
