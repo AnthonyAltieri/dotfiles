@@ -81,6 +81,10 @@ When given a bug report, fix it end-to-end.
 - **Simplicity First**: Make every change as simple as possible. Minimize impact and code surface area.
 - **No Laziness**: Find root causes. No temporary fixes. Hold to senior developer standards.
 - **Minimal Impact**: Touch only what’s necessary. Avoid introducing new bugs.
+
+## Programming Defaults
+- For substantive coding, refactoring, debugging, and design-review tasks, use `$programming`.
+- `$programming` owns the default application-code style: validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.
 ---
 ## Branch Creation Policy
 

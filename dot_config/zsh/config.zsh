@@ -15,6 +15,7 @@ elif [[ -x /usr/local/bin/brew ]]; then
 fi
 
 # path setup
+export PATH="${HOME}/.cargo/bin:${PATH}"
 export PATH="${HOME}/.local/bin:${PATH}"
 export PATH="${HOME}/.poetry/bin:${PATH}"
 export PATH="${PATH}:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"

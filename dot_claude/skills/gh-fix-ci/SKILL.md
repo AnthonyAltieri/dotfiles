@@ -1,11 +1,15 @@
 ---
 name: gh-fix-ci
 description: Debug or fix failing GitHub PR checks; inspect checks/logs with gh, classify root causes, and propose focused fixes.
+metadata:
+  short-description: Debug failing PR checks
 ---
 
 # PR Checks Review
 
 Use the `gh` CLI to analyze CI status for the current branch PR.
+
+Bootstrap installs the Rust helper commands into `~/.local/bin`, so call them directly.
 
 If no PR exists for the current branch, report this and stop.
 
@@ -15,6 +19,15 @@ If no PR exists for the current branch, report this and stop.
 - `pr`: PR number or URL (optional; default current branch PR)
 - `gh` authentication with repo/workflow access
 
+## Quick start
+
+1. Fetch failing checks with `gh` via the bundled Rust helper.
+   - `inspect-pr-checks --repo "." --json`
+2. Run the local classifier when the raw logs are too large to hand directly to the model.
+   - `gh run view <run_id> --log-failed > /tmp/failed.log`
+   - `classify-ci-log /tmp/failed.log`
+3. Summarize failing logs before reading full job output when the raw logs are large.
+
 ## Workflow
 
 1. Gather PR and check context.
@@ -22,19 +35,19 @@ If no PR exists for the current branch, report this and stop.
    - `gh pr checks --json name,state,startedAt,completedAt,bucket,description,link`
    - If all checks pass, report success with a brief summary and stop.
 2. Identify failed checks and collect logs.
-   - `gh run view <run_id> --log-failed`
-   - `gh run view <run_id> --json jobs --jq '.jobs[] | {name, status, conclusion, steps}'`
-   - `gh run view <run_id> --job=<job_id> --log`
+   - Preferred quick path:
+     - `inspect-pr-checks --repo "." --pr "<number-or-url>"`
+     - Add `--json` for structured summaries.
+     - Use `classify-ci-log` when the raw logs are large and you need a local classifier to shrink the context.
+   - Manual deep dive:
+     - `gh run view <run_id> --log-failed`
+     - `gh run view <run_id> --json jobs --jq '.jobs[] | {name, status, conclusion, steps}'`
+     - `gh run view <run_id> --job=<job_id> --log`
 3. Handle external CI providers.
    - If a failed check URL is not GitHub Actions, treat it as external.
    - For CircleCI jobs (identified by `circleci` in the name or details URL), use CircleCI MCP if available:
-     1. `mcp: circleci_get_project {project_slug}` (slug format: `gh/{org}/{repo}`)
-     2. `mcp: circleci_list_pipelines {project_slug}`
-     3. `mcp: circleci_get_pipeline_workflows {pipeline_id}`
-     4. `mcp: circleci_get_workflow_jobs {workflow_id}`
-     5. `mcp: circleci_get_job_details {project_slug} {job_number}` and `circleci_get_job_logs`
-     6. `mcp: circleci_get_job_tests {project_slug} {job_number}`
-     7. `mcp: circleci_get_job_artifacts {project_slug} {job_number}`
+     - Prefer the project slug plus branch flow if you have them.
+     - Pull failing job logs and test metadata before classifying the failure.
    - For other external providers without available tooling, report the details URL for manual investigation.
 4. Gather additional context for root-cause analysis.
    - `gh pr diff`
@@ -77,6 +90,30 @@ If no PR exists for the current branch, report this and stop.
    - Check, type, error, root cause, resolution
 5. Recommended Actions
    - Prioritized next steps
+
+## Bundled Resources
+
+### `inspect-pr-checks`
+
+Use for fast inspection of failing checks and extraction of actionable log snippets.
+
+Examples:
+- `inspect-pr-checks --repo "."`
+- `inspect-pr-checks --repo "." --pr "123" --json`
+- `inspect-pr-checks --repo "." --pr "https://github.com/org/repo/pull/123" --json`
+- `inspect-pr-checks --repo "." --max-lines 200 --context 40`
+
+### `classify-ci-log`
+
+Classifies raw CI log text into `build`, `test`, `lint`, `config`, or `environment`, and emits compact JSON snippets around the highest-signal failures.
+
+## Gotchas
+
+- Do not assume the first error line is the root cause; use the helper output to identify repeated failure markers before deciding.
+- Keep GitHub fetching and auth on `gh`; the Rust helpers should only process saved logs locally.
+- When a failure looks environmental, cross-check recent `main` runs before proposing code changes.
+- Large logs should be summarized first; only pull the exact failing job section back into the prompt when needed.
+- If either helper command is missing, rerun bootstrap so the installed binaries in `~/.local/bin` are refreshed.
 
 ## Notes
 

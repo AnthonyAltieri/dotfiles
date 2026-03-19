@@ -1,11 +1,15 @@
 ---
 name: gh-address-comments
 description: Review and address GitHub PR comments on the current branch; fetch review threads with gh, triage unresolved items, apply focused fixes, then reply to and resolve threads.
+metadata:
+  short-description: Address GitHub PR review comments
 ---
 
 # PR Comment Handler
 
 Use the `gh` CLI to fetch PR comments for the current branch and address actionable feedback.
+
+Bootstrap installs the Rust helper commands into `~/.local/bin`, so call them directly.
 
 If no PR exists for the current branch, report this and stop.
 
@@ -17,51 +21,30 @@ If no PR exists for the current branch, report this and stop.
   - `--all` / `--include-resolved`: include resolved threads
   - default behavior: unresolved threads only
 
+## Quick start
+
+1. Fetch review data with the Rust helper.
+   - `fetch-comments --format compact > /tmp/pr-threads.tsv`
+2. Summarize unresolved threads before reading the full comment bodies.
+   - `summarize-threads /tmp/pr-threads.tsv`
+3. Summarize unresolved threads before reading the full comment bodies.
+4. Post a top-level PR comment when you need to leave a general note outside a review thread.
+   - `create-comment --body "FROM CLAUDE: Ready for another look."`
+5. Post a thread reply with the bundled helper.
+   - `create-thread-reply --thread-id "<thread_id>" --body "FROM CLAUDE: Addressed in <sha> - <description>"`
+6. Resolve the thread after replying.
+   - `resolve-thread --thread-id "<thread_id>"`
+
 ## Workflow
 
 1. Gather PR context.
    - `gh pr view --json number,url,title,body,baseRefName,headRefName,reviews,state,statusCheckRollup`
    - `gh pr diff`
    - `gh pr checks`
-2. Fetch comments and review threads via GraphQL.
-   ```bash
-   gh api graphql -f query='
-     query($owner: String!, $repo: String!, $pr: Int!) {
-       repository(owner: $owner, name: $repo) {
-         pullRequest(number: $pr) {
-           reviewThreads(first: 100) {
-             nodes {
-               id
-               isResolved
-               isOutdated
-               path
-               line
-               startLine
-               diffSide
-               comments(first: 20) {
-                 nodes {
-                   id
-                   url
-                   body
-                   author { login }
-                   createdAt
-                   replyTo { id }
-                 }
-               }
-             }
-           }
-           reviews(first: 50) {
-             nodes {
-               author { login }
-               state
-               body
-             }
-           }
-         }
-       }
-     }
-   ' -f owner="{owner}" -f repo="{repo}" -F pr={pr_number}
-   ```
+2. Fetch comments and review threads.
+   - Preferred: run `fetch-comments` for full conversation, review, and thread data.
+   - For large review sets, use `--format compact` and `summarize-threads` first so the model sees grouped metadata before opening individual threads.
+   - Manual fallback: use `gh api graphql` to retrieve `reviewThreads`, `reviews`, and thread comments directly.
 3. Filter scope.
    - By default, process unresolved threads only.
    - Skip outdated threads unless still relevant.
@@ -94,33 +77,38 @@ If no PR exists for the current branch, report this and stop.
      | False positive | `FROM CLAUDE: <explanation>` | Yes |
      | Addressed | `FROM CLAUDE: Addressed in <sha> — <description>` | Yes |
      | Question | `FROM CLAUDE: <answer>` | No |
-   - **Reply mutation:**
+   - **Reply helper:**
      ```bash
-     gh api graphql -f query='
-       mutation($threadId: ID!, $body: String!) {
-         addPullRequestReviewThreadReply(input: {
-           pullRequestReviewThreadId: $threadId, body: $body
-         }) { comment { id } }
-       }
-     ' -f threadId="{thread_id}" -f body="{reply_body}"
+     create-thread-reply --thread-id "{thread_id}" --body "{reply_body}"
      ```
-   - **Resolve mutation** (only after replying):
+   - `create-thread-reply` automatically prefixes the final comment body with `🤖 `.
+   - Use `create-comment` for top-level PR comments that are not attached to a review thread:
      ```bash
-     gh api graphql -f query='
-       mutation($threadId: ID!) {
-         resolveReviewThread(input: { threadId: $threadId }) {
-           thread { isResolved }
-         }
-       }
-     ' -f threadId="{thread_id}"
+     create-comment --body "{comment_body}"
+     ```
+   - `create-comment` also automatically prefixes the final comment body with `🤖 `.
+   - **Resolve helper** (only after replying):
+     ```bash
+     resolve-thread --thread-id "{thread_id}"
      ```
    - Always reply BEFORE resolving.
    - Do NOT resolve question threads — leave open for the reviewer.
-   - `resolveReviewThread` is idempotent — already-resolved threads won't error.
+   - `resolve-thread` is idempotent through GitHub's mutation behavior — already-resolved threads won't error.
 8. Re-run focused checks/tests relevant to touched files and summarize results.
 9. Update PR description.
    - After all comments are addressed and committed, update the PR description to reflect the **current state** of the PR (not the history of steps taken).
    - Follow the **gh-manage-pr** skill workflow to regenerate and apply the updated description.
+
+## Gotchas
+
+- Do not read every raw thread body first on large PRs; summarize and filter by path, reviewer, and unresolved state before opening details.
+- Resolved and outdated threads are often noise unless the user explicitly asks for a full audit.
+- Keep GraphQL fetching in `gh`; the Rust helpers should only post-process saved thread metadata.
+- When multiple reviewers comment on the same file, address the blocking or request-changes paths first.
+- `create-comment` targets the current branch PR by default and can take `--pr` when you need an explicit PR target.
+- `create-thread-reply` expects a review thread ID, not a comment ID.
+- Keep the reply text agent-specific (`FROM CLAUDE:` etc.); the helper adds only the robot emoji prefix.
+- If any helper command is missing, rerun bootstrap so the installed binaries in `~/.local/bin` are refreshed.
 
 ## Output Format
 
@@ -136,3 +124,12 @@ If no PR exists for the current branch, report this and stop.
 - If `gh` auth fails, ask user to run `gh auth login`, then retry.
 - Keep responses concise and factual when a comment is a false positive.
 - Both mutations require repo write access (already assumed by existing workflow).
+
+## Bundled Resources
+
+- `fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization.
+- `summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.
+- `create-comment` - Creates a top-level PR comment and automatically prefixes the body with `🤖 `.
+- `create-thread-reply` - Creates a review-thread reply and automatically prefixes the body with `🤖 `.
+- `resolve-thread` - Resolves a review thread by thread ID.
+- `scripts/` - Rust source package that bootstrap uses to install the helper commands.

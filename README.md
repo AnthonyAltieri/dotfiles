@@ -122,7 +122,7 @@ This repo manages a curated subset of `~/.codex` via `dot_codex/`:
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/default.rules`
-- `~/.codex/skills/{atlas,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture}`
+- `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}`
 
 Machine-local Codex state is intentionally not managed, including auth/history/sessions/worktrees/sqlite/logs/cache.
 
