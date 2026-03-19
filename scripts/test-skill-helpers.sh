@@ -16,11 +16,13 @@ run() {
 }
 
 run cargo test --offline --manifest-path dot_codex/skills/atlas/scripts/Cargo.toml
+run cargo test --offline --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml
 run cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml
 run cargo test --offline --manifest-path dot_codex/skills/gh-fix-ci/scripts/Cargo.toml
 run rustc --test dot_codex/skills/gh-manage-pr/scripts/summarize_diff.rs -o /tmp/codex-gh-manage-pr-tests
 run /tmp/codex-gh-manage-pr-tests
 
+run cargo test --offline --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml
 run cargo test --offline --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml
 run cargo test --offline --manifest-path dot_claude/skills/gh-fix-ci/scripts/Cargo.toml
 run rustc --test dot_claude/skills/gh-manage-pr/scripts/summarize_diff.rs -o /tmp/claude-gh-manage-pr-tests

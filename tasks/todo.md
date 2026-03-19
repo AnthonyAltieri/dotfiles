@@ -1,3 +1,133 @@
+# Rust Helper Conventions Audit
+
+## Goal
+
+Inspect the existing Rust helper crates under `dot_codex/skills` and `dot_claude/skills` and extract the conventions that a new `sql-read` crate should follow.
+
+## Success criteria
+
+- The existing helper crates are inventoried.
+- Repeated `Cargo.toml` patterns are identified.
+- Repeated test-layout patterns are identified.
+- Repeated helper CLI patterns are identified.
+- Concrete file examples are captured for the final notes.
+
+## Assumptions / constraints
+
+- Scope is limited to actual Cargo crates under the mirrored skill trees.
+- Mirrored Claude crates may confirm conventions but should not be treated as independent patterns when they are direct copies.
+- The output is a concise implementation guide, not a design proposal for `sql-read`.
+
+## Steps
+
+- [x] Inventory the existing Rust helper crates in both skill trees.
+- [x] Inspect manifest, source, and test patterns in representative files.
+- [x] Summarize actionable conventions for `sql-read` with file examples.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- Some Rust helpers in the repo are standalone `.rs` scripts rather than Cargo crates, so they should not drive crate-structure guidance.
+- Atlas is a single-binary crate while GitHub helpers are multi-bin crates, so `sql-read` needs the right pattern chosen deliberately.
+
+## Verification plan
+
+- Cross-check every `Cargo.toml` found under `dot_codex/skills` and `dot_claude/skills`.
+- Confirm test placement by locating `#[cfg(test)]` usage in the helper sources.
+- Confirm CLI conventions by checking argument parsing, `--help`, exit codes, and stdout/stderr behavior in representative binaries.
+
+## Review
+
+- Found three actual helper crates under the skill trees:
+  - `dot_codex/skills/atlas/scripts`
+  - `dot_codex/skills/gh-address-comments/scripts` mirrored in `dot_claude/skills/gh-address-comments/scripts`
+  - `dot_codex/skills/gh-fix-ci/scripts` mirrored in `dot_claude/skills/gh-fix-ci/scripts`
+- Manifest convention is intentionally small: package metadata, minimal dependencies, and explicit `[[bin]]` entries only when a crate exposes multiple executables.
+- Test convention is inline unit tests in the same source file via `#[cfg(test)]`; there are no `tests/` directories under either skill tree.
+- CLI convention is a thin `main()` wrapper around a `run()` function, manual argument parsing, `--help` usage text on stdout, errors on stderr, and deterministic machine-friendly stdout output.
+- Shared verification currently uses `cargo test --offline --manifest-path ...` in `scripts/test-skill-helpers.sh`, so new helper crates should keep a committed lockfile and avoid requiring network access during normal test runs.
+
+# SQL Read Skill
+
+## Goal
+
+Add a mirrored `sql-read` skill with a Rust-backed `sql-read safe-ro` entrypoint for blanket-approvable read-only Postgres and SQLite access, plus a manual `sql-read query` path.
+
+## Success criteria
+
+- New `sql-read` skills exist under both `dot_codex/skills` and `dot_claude/skills`.
+- The Rust crate exposes one binary `sql-read` with `safe-ro` and `query` subcommands.
+- `safe-ro` enforces env-var-only targets and read-only execution.
+- `query` supports env-var or raw targets but still enforces read-only execution.
+- SQLite tests run locally and the shared test runner includes the new skill.
+- Verification and review notes are recorded here.
+
+## Assumptions / constraints
+
+- v1 scope is Postgres and SQLite only.
+- Postgres integration tests may need to be ignored unless a test DSN is available.
+- The blanket-approved path is `sql-read safe-ro:*`, not `sql-read:*`.
+
+## Steps
+
+- [x] Add the Codex `sql-read` skill resources and Rust crate.
+- [x] Add tests for parsing, query validation, output shaping, and SQLite execution.
+- [x] Mirror the skill and crate into the Claude skill tree.
+- [x] Update the shared helper test runner and record verification.
+
+## Risks / edge cases
+
+- New Rust dependencies may require a networked Cargo fetch the first time.
+- Postgres value handling must avoid leaking DSNs while still returning stable JSON.
+- SQL parsing must stay conservative and reject ambiguous statements.
+
+## Verification plan
+
+- Run Cargo tests for the new Codex and Claude `sql-read` crates.
+- Run the shared `scripts/test-skill-helpers.sh` suite after updating it.
+- Review the final diff for mirrored Codex/Claude behavior and safe-ro/query separation.
+
+## Review
+
+- Added a new mirrored `sql-read` skill under `dot_codex/skills/sql-read` and `dot_claude/skills/sql-read`.
+- The skill stays lean and follows the documented best-practice shape:
+  - `SKILL.md` for trigger rules, workflow, and gotchas
+  - `references/postgres.md` and `references/sqlite.md` for engine-specific guidance
+  - `assets/queries/` for reusable schema-inspection templates
+  - a Rust crate in `scripts/` with one `sql-read` binary
+- Implemented one binary with two subcommands:
+  - `sql-read safe-ro` for the approval-friendly env-var-only path
+  - `sql-read query` for manual env-var or raw-target exceptions
+- Both paths enforce read-only behavior:
+  - Postgres starts a read-only transaction and applies a statement timeout
+  - SQLite opens the database in read-only mode and applies a busy timeout
+- Added conservative SQL validation with `sqlparser`:
+  - exactly one statement
+  - only `Statement::Query` is allowed
+  - multi-statement, DDL, DML, transaction control, `EXPLAIN`, and SQLite `PRAGMA` forms are rejected by staying query-only
+- Output is stable and compact:
+  - default `json`
+  - optional `table` and `tsv`
+  - raw DSNs and raw SQLite paths are redacted from errors and never echoed in the result payload
+- Added inline Rust tests for:
+  - subcommand and target-flag validation
+  - env-var-only enforcement on `safe-ro`
+  - raw-target support on `query`
+  - SQL guard behavior
+  - truncation/output shaping
+  - SQLite read-only execution
+  - an ignored Postgres integration test gated on `SQL_READ_TEST_POSTGRES_DSN`
+- Updated `scripts/test-skill-helpers.sh` so the shared offline suite now covers both Codex and Claude `sql-read` crates.
+- Verification:
+  - `cargo test --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
+  - `cargo test --offline --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
+  - `cargo fmt --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
+  - `cargo fmt --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
+  - `bash scripts/test-skill-helpers.sh`
+- Notes:
+  - the first Codex-side Cargo test required a one-time crates.io fetch before the suite could run offline
+  - Postgres runtime verification remains env-gated because no disposable DSN was configured in this repo
+
 # Branch And PR
 
 ## Goal
@@ -152,6 +282,52 @@ Mirror the recent Rust helper, asset, and documentation upgrades into the matchi
 - Run `--help` or fixture-based smoke tests for the new helper binaries.
 - Search `dot_claude/skills` for stale Python references after the sync.
 - Review the diff to ensure the added resources match the intended Codex-side functionality.
+
+# Skill Convention Audit
+
+## Goal
+
+Inspect the existing skill folder conventions for mirrored Codex and Claude skills and summarize the current patterns for `SKILL.md`, references/assets usage, and agent metadata.
+
+## Success criteria
+
+- The mirrored skill directories under `dot_codex/skills` and `dot_claude/skills` are compared directly.
+- The summary calls out the common `SKILL.md` structure with file examples.
+- The summary notes how `references`, `assets`, `scripts`, and related folders are used today.
+- The summary highlights concrete differences between Codex and Claude skill packaging, including agent metadata.
+
+## Assumptions / constraints
+
+- This is a documentation audit only; no repo behavior changes are needed.
+- The output should stay concise and grounded in current on-disk examples.
+- File examples should prefer mirrored skills where possible.
+
+## Steps
+
+- [x] Inspect representative mirrored skill folders and `SKILL.md` files.
+- [x] Compare supporting folders such as `references`, `assets`, `scripts`, and `agents`.
+- [x] Summarize the conventions and differences in a concise checklist.
+- [x] Record a brief review note here.
+
+## Risks / edge cases
+
+- The mirrored trees are not exact copies, so a convention may apply only to a subset of skills.
+- Some skills exist only in one tree, which can skew a naive folder-level comparison.
+- Folder naming is not fully normalized (`reference` vs `references`), so examples need to be precise.
+
+## Verification plan
+
+- Read a representative set of mirrored `SKILL.md` files from both trees.
+- List folder structures for both trees to confirm where supporting resources exist.
+- Check for agent metadata files and note where they are present or absent.
+
+## Review
+
+- Mirrored skills with substantive content today are `frontend-design`, `gh-address-comments`, `gh-fix-ci`, and `gh-manage-pr`; `sql-read` exists as a populated Codex skill but only as an empty directory in the Claude tree.
+- Shared `SKILL.md` convention is YAML frontmatter (`name`, `description`, optional `metadata.short-description`) followed by a task-oriented markdown body with `Quick start`, `Workflow`, and resource/gotcha sections.
+- Shared resource usage is relative-path linking from `SKILL.md` into bundled helpers such as `references/design-gotchas.md`, `assets/pr-body-template.md`, and Rust helper crates under `scripts/`.
+- Codex-specific packaging adds `agents/openai.yaml` interface metadata and, for some skills, icon assets and `LICENSE.txt`; Claude mirrored skills currently omit per-skill `agents/` metadata.
+- Claude `SKILL.md` files are not byte-for-byte mirrors: they swap command paths to `$HOME/.claude/skills/...` and sometimes include extra Claude-specific workflow detail.
 
 # Python-to-Rust Skill Script Migration
 
