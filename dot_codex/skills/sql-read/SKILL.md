@@ -7,7 +7,7 @@ metadata:
 
 # SQL Read
 
-Use the bundled Rust helper to inspect Postgres or SQLite data in read-only mode.
+Use the bootstrap-installed `sql-read` helper to inspect Postgres or SQLite data in read-only mode.
 
 Trigger this skill for:
 - live schema inspection
@@ -21,12 +21,17 @@ Do not use it for:
 
 ## Quick Start
 
-1. Prefer the approval-friendly `safe-ro` path.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/sql-read/scripts/Cargo.toml" -- safe-ro --engine postgres --dsn-env-var PROD_READONLY_URL --file "$CODEX_HOME/skills/sql-read/assets/queries/postgres-schema-overview.sql"`
-2. Use SQLite read-only via an env var, not a raw path, when you want the stable command surface.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/sql-read/scripts/Cargo.toml" -- safe-ro --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB --file "$CODEX_HOME/skills/sql-read/assets/queries/sqlite-schema-overview.sql"`
-3. Use `query` only when the user is explicitly leaving the blanket-approved path.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/sql-read/scripts/Cargo.toml" -- query --engine postgres --dsn "$DATABASE_URL" --file /tmp/query.sql`
+Bootstrap installs `sql-read` into `~/.local/bin`, so call it directly.
+
+1. Assign the target env var in its own command before asking for approval.
+   - `export PROD_READONLY_URL='postgresql://user:pass@host:5432/dbname'`
+2. Prefer the approval-friendly `safe-ro` path as a separate command.
+   - `sql-read safe-ro --engine postgres --dsn-env-var PROD_READONLY_URL --file "$CODEX_HOME/skills/sql-read/assets/queries/postgres-schema-overview.sql"`
+3. Use SQLite read-only via an env var, not a raw path, when you want the stable command surface.
+   - `export LOCAL_APP_DB='/absolute/path/to/app.sqlite3'`
+   - `sql-read safe-ro --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB --file "$CODEX_HOME/skills/sql-read/assets/queries/sqlite-schema-overview.sql"`
+4. Use `query` only when the user is explicitly leaving the blanket-approved path.
+   - `sql-read query --engine postgres --dsn "$DATABASE_URL" --file /tmp/query.sql`
 
 ## Workflow
 
@@ -36,6 +41,7 @@ Do not use it for:
 2. Prefer `sql-read safe-ro`.
    - `safe-ro` accepts env-var targets only.
    - This is the only path meant for blanket approval.
+   - Do not chain env-var assignment with the `sql-read` invocation; assign first, then run `sql-read` as its own command so approval can target `sql-read safe-ro:*`.
 3. Keep queries narrow.
    - Ask for aggregates, counts, or explicit filters before scanning large tables.
    - Add an explicit `limit` in the SQL unless the query is already aggregate-only.
@@ -56,9 +62,12 @@ Default JSON output is compact and stable:
 
 ## Bundled Resources
 
-- `scripts/sql-read`
+- `sql-read`
+  - Bootstrap installs this command into `~/.local/bin`.
   - `safe-ro` is the approval-friendly, env-var-only path.
   - `query` is the manual exception path that still enforces read-only execution.
+- `scripts/`
+  - Contains the Rust source package that bootstrap uses to install `sql-read`.
 - `references/postgres.md`
   - Catalog-query patterns and Postgres-specific caveats.
 - `references/sqlite.md`
@@ -69,7 +78,9 @@ Default JSON output is compact and stable:
 ## Gotchas
 
 - Rust is a control and safety tool here, not a speed win over `psql`.
+- If `sql-read` is missing, rerun bootstrap so the installed helper is refreshed in `~/.local/bin`.
 - Blanket approval should target `sql-read safe-ro:*`, not `sql-read:*`.
+- Keep env-var assignment and `sql-read` execution as separate shell commands; `export ... && sql-read ...` weakens the approval surface.
 - `safe-ro` accepts env vars only; do not add raw `--dsn` or raw `--sqlite-db-path` to the approval-friendly path.
 - Read-only enforcement in the helper is defense-in-depth, not a substitute for least-privilege credentials.
 - Postgres queries with duplicate column names are rejected; alias duplicate columns before running them.

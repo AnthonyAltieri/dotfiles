@@ -9,6 +9,8 @@ metadata:
 
 Use the `gh` CLI to fetch PR comments for the current branch and address actionable feedback.
 
+Bootstrap installs the Rust helper commands into `~/.local/bin`, so call them directly.
+
 If no PR exists for the current branch, report this and stop.
 
 ## Inputs
@@ -22,17 +24,16 @@ If no PR exists for the current branch, report this and stop.
 ## Quick start
 
 1. Fetch review data with the Rust helper.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin fetch-comments -- --format compact > /tmp/pr-threads.tsv`
-2. Compile or run the Rust summarizer when you need compact grouping instead of raw thread JSON.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin summarize-threads -- /tmp/pr-threads.tsv`
+   - `fetch-comments --format compact > /tmp/pr-threads.tsv`
+2. Run the summarizer when you need compact grouping instead of raw thread JSON.
+   - `summarize-threads /tmp/pr-threads.tsv`
 3. Summarize unresolved threads before reading full comment bodies.
-   - Or build once and run the binary from `target/release/summarize-threads`
 4. Post a top-level PR comment when you need to leave a general note outside a review thread.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin create-comment -- --body "FROM CODEX: Ready for another look."`
+   - `create-comment --body "FROM CODEX: Ready for another look."`
 5. Post a thread reply with the bundled helper.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin create-thread-reply -- --thread-id "<thread_id>" --body "FROM CODEX: Addressed in <sha> - <description>"`
+   - `create-thread-reply --thread-id "<thread_id>" --body "FROM CODEX: Addressed in <sha> - <description>"`
 6. Resolve the thread after replying.
-   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin resolve-thread -- --thread-id "<thread_id>"`
+   - `resolve-thread --thread-id "<thread_id>"`
 
 ## Workflow
 
@@ -41,8 +42,8 @@ If no PR exists for the current branch, report this and stop.
    - `gh pr diff`
    - `gh pr checks`
 2. Fetch comments and review threads.
-   - Preferred: run `scripts/fetch-comments` for full conversation/review/thread data.
-   - For large review sets, use `--format compact` and `scripts/summarize-threads` first so the model sees grouped metadata before opening individual threads.
+   - Preferred: run `fetch-comments` for full conversation/review/thread data.
+   - For large review sets, use `--format compact` and `summarize-threads` first so the model sees grouped metadata before opening individual threads.
    - Manual fallback via GraphQL:
      - `gh api graphql` query for `reviewThreads`, `reviews`, and thread comments.
 3. Filter scope.
@@ -79,17 +80,17 @@ If no PR exists for the current branch, report this and stop.
      | Question | `FROM CODEX: <answer>` | No |
    - **Reply helper:**
      ```bash
-     cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin create-thread-reply -- --thread-id "{thread_id}" --body "{reply_body}"
+     create-thread-reply --thread-id "{thread_id}" --body "{reply_body}"
      ```
    - `create-thread-reply` automatically prefixes the final comment body with `🤖 `.
    - Use `create-comment` for top-level PR comments that are not attached to a review thread:
      ```bash
-     cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin create-comment -- --body "{comment_body}"
+     create-comment --body "{comment_body}"
      ```
    - `create-comment` also automatically prefixes the final comment body with `🤖 `.
    - **Resolve helper** (only after replying):
      ```bash
-     cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin resolve-thread -- --thread-id "{thread_id}"
+     resolve-thread --thread-id "{thread_id}"
      ```
    - Always reply BEFORE resolving.
    - Do NOT resolve question threads — leave open for the reviewer.
@@ -108,6 +109,7 @@ If no PR exists for the current branch, report this and stop.
 - `create-comment` targets the current branch PR by default and can take `--pr` when you need an explicit PR target.
 - `create-thread-reply` expects a review thread ID, not a comment ID.
 - Keep the reply text agent-specific (`FROM CODEX:` etc.); the helper adds only the robot emoji prefix.
+- If any helper command is missing, rerun bootstrap so the installed binaries in `~/.local/bin` are refreshed.
 
 ## Output Format
 
@@ -123,8 +125,9 @@ If no PR exists for the current branch, report this and stop.
 
 ## Bundled Resources
 
-- `scripts/fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization.
-- `scripts/summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.
-- `scripts/create-comment` - Creates a top-level PR comment and automatically prefixes the body with `🤖 `.
-- `scripts/create-thread-reply` - Creates a review-thread reply and automatically prefixes the body with `🤖 `.
-- `scripts/resolve-thread` - Resolves a review thread by thread ID.
+- `fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization.
+- `summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.
+- `create-comment` - Creates a top-level PR comment and automatically prefixes the body with `🤖 `.
+- `create-thread-reply` - Creates a review-thread reply and automatically prefixes the body with `🤖 `.
+- `resolve-thread` - Resolves a review thread by thread ID.
+- `scripts/` - Rust source package that bootstrap uses to install the helper commands.

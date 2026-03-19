@@ -12,11 +12,11 @@ path = "src/bin/fetch_comments.rs"
 
 [[bin]]
 name = "create-comment"
-path = "src/bin/create_comment.rs"
+path = "src/bin/comment.rs"
 
 [[bin]]
 name = "create-thread-reply"
-path = "src/bin/create_thread_reply.rs"
+path = "src/bin/thread_reply.rs"
 
 [[bin]]
 name = "resolve-thread"

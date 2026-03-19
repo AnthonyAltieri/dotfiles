@@ -9,6 +9,8 @@ metadata:
 
 Use the `gh` CLI to analyze CI status for the current branch PR.
 
+Bootstrap installs the Rust helper commands into `~/.local/bin`, so call them directly.
+
 If no PR exists for the current branch, report this and stop.
 
 ## Inputs
@@ -20,11 +22,11 @@ If no PR exists for the current branch, report this and stop.
 ## Quick start
 
 1. Fetch failing checks with `gh` via the bundled Rust helper.
-   - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --json`
+   - `inspect-pr-checks --repo "." --json`
 2. Run the local classifier when the raw logs are too large to hand directly to the model.
    - `gh run view <run_id> --log-failed > /tmp/failed.log`
-   - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-fix-ci/scripts/Cargo.toml" --bin classify-ci-log -- /tmp/failed.log`
-3. Build once and reuse the binaries from `target/release` when iterating.
+   - `classify-ci-log /tmp/failed.log`
+3. Summarize failing logs before reading full job output when the raw logs are large.
 
 ## Workflow
 
@@ -34,7 +36,7 @@ If no PR exists for the current branch, report this and stop.
    - If all checks pass, report success with a brief summary and stop.
 2. Identify failed checks and collect logs.
    - Preferred quick path:
-     - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --pr "<number-or-url>"`
+     - `inspect-pr-checks --repo "." --pr "<number-or-url>"`
      - Add `--json` for structured summaries.
      - Use `classify-ci-log` when the raw logs are large and you need a local classifier to shrink the context.
    - Manual deep dive:
@@ -91,17 +93,17 @@ If no PR exists for the current branch, report this and stop.
 
 ## Bundled Resources
 
-### `scripts/inspect-pr-checks`
+### `inspect-pr-checks`
 
 Use for fast inspection of failing checks and extraction of actionable log snippets.
 
 Examples:
-- `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "."`
-- `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --pr "123" --json`
-- `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --pr "https://github.com/org/repo/pull/123" --json`
-- `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --max-lines 200 --context 40`
+- `inspect-pr-checks --repo "."`
+- `inspect-pr-checks --repo "." --pr "123" --json`
+- `inspect-pr-checks --repo "." --pr "https://github.com/org/repo/pull/123" --json`
+- `inspect-pr-checks --repo "." --max-lines 200 --context 40`
 
-### `scripts/classify-ci-log`
+### `classify-ci-log`
 
 Classifies raw CI log text into `build`, `test`, `lint`, `config`, or `environment`, and emits compact JSON snippets around the highest-signal failures.
 
@@ -111,6 +113,7 @@ Classifies raw CI log text into `build`, `test`, `lint`, `config`, or `environme
 - Keep GitHub fetching and auth on `gh`; the Rust helpers should only process saved logs locally.
 - When a failure looks environmental, cross-check recent `main` runs before proposing code changes.
 - Large logs should be summarized first; only pull the exact failing job section back into the prompt when needed.
+- If either helper command is missing, rerun bootstrap so the installed binaries in `~/.local/bin` are refreshed.
 
 ## Notes
 

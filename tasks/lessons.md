@@ -14,3 +14,6 @@
 - Mistake: I added `gh-address-comments` review-thread reply and resolve helpers but missed the separate top-level PR `create-comment` helper the user also needed.
 - Why it happened: I scoped the follow-up too narrowly around review-thread mutations and did not enumerate every comment-creation path before marking the helper package complete.
 - Prevention rule: When adding comment-mutation tooling, explicitly inventory all target comment types first (top-level PR comments, thread replies, resolutions) and apply any formatting rules, such as robot prefixes, across every creation path.
+- Mistake: I initially solved the installed-binary problem only for `sql-read` instead of inventorying every Rust-backed skill helper that used the same `cargo run` pattern.
+- Why it happened: I optimized for the immediate failing helper and did not broaden the audit to the shared packaging pattern across mirrored skill trees.
+- Prevention rule: When a bootstrap or packaging fix applies to one Rust-backed skill helper, inventory every `scripts/Cargo.toml` under `dot_codex/skills` and `dot_claude/skills` before closing the change, then install and document the whole set consistently.

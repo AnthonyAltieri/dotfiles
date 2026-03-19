@@ -673,3 +673,368 @@ Design a high-signal `programming` skill that codifies the user's type-safety, b
 - Notes:
   - The stock `python3` environment did not have `PyYAML`, so the local skill tooling was run through `uv`.
   - No repo-level markdown linter or pre-commit config was present at the workspace root for targeted linting of these docs files.
+
+# Bootstrap Dry Run Review
+
+## Goal
+
+Run the non-destructive equivalent of `bootstrap.sh` to verify where this repo would deploy files and identify any conflicts in managed skill files before applying changes to the home directory.
+
+## Success criteria
+
+- The actual bootstrap behavior is mapped to a safe dry-run command.
+- The target locations for the Codex and Claude skill files are confirmed.
+- Existing destination conflicts for managed skill files are identified and summarized.
+- Any conflict analysis is grounded in `chezmoi` output, not inferred from the repo tree alone.
+- Review notes and verification commands are recorded here.
+
+## Assumptions / constraints
+
+- `bootstrap.sh` itself has no dedicated dry-run flag; the relevant non-destructive equivalent is `chezmoi apply --dry-run --verbose --source <repo> --force`.
+- The goal is inspection only; no changes should be written to the home directory.
+- `chezmoi diff --source <repo>` is the right companion command for content-level conflicts.
+- Focus is on managed skill files under `~/.codex` and `~/.claude`, plus any related always-on instructions such as `~/.codex/AGENTS.md`.
+
+## Steps
+
+- [x] Record the exact dry-run commands that safely model bootstrap behavior.
+- [x] Run `chezmoi apply --dry-run --verbose --source "$PWD" --force` and capture the target paths it would touch.
+- [x] Run focused `chezmoi diff --source "$PWD" --no-pager` checks for Codex and Claude skill paths.
+- [x] Summarize conflicts, especially for programming and `gh-address-comments` skill files.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- `chezmoi` may report broad home-directory changes, so the analysis needs to stay focused on skill-related paths.
+- Dry-run output may show updates without showing full content conflicts, so `diff` must back it up.
+- Existing unmanaged files in `~/.codex` or `~/.claude` may cause conflict prompts on a real apply even if the source mapping is correct.
+
+## Verification plan
+
+- Use `chezmoi apply --dry-run --verbose --source "$PWD" --force` to model bootstrap's apply step without writing changes.
+- Use `chezmoi diff --source "$PWD" --no-pager` on specific Codex and Claude targets to inspect file-level conflicts.
+- Cross-check reported targets against the repo naming conventions in `README.md`.
+
+## Review
+
+- Safe bootstrap dry-run command for this repo is:
+  - `chezmoi apply --dry-run --verbose --source "$PWD" --force ~/.codex ~/.claude`
+- Focused conflict inspection commands that produced the useful signal were:
+  - `chezmoi diff --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills ~/.claude/skills`
+  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/skills/gh-address-comments ~/.codex/skills/programming ~/.claude/skills/gh-address-comments ~/.claude/skills/programming`
+  - direct source-vs-destination `cmp`/`diff` checks on specific skill files to filter out generated-artifact noise
+- Confirmed target mappings with `chezmoi target-path --source "$PWD"`:
+  - `dot_codex/AGENTS.md` -> `~/.codex/AGENTS.md`
+  - `dot_codex/skills/programming/SKILL.md` -> `~/.codex/skills/programming/SKILL.md`
+  - `dot_codex/skills/gh-address-comments/SKILL.md` -> `~/.codex/skills/gh-address-comments/SKILL.md`
+  - `dot_claude/skills/gh-address-comments/SKILL.md` -> `~/.claude/skills/gh-address-comments/SKILL.md`
+- Human-authored skill conflicts:
+  - `~/.codex/AGENTS.md` differs from source and would be updated with the new `$programming` pointer.
+  - `~/.codex/skills/programming/*` and `~/.claude/skills/programming/*` do not exist and would be created.
+  - `~/.codex/skills/gh-address-comments/SKILL.md` differs from source; the deployed copy is older and does not include the new quick start, reply/resolve helper workflow, or bundled-resource section.
+  - `~/.claude/skills/gh-address-comments/SKILL.md` also differs from source for the same reason.
+  - The new Rust helper files for `gh-address-comments` are missing from both homes:
+    - `scripts/Cargo.toml`
+    - `scripts/src/bin/fetch_comments.rs`
+    - `scripts/src/bin/create_comment.rs`
+    - `scripts/src/bin/create_thread_reply.rs`
+    - `scripts/src/bin/resolve_thread.rs`
+    - `scripts/src/lib.rs`
+  - Existing deployed state is asymmetric:
+    - Codex home currently has the older Python-based helper `~/.codex/skills/gh-address-comments/scripts/fetch_comments.py`
+    - Claude home currently has only `~/.claude/skills/gh-address-comments/SKILL.md`
+- Most important dry-run finding:
+  - `chezmoi apply --dry-run` is currently polluted by local Rust build artifacts under `dot_codex/skills/*/scripts/target` and `dot_claude/skills/*/scripts/target`.
+  - Those directories are present in the source tree and are not excluded by `.chezmoiignore`, so a real apply would try to copy compiled binaries, incremental build output, and dependency metadata into `~/.codex/.../scripts/target` and `~/.claude/.../scripts/target`.
+  - There are no existing deployed `scripts/target` files in the current home skill dirs, so this is a source-tree hygiene issue rather than a destination conflict.
+- Net result:
+  - The intended skill files map to the correct destinations.
+  - The real user-facing conflicts are straightforward skill updates and new files.
+  - The blocking issue before any real bootstrap/apply is excluding or removing `scripts/target/**` from the source tree so chezmoi stops treating build artifacts as managed dotfiles.
+
+# Bootstrap Dry Run Cleanup
+
+## Goal
+
+Fix the source-side bootstrap issues so `chezmoi` dry-runs stay focused on intentional managed-file changes instead of local skill-helper build artifacts.
+
+## Success criteria
+
+- The minimal `chezmoi` ignore rules needed for local skill-helper build outputs are identified and applied.
+- A bootstrap-equivalent dry-run no longer reports `scripts/target` content under `~/.codex` or `~/.claude`.
+- Helper source filenames no longer collide with `chezmoi` source-state attributes during target-path resolution.
+- The remaining skill-related dry-run output is limited to intended managed-file changes.
+- Review notes and verification commands are recorded here.
+
+## Assumptions / constraints
+
+- The primary source-side defect is missing `chezmoi` ignores for local Rust `scripts/target` directories inside managed skill trees.
+- `.gitignore` is not sufficient because `chezmoi` reads the source tree directly.
+- This fix should avoid broad ignores that could hide intentional managed files.
+- `chezmoi` source filenames that start with reserved prefixes such as `create_` can be reinterpreted unless the source file names avoid those prefixes.
+
+## Steps
+
+- [x] Add targeted `.chezmoiignore` entries for `~/.codex/skills/**/scripts/target` and `~/.claude/skills/**/scripts/target`.
+- [x] Rename `gh-address-comments` Rust source files that collide with `chezmoi` `create_` source-state parsing, then update both Cargo manifests.
+- [x] Rerun the bootstrap-equivalent dry-run and confirm build artifacts disappear from the output.
+- [x] Rerun focused skill diffs and target-path checks to verify the remaining differences are the intended skill updates and new files.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- If the ignore patterns are too broad, they could hide future intentional files under `scripts/`.
+- If the patterns are too narrow, `chezmoi` may still descend into nested build output.
+- Future source files that start with `create_` can be silently remapped by `chezmoi` unless they are renamed or specially encoded.
+
+## Verification plan
+
+- Use `chezmoi apply --dry-run --verbose --source "$PWD" --force ~/.codex ~/.claude`.
+- Confirm the output no longer contains `/scripts/target/`.
+- Re-run focused `chezmoi diff` checks for `~/.codex/skills` and `~/.claude/skills`.
+- Confirm `chezmoi target-path` preserves the intended helper source filenames.
+- Re-run the helper Cargo test suites after renaming source files.
+
+## Review
+
+- Added targeted `.chezmoiignore` rules for:
+  - `.claude/skills/**/scripts/target`
+  - `.claude/skills/**/scripts/target/**`
+  - `.codex/skills/**/scripts/target`
+  - `.codex/skills/**/scripts/target/**`
+- Discovered a second source-side bootstrap bug while rechecking target paths:
+  - `chezmoi` interpreted `create_comment.rs` and `create_thread_reply.rs` as source-state attribute files and mapped them to `comment.rs` and `thread_reply.rs` in the destination.
+  - Fixed this by renaming the source files to `comment.rs` and `thread_reply.rs` in both mirrored skill trees, then updating both `Cargo.toml` manifests to keep the binary names unchanged.
+- Verification:
+  - `chezmoi apply --dry-run --verbose --source "$PWD" --force ~/.codex ~/.claude > /tmp/chezmoi-bootstrap-dry-run.txt`
+  - `rg -n '/scripts/target/' /tmp/chezmoi-bootstrap-dry-run.txt`
+  - `chezmoi target-path --source "$PWD" dot_codex/skills/gh-address-comments/scripts/src/bin/comment.rs`
+  - `chezmoi target-path --source "$PWD" dot_codex/skills/gh-address-comments/scripts/src/bin/thread_reply.rs`
+  - `rg -n "create_comment\\.rs|create_thread_reply\\.rs" dot_codex dot_claude`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`
+- Results:
+  - `/scripts/target/` no longer appears anywhere in the bootstrap dry-run output.
+  - The helper source files now map to the correct destination paths:
+    - `dot_codex/.../comment.rs` -> `~/.codex/.../comment.rs`
+    - `dot_codex/.../thread_reply.rs` -> `~/.codex/.../thread_reply.rs`
+  - The helper source trees contain no remaining `create_comment.rs` or `create_thread_reply.rs` references.
+  - Both mirrored helper Cargo test suites still pass after the rename.
+  - Remaining skill-related dry-run diffs are the intended managed updates:
+    - `~/.codex/AGENTS.md`
+    - `~/.codex/skills/gh-address-comments/**`
+    - `~/.codex/skills/programming/**`
+    - `~/.claude/skills/gh-address-comments/**`
+    - `~/.claude/skills/programming/**`
+- Net result:
+  - The bootstrap dry-run is no longer polluted by local build artifacts.
+  - The helper filenames will land in the right place during a real apply.
+  - The remaining differences are ordinary managed-file updates, not source-tree hygiene bugs.
+
+# Bootstrap Apply Verification
+
+## Goal
+
+Run the real bootstrap/apply flow against the home directory and verify the deployed Codex and Claude files match the managed source after the bootstrap fixes.
+
+## Success criteria
+
+- The real bootstrap/apply completes without unexpected errors.
+- The expected managed home files are updated or created under `~/.codex` and `~/.claude`.
+- Post-apply comparisons show the deployed files match the repo source for the targeted skill files and `~/.codex/AGENTS.md`.
+- Any unexpected drift is identified explicitly.
+
+## Assumptions / constraints
+
+- `bootstrap.sh` applies the whole chezmoi source, not just the skill files, so verification should stay focused on the relevant managed targets.
+- Applying to the home directory requires elevated filesystem access outside the workspace sandbox.
+- The source tree has already been cleaned so build artifacts and `create_` filename collisions should no longer interfere with deployment.
+
+## Steps
+
+- [x] Run the real bootstrap/apply flow from the repo root.
+- [x] Compare deployed `~/.codex/AGENTS.md` with the managed source.
+- [x] Compare deployed `~/.codex/skills/gh-address-comments/**` and `~/.codex/skills/programming/**` with the managed source.
+- [x] Compare deployed `~/.claude/skills/gh-address-comments/**` and `~/.claude/skills/programming/**` with the managed source.
+- [x] Record review notes and any unexpected differences here.
+
+## Risks / edge cases
+
+- `chezmoi init --apply --force` may update additional managed files in the home directory outside the skill paths.
+- Existing unmanaged files in the home skill directories may be removed or overwritten during the apply.
+- Verification must account for intentionally absent files, such as the lack of a managed Claude-side `CLAUDE.md`.
+
+## Verification plan
+
+- Run `./bootstrap.sh` from the repo root.
+- Use focused `chezmoi diff --source "$PWD" --no-pager` checks after apply on the targeted home paths.
+- Use direct file comparisons where helpful to confirm the expected content landed exactly.
+
+## Review
+
+- First bootstrap attempt failed before completion in `.chezmoiscripts/darwin/02-install-brews.sh` because `.Brewfile` declared `1password-cli` as a formula:
+  - `brew "1password-cli"`
+  - Homebrew currently exposes `1password-cli` as a cask, so `brew bundle` aborted before the full bootstrap finished.
+- Fixed the bootstrap blocker in `.Brewfile` by changing the entry to:
+  - `cask "1password-cli"`
+- Re-ran `./bootstrap.sh` successfully after the Brewfile fix.
+- Verification:
+  - `./bootstrap.sh`
+  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills/gh-address-comments ~/.codex/skills/programming ~/.claude/skills/gh-address-comments ~/.claude/skills/programming`
+  - `git diff --no-index -- dot_codex/AGENTS.md "$HOME/.codex/AGENTS.md"`
+  - `git diff --no-index -- dot_codex/skills/programming/SKILL.md "$HOME/.codex/skills/programming/SKILL.md"`
+  - `git diff --no-index -- dot_claude/skills/programming/SKILL.md "$HOME/.claude/skills/programming/SKILL.md"`
+  - `git diff --no-index -- dot_codex/skills/gh-address-comments/SKILL.md "$HOME/.codex/skills/gh-address-comments/SKILL.md"`
+  - `git diff --no-index -- dot_codex/skills/gh-address-comments/scripts/src/bin/comment.rs "$HOME/.codex/skills/gh-address-comments/scripts/src/bin/comment.rs"`
+  - `git diff --no-index -- dot_claude/skills/gh-address-comments/SKILL.md "$HOME/.claude/skills/gh-address-comments/SKILL.md"`
+  - `git diff --no-index -- dot_claude/skills/gh-address-comments/scripts/src/bin/thread_reply.rs "$HOME/.claude/skills/gh-address-comments/scripts/src/bin/thread_reply.rs"`
+- Results:
+  - The second bootstrap run completed successfully.
+  - Focused `chezmoi diff` for the targeted home paths returned no differences.
+  - Direct comparisons for `~/.codex/AGENTS.md`, both deployed `programming` skills, and representative `gh-address-comments` files in both homes returned no differences.
+  - The expected managed files are now present in `~/.codex` and `~/.claude` and match the repo source for the targeted paths.
+  - No unexpected drift was found in the Codex/Claude files verified here.
+
+# SQL Read Binary Install
+
+## Goal
+
+Make `sql-read` usable as a normal command on `PATH` so skill usage does not depend on `cargo run`, a writable `target/` directory inside `~/.codex`, or `cargo` being available in the calling shell.
+
+## Success criteria
+
+- Bootstrap installs or refreshes a real `sql-read` binary into a directory already on `PATH`.
+- The `sql-read` skill docs in both Codex and Claude trees use `sql-read ...` directly instead of `cargo run ...`.
+- The installed command works after bootstrap without manually sourcing `~/.cargo/env`.
+- Verification captures both the install path and direct command execution.
+
+## Assumptions / constraints
+
+- `~/.local/bin` is already on the managed shell path and is present in the current Codex shell environment.
+- Rust is installed during bootstrap via the existing `run_once_before_10-install-rust.sh` script.
+- The simplest correct fix is specific to `sql-read`; generalizing to every Rust-backed skill helper can come later if needed.
+
+## Steps
+
+- [x] Add a chezmoi after-script that installs `sql-read` into `~/.local/bin` during bootstrap/apply.
+- [x] Update both `sql-read` skill docs to call `sql-read` directly and note the bootstrap-installed binary.
+- [x] Re-run bootstrap/apply so the binary is installed into the home directory.
+- [x] Verify `command -v sql-read` and `sql-read --help` succeed without sourcing Cargo env.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- `cargo install --path` may be slower than a direct `cargo build`, but it avoids writing build artifacts into the deployed skill directory.
+- If the Codex and Claude `sql-read` crates ever diverge, choosing the wrong source path could install an unexpected binary.
+- Existing long-lived shells may need a restart if they do not already have `~/.local/bin` on `PATH`.
+
+## Verification plan
+
+- Re-run `./bootstrap.sh` after adding the install script.
+- Run `command -v sql-read`.
+- Run `sql-read --help`.
+- If needed, compare the installed binary behavior against the bundled Cargo package with a focused test run.
+
+## Review
+
+- Added [`.chezmoiscripts/run_after_11-install-sql-read-bin.sh`](/Users/anthonyaltieri/code/dotfiles/.chezmoiscripts/run_after_11-install-sql-read-bin.sh) to install `sql-read` into `~/.local/bin` after bootstrap/apply.
+  - The script sources `~/.cargo/env` if present, installs from the deployed `sql-read` Cargo package, and keeps build artifacts out of the deployed skill tree by using `~/.local/share/codex-skill-targets/sql-read` as `CARGO_TARGET_DIR`.
+- Updated both mirrored skill docs to call `sql-read` directly instead of `cargo run`:
+  - [dot_codex/skills/sql-read/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/sql-read/SKILL.md)
+  - [dot_claude/skills/sql-read/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/sql-read/SKILL.md)
+- Verification:
+  - `bash -n .chezmoiscripts/run_after_11-install-sql-read-bin.sh`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
+  - `./bootstrap.sh`
+  - `command -v sql-read`
+  - `sql-read --help`
+  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/skills/sql-read ~/.claude/skills/sql-read`
+- Results:
+  - Bootstrap now installs `sql-read` into `~/.local/bin/sql-read`.
+  - `sql-read --help` succeeds in a fresh shell without manually sourcing `~/.cargo/env`.
+  - The deployed Codex and Claude `sql-read` skill docs match the repo source after apply.
+  - `cargo` itself is still not on `PATH` in this noninteractive shell, but `sql-read` no longer depends on that.
+
+# Skill Rust Binary Install
+
+## Goal
+
+Generalize the installed-binary workflow from `sql-read` to every Rust-backed skill helper so bootstrap compiles them once, installs them onto `PATH`, and skill docs call the installed commands directly.
+
+## Success criteria
+
+- Bootstrap installs every Rust-backed skill binary into `~/.local/bin`.
+- Build artifacts stay out of deployed skill directories such as `~/.codex/skills/**/scripts/target`.
+- Skill docs for Rust-backed helpers use installed commands instead of `cargo run` or `target/release/...` paths.
+- Representative binaries can be resolved from `PATH` after bootstrap.
+
+## Assumptions / constraints
+
+- `~/.local/bin` is already on the managed shell path.
+- The Rust-backed skills currently live under:
+  - `dot_codex/skills/atlas`
+  - `dot_codex/skills/gh-address-comments`
+  - `dot_codex/skills/gh-fix-ci`
+  - `dot_codex/skills/sql-read`
+  - mirrored Claude copies for all except `atlas`
+- Mirrored Codex/Claude crates should install from one canonical source path when duplicates exist.
+
+## Steps
+
+- [x] Inventory every Rust-backed skill package, its binaries, and doc references.
+- [x] Replace the one-off `sql-read` installer with a general bootstrap installer for all Rust-backed skills.
+- [x] Update affected skill docs to use installed binaries from `~/.local/bin`.
+- [x] Run focused Cargo tests for the affected packages.
+- [x] Run bootstrap and verify representative installed binaries resolve from `PATH`.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- Two packages could install the same binary name and unintentionally overwrite each other.
+- Mirrored Codex/Claude source trees could drift, so canonical-source selection must be deliberate.
+- Some helpers may still require extra runtime permissions or environment variables even after installation.
+
+## Verification plan
+
+- Enumerate binary names from each `scripts/Cargo.toml`.
+- Run focused `cargo test --offline --manifest-path ...` for the affected packages.
+- Run `./bootstrap.sh`.
+- Check `command -v` for representative binaries and update docs via `chezmoi diff`.
+
+## Review
+
+- Inventory found 7 Rust package trees across 4 canonical skills:
+  - `atlas` (`atlas-cli`)
+  - `gh-address-comments` (`fetch-comments`, `summarize-threads`, `create-comment`, `create-thread-reply`, `resolve-thread`)
+  - `gh-fix-ci` (`inspect-pr-checks`, `classify-ci-log`)
+  - `sql-read` (`sql-read`)
+  - Mirrored Claude packages exist for all except `atlas`; bootstrap now prefers the Codex source when both trees exist.
+- Replaced the one-off SQL installer with a general installer at [run_after_11-install-rust-skill-bins.sh](/Users/anthonyaltieri/code/dotfiles/.chezmoiscripts/run_after_11-install-rust-skill-bins.sh).
+  - It discovers `scripts/Cargo.toml` packages under `~/.codex/skills` and `~/.claude/skills`.
+  - It deduplicates mirrored skills by skill name.
+  - It installs binaries into `~/.local/bin`.
+  - It keeps build artifacts out of deployed skill dirs via `~/.local/share/codex-skill-targets/<skill>`.
+- Updated Rust-backed skill docs to use installed commands instead of `cargo run`:
+  - [dot_codex/skills/atlas/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/atlas/SKILL.md)
+  - [dot_codex/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-address-comments/SKILL.md)
+  - [dot_claude/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-address-comments/SKILL.md)
+  - [dot_codex/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-fix-ci/SKILL.md)
+  - [dot_claude/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-fix-ci/SKILL.md)
+  - `sql-read` docs were already moved earlier and remain on the installed-command model.
+- Verification:
+  - `bash -n .chezmoiscripts/run_after_11-install-rust-skill-bins.sh`
+  - `rg -n "cargo run --quiet --release --manifest-path|target/release/" <affected skill docs>`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/atlas/scripts/Cargo.toml`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/gh-fix-ci/scripts/Cargo.toml`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
+  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
+  - `./bootstrap.sh`
+  - `command -v atlas-cli fetch-comments summarize-threads create-comment create-thread-reply resolve-thread inspect-pr-checks classify-ci-log sql-read`
+  - `classify-ci-log /tmp/classify-ci-log-smoke.txt`
+  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/skills/atlas ~/.codex/skills/gh-address-comments ~/.codex/skills/gh-fix-ci ~/.codex/skills/sql-read ~/.claude/skills/gh-address-comments ~/.claude/skills/gh-fix-ci ~/.claude/skills/sql-read`
+- Results:
+  - All installed helper commands resolve from `~/.local/bin`.
+  - `classify-ci-log` ran successfully from `PATH` and produced the expected compact JSON classification.
+  - The deployed Codex and Claude skill docs are in sync with the repo after bootstrap.
+  - No remaining `cargo run` or `target/release` instructions remain in the affected Rust-backed skill docs.
