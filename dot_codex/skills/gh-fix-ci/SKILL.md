@@ -15,6 +15,16 @@ If no PR exists for the current branch, report this and stop.
 - `pr`: PR number or URL (optional; default current branch PR)
 - `gh` authentication with repo/workflow access
 
+## Quick start
+
+1. Fetch failing logs with `gh` or the bundled Rust helper.
+   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --json`
+2. Compile the Rust helper when you need a compact failure summary.
+   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin classify-ci-log -- /tmp/failed.log`
+3. Pipe a saved log into the helper.
+   - `gh run view <run_id> --log-failed > /tmp/failed.log`
+   - Or build once and run the binary from `target/release/classify-ci-log`
+
 ## Workflow
 
 1. Gather PR and check context.
@@ -23,8 +33,9 @@ If no PR exists for the current branch, report this and stop.
    - If all checks pass, report success with a brief summary and stop.
 2. Identify failed checks and collect logs.
    - Preferred quick path:
-     - `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "<number-or-url>"`
+     - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --pr "<number-or-url>"`
      - Add `--json` for structured summaries.
+     - Use `scripts/classify-ci-log` when the raw logs are large and you need a local classifier to shrink the context.
    - Manual deep dive:
      - `gh run view <run_id> --log-failed`
      - `gh run view <run_id> --json jobs --jq '.jobs[] | {name, status, conclusion, steps}'`
@@ -77,13 +88,24 @@ If no PR exists for the current branch, report this and stop.
 
 ## Bundled Resources
 
-### `scripts/inspect_pr_checks.py`
+### `scripts/inspect-pr-checks`
 
 Use for fast inspection of failing checks and extraction of actionable log snippets.
 
 Examples:
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "."`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "123" --json`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "123"`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --pr "https://github.com/org/repo/pull/123" --json`
-- `python "<path-to-skill>/scripts/inspect_pr_checks.py" --repo "." --max-lines 200 --context 40`
+- `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "."`
+- `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --pr "123" --json`
+- `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --pr "123"`
+- `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --pr "https://github.com/org/repo/pull/123" --json`
+- `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-fix-ci/scripts/Cargo.toml" --bin inspect-pr-checks -- --repo "." --max-lines 200 --context 40`
+
+### `scripts/classify-ci-log`
+
+Classifies raw CI log text into `build`, `test`, `lint`, `config`, or `environment`, and emits compact JSON snippets around the highest-signal failures.
+
+## Gotchas
+
+- Do not assume the first error line is the root cause; use the helper output to identify repeated failure markers before deciding.
+- Keep GitHub fetching and auth on `gh`; the Rust helper should only process saved logs locally.
+- When a failure looks environmental, cross-check recent `main` runs before proposing code changes.
+- Large logs should be summarized first; only pull the exact failing job section back into the prompt when needed.

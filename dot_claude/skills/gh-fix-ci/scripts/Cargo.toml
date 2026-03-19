@@ -1,0 +1,15 @@
+[package]
+name = "gh-fix-ci-tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+
+[[bin]]
+name = "inspect-pr-checks"
+path = "src/bin/inspect_pr_checks.rs"
+
+[[bin]]
+name = "classify-ci-log"
+path = "src/bin/classify_ci_log.rs"

@@ -19,6 +19,15 @@ If no PR exists for the current branch, report this and stop.
   - `--all` / `--include-resolved`: include resolved threads
   - default behavior: unresolved threads only
 
+## Quick start
+
+1. Fetch review data with the Rust helper.
+   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin fetch-comments -- --format compact > /tmp/pr-threads.tsv`
+2. Compile or run the Rust summarizer when you need compact grouping instead of raw thread JSON.
+   - `cargo run --quiet --release --manifest-path "$CODEX_HOME/skills/gh-address-comments/scripts/Cargo.toml" --bin summarize-threads -- /tmp/pr-threads.tsv`
+3. Summarize unresolved threads before reading full comment bodies.
+   - Or build once and run the binary from `target/release/summarize-threads`
+
 ## Workflow
 
 1. Gather PR context.
@@ -26,7 +35,8 @@ If no PR exists for the current branch, report this and stop.
    - `gh pr diff`
    - `gh pr checks`
 2. Fetch comments and review threads.
-   - Preferred: run `scripts/fetch_comments.py` for full conversation/review/thread data.
+   - Preferred: run `scripts/fetch-comments` for full conversation/review/thread data.
+   - For large review sets, use `--format compact` and `scripts/summarize-threads` first so the model sees grouped metadata before opening individual threads.
    - Manual fallback via GraphQL:
      - `gh api graphql` query for `reviewThreads`, `reviews`, and thread comments.
 3. Filter scope.
@@ -89,6 +99,13 @@ If no PR exists for the current branch, report this and stop.
    - After all comments are addressed and committed, update the PR description to reflect the **current state** of the PR (not the history of steps taken).
    - Follow the **gh-manage-pr** skill workflow to regenerate and apply the updated description.
 
+## Gotchas
+
+- Do not read every raw thread body first on large PRs; summarize and filter by path, reviewer, and unresolved state before opening details.
+- Resolved and outdated threads are often noise unless the user explicitly asks for a full audit.
+- Keep GraphQL fetching in `gh`; the Rust helper should only post-process saved thread metadata.
+- When multiple reviewers comment on the same file, address the blocking or request-changes paths first.
+
 ## Output Format
 
 1. Code Examples
@@ -100,3 +117,8 @@ If no PR exists for the current branch, report this and stop.
 
 - If `gh` auth fails, ask user to run `gh auth login`, then retry.
 - Keep responses concise and factual when a comment is a false positive.
+
+## Bundled Resources
+
+- `scripts/fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization.
+- `scripts/summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.

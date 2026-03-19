@@ -15,6 +15,16 @@ Create or update a pull request with the GitHub CLI (`gh`).
 - `base`: base branch for comparison (default `master`, fallback `main` if needed)
 - optional title/body hints from user
 
+## Quick start
+
+1. Capture the branch diff and diff stat.
+   - `git diff <base>...HEAD --stat > /tmp/pr.diffstat`
+   - `git diff <base>...HEAD > /tmp/pr.diff`
+2. Compile the Rust summarizer when you need compact structure instead of raw diff context.
+   - `rustc "$CODEX_HOME/skills/gh-manage-pr/scripts/summarize_diff.rs" -O -o /tmp/gh-manage-pr-summarize`
+3. Run the summarizer and use the JSON output plus `assets/pr-body-template.md` to draft the PR body.
+   - `/tmp/gh-manage-pr-summarize /tmp/pr.diffstat`
+
 ## Workflow
 
 1. Resolve PR context.
@@ -26,10 +36,12 @@ Create or update a pull request with the GitHub CLI (`gh`).
    - `git diff <base>...HEAD --stat`
    - `git diff <base>...HEAD`
    - Group changes by major feature/area.
+   - Prefer the Rust summarizer for large diffs so the model reads compact JSON instead of the full diff first.
 3. Draft information-dense PR description.
    - Section 1: feature summary (bullets only, user-facing capabilities)
    - Section 2+: implementation details by major change area
    - Include concise rationale, focused code examples, and tables when useful.
+   - Start from `assets/pr-body-template.md` rather than freehanding the structure.
 4. Apply the PR update.
    - Create:
      - `gh pr create --title "<title>" --body-file <tmpfile>`
@@ -59,6 +71,13 @@ For each major change area:
 - Use fenced code blocks with language tags
 - Avoid filler phrases
 
+## Gotchas
+
+- Avoid narrating the implementation process; the PR body should describe the current state of the branch.
+- Do not let raw diff volume dominate the prompt. Summarize first, then pull exact snippets only for the sections that need examples.
+- For mixed-feature branches, group by subsystem and user-visible capability instead of by commit order.
+- Keep the summary section outcome-focused; implementation details belong in later sections.
+
 ## Output Format
 
 1. PR action taken
@@ -67,3 +86,8 @@ For each major change area:
 2. Final title
 3. Final description preview (or key sections summary)
 4. Any follow-up recommendations (for example requested reviewers, labels)
+
+## Bundled Resources
+
+- `scripts/summarize_diff.rs` - Converts `git diff --stat` output into compact JSON grouped by subsystem, with exact top-level insertion/deletion totals and per-section change magnitude.
+- `assets/pr-body-template.md` - Reusable PR body structure with placeholders for summary and implementation sections.

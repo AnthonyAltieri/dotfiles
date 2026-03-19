@@ -1,6 +1,8 @@
 ---
 name: gh-address-comments
 description: Review and address GitHub PR comments on the current branch; fetch review threads with gh, triage unresolved items, apply focused fixes, then reply to and resolve threads.
+metadata:
+  short-description: Address GitHub PR review comments
 ---
 
 # PR Comment Handler
@@ -17,51 +19,24 @@ If no PR exists for the current branch, report this and stop.
   - `--all` / `--include-resolved`: include resolved threads
   - default behavior: unresolved threads only
 
+## Quick start
+
+1. Fetch review data with the Rust helper.
+   - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin fetch-comments -- --format compact > /tmp/pr-threads.tsv`
+2. Summarize unresolved threads before reading the full comment bodies.
+   - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin summarize-threads -- /tmp/pr-threads.tsv`
+3. Build once and reuse the binaries from `target/release` when iterating.
+
 ## Workflow
 
 1. Gather PR context.
    - `gh pr view --json number,url,title,body,baseRefName,headRefName,reviews,state,statusCheckRollup`
    - `gh pr diff`
    - `gh pr checks`
-2. Fetch comments and review threads via GraphQL.
-   ```bash
-   gh api graphql -f query='
-     query($owner: String!, $repo: String!, $pr: Int!) {
-       repository(owner: $owner, name: $repo) {
-         pullRequest(number: $pr) {
-           reviewThreads(first: 100) {
-             nodes {
-               id
-               isResolved
-               isOutdated
-               path
-               line
-               startLine
-               diffSide
-               comments(first: 20) {
-                 nodes {
-                   id
-                   url
-                   body
-                   author { login }
-                   createdAt
-                   replyTo { id }
-                 }
-               }
-             }
-           }
-           reviews(first: 50) {
-             nodes {
-               author { login }
-               state
-               body
-             }
-           }
-         }
-       }
-     }
-   ' -f owner="{owner}" -f repo="{repo}" -F pr={pr_number}
-   ```
+2. Fetch comments and review threads.
+   - Preferred: run `fetch-comments` for full conversation, review, and thread data.
+   - For large review sets, use `--format compact` and `summarize-threads` first so the model sees grouped metadata before opening individual threads.
+   - Manual fallback: use `gh api graphql` to retrieve `reviewThreads`, `reviews`, and thread comments directly.
 3. Filter scope.
    - By default, process unresolved threads only.
    - Skip outdated threads unless still relevant.
@@ -122,6 +97,13 @@ If no PR exists for the current branch, report this and stop.
    - After all comments are addressed and committed, update the PR description to reflect the **current state** of the PR (not the history of steps taken).
    - Follow the **gh-manage-pr** skill workflow to regenerate and apply the updated description.
 
+## Gotchas
+
+- Do not read every raw thread body first on large PRs; summarize and filter by path, reviewer, and unresolved state before opening details.
+- Resolved and outdated threads are often noise unless the user explicitly asks for a full audit.
+- Keep GraphQL fetching in `gh`; the Rust helpers should only post-process saved thread metadata.
+- When multiple reviewers comment on the same file, address the blocking or request-changes paths first.
+
 ## Output Format
 
 1. Code Examples
@@ -136,3 +118,8 @@ If no PR exists for the current branch, report this and stop.
 - If `gh` auth fails, ask user to run `gh auth login`, then retry.
 - Keep responses concise and factual when a comment is a false positive.
 - Both mutations require repo write access (already assumed by existing workflow).
+
+## Bundled Resources
+
+- `scripts/fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization.
+- `scripts/summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.
