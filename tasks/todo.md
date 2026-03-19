@@ -1,5 +1,51 @@
 # Rust Helper Conventions Audit
 
+# Programming Skill Review
+
+## Goal
+
+Review `dot_codex/skills/programming` and `dot_codex/AGENTS.md` for low-signal guidance, including redundant, weak, or bloated lines that should be trimmed, and identify any missing high-impact principle from the user's requested list.
+
+## Success criteria
+
+- The programming skill files are inspected with concrete file and line references.
+- `dot_codex/AGENTS.md` is checked for overlap or contradiction with the skill guidance.
+- The review clearly distinguishes redundant, weak, and bloated guidance.
+- Any missing high-impact principle from the requested list is called out explicitly.
+- Review notes are recorded here.
+
+## Assumptions / constraints
+
+- Scope is limited to review only; no skill or agent files will be edited.
+- Task-log updates in `tasks/todo.md` are allowed for process tracking.
+- The user wants concise, high-signal recommendations rather than a rewrite.
+
+## Steps
+
+- [x] Read `dot_codex/AGENTS.md` and all files under `dot_codex/skills/programming`.
+- [x] Compare the programming skill guidance against the requested principle list and against existing agent-level guidance.
+- [x] Produce a concise findings-first review with exact trim targets and one missing-principle assessment.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- Some lines may be intentionally repetitive across agent and skill layers, so suggestions need to distinguish useful reinforcement from actual bloat.
+- The "requested list" is inferred from the repo-level AGENTS guidance provided in the prompt, so any missing-principle callout must stay anchored to that source.
+
+## Verification plan
+
+- Cross-check every target file in `dot_codex/skills/programming`.
+- Verify cited lines against the current file contents before finalizing the review.
+- Confirm whether each suggested trim is redundant with nearby text or with `dot_codex/AGENTS.md`.
+
+## Review
+
+- Highest-value trim is duplicated programming-default text across `dot_codex/AGENTS.md`, `dot_codex/skills/programming/SKILL.md`, and `dot_codex/skills/programming/agents/openai.yaml`; one pointer plus one compact definition is enough.
+- The weakest lines are slogan-style statements that restate nearby rules without adding actionability, especially in `SKILL.md` Observability, Tests, and Review Pass.
+- The TypeScript reference includes one repo-style-specific default (`lowercase kebab-case` filenames) that is too opinionated for a cross-repo programming skill and likely to conflict with framework conventions.
+- The TypeScript example is longer than necessary for a guidance file because it only re-demonstrates bullets already stated above it.
+- The main missing high-impact principle in the programming skill package is evidence-first debugging: the skill says to use it for debugging, but it does not carry over the AGENTS requirement to start from logs/errors/failing tests, reproduce first, and verify the fix against the failing case.
+
 ## Goal
 
 Inspect the existing Rust helper crates under `dot_codex/skills` and `dot_claude/skills` and extract the conventions that a new `sql-read` crate should follow.
@@ -46,6 +92,75 @@ Inspect the existing Rust helper crates under `dot_codex/skills` and `dot_claude
 - Test convention is inline unit tests in the same source file via `#[cfg(test)]`; there are no `tests/` directories under either skill tree.
 - CLI convention is a thin `main()` wrapper around a `run()` function, manual argument parsing, `--help` usage text on stdout, errors on stderr, and deterministic machine-friendly stdout output.
 - Shared verification currently uses `cargo test --offline --manifest-path ...` in `scripts/test-skill-helpers.sh`, so new helper crates should keep a committed lockfile and avoid requiring network access during normal test runs.
+
+# GH Address Comments Mutation Helpers
+
+## Goal
+
+Add Rust helpers to `gh-address-comments` for posting PR comments, posting review-thread replies, and resolving review threads, with robot-emoji prefixing on every comment-creation path.
+
+## Success criteria
+
+- The Codex `gh-address-comments` Rust crate exposes helpers to create PR comments, create review-thread replies, and resolve review threads.
+- Every comment-creation helper automatically prefixes the submitted body with a robot emoji without double-prefixing already-prefixed input.
+- The Claude `gh-address-comments` tree mirrors the same helper scripts and documentation updates.
+- The existing offline Cargo tests and shared helper suite cover the new functionality.
+- Verification and review notes are recorded here.
+
+## Assumptions / constraints
+
+- Scope is limited to GitHub pull requests: top-level PR comments plus review-thread replies/resolution.
+- Live GitHub mutations should stay on `gh`; the Rust helpers should assemble and submit focused GraphQL mutations locally.
+- Existing `fetch-comments` and `summarize-threads` behavior should remain intact.
+
+## Steps
+
+- [x] Add the new top-level comment helper plus the reply/resolve workflow to the Codex `gh-address-comments` crate and skill docs.
+- [x] Add offline Rust tests for mutation payload construction, robot-prefix behavior, and argument parsing.
+- [x] Mirror the helper and documentation changes into the Claude skill tree.
+- [x] Run focused Cargo tests plus the shared helper suite and record the review summary.
+
+## Risks / edge cases
+
+- GitHub review-thread mutations use thread IDs, while top-level PR comments target the pull request subject ID, so the helpers must keep those identifiers explicit.
+- Auto-prefixing should not duplicate the robot emoji when the caller already included it.
+- The helper output must stay machine-friendly and should not leak raw GraphQL input bodies in error text unnecessarily.
+
+## Verification plan
+
+- Run `cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`.
+- Run `cargo test --offline --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`.
+- Run `bash scripts/test-skill-helpers.sh`.
+
+## Review
+
+- Added a shared Rust helper library at `dot_codex/skills/gh-address-comments/scripts/src/lib.rs` and mirrored it to `dot_claude/skills/gh-address-comments/scripts/src/lib.rs`.
+- The shared library now owns:
+  - `gh` auth checks
+  - GraphQL command execution helpers
+  - robot-prefix enforcement via `ensure_robot_prefix`
+- Added three comment-mutation Rust binaries in both trees:
+  - `create-comment`
+    - creates a top-level PR comment
+    - targets the current branch PR by default and accepts `--pr` for an explicit PR target
+    - accepts `--body`, `--body-file`, or stdin
+    - automatically prefixes the final body with `🤖 `
+  - `create-thread-reply`
+    - creates a review-thread reply
+    - accepts `--thread-id` plus either `--body`, `--body-file`, or stdin
+    - automatically prefixes the final body with `🤖 `
+  - `resolve-thread`
+    - resolves a review thread by thread ID
+    - emits compact JSON with the thread id and resolved state
+- Refactored `fetch-comments` to reuse the shared `gh`/GraphQL helpers instead of keeping another local command-execution copy.
+- Updated both `gh-address-comments` skill docs to use the new Rust helpers instead of raw GraphQL mutation examples.
+- The workflow now documents that comment bodies should stay agent-specific (`FROM CODEX:` / `FROM CLAUDE:`), while the helpers add the robot emoji prefix.
+- Verification:
+  - `cargo fmt --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
+  - `cargo fmt --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`
+  - `cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
+  - `cargo test --offline --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`
+  - `bash scripts/test-skill-helpers.sh`
 
 # SQL Read Skill
 
@@ -482,3 +597,79 @@ Inspect the Rust helper scripts under `dot_codex/skills` and `dot_claude/skills`
   - `shasum` comparison across mirrored Rust helpers
   - `diff -u` on the non-identical mirrored files to confirm formatting-only differences
   - `find dot_codex/skills dot_claude/skills -path '*/tests' -type d` returned no test directories
+
+# Programming Skill Design
+
+## Goal
+
+Design a high-signal `programming` skill that codifies the user's type-safety, boundary-validation, simplicity, composition, observability, and testing principles in a form that is concise enough to trigger often without wasting context.
+
+## Success criteria
+
+- The final artifact set is decided before writing the skill.
+- The skill name and trigger description are explicit enough to invoke on coding, refactoring, and bug-fix tasks without being so broad that they add noise.
+- The core `SKILL.md` structure is defined, including which principles belong in the main file versus optional references.
+- Type-system, boundary-validation, observability, testing, and readability rules are organized into a durable taxonomy rather than a flat principle dump.
+- TypeScript-specific guidance is separated cleanly from language-agnostic guidance.
+- The implementation plan accounts for the mirrored skill trees in this repo.
+- A concrete validation plan exists for syntax, trigger quality, and instruction density.
+
+## Assumptions / constraints
+
+- The user's bullet list is the canonical source for the skill content; the linked X post is treated as optional inspiration and was not required to define the requested principles.
+- Per the local `skill-creator` guidance, the main `SKILL.md` should stay lean; references should only exist if they materially reduce token cost or improve reuse.
+- The likely deliverables are `dot_codex/skills/programming/SKILL.md`, `dot_codex/skills/programming/agents/openai.yaml`, and a mirrored `dot_claude/skills/programming/SKILL.md`; any references should be mirrored as well.
+- v1 should avoid scripts or assets unless we find a repeated deterministic task that truly belongs outside the prompt text.
+- "Most information dense" means high signal per line, not maximal length.
+
+## Steps
+
+- [x] Normalize the raw principles into a small set of sections with a clear precedence order.
+- [x] Choose the skill trigger language and metadata so the skill is pulled in for substantive coding/refactoring tasks.
+- [x] Define the `SKILL.md` outline, including a short "when to use" section and a compact set of non-negotiable rules.
+- [x] Decide which language-specific guidance belongs inline versus in `references/`.
+- [x] Decide whether to include tiny contrastive examples for boundaries, discriminated unions, observability, and tests.
+- [x] Implement the skill in the Codex tree and mirror the relevant files into the Claude tree.
+- [x] Validate the finished skill with `quick_validate.py` and a manual prompt-quality review.
+- [x] Record final review notes here.
+
+## Risks / edge cases
+
+- A bloated skill will be less useful than a strict, compressed one, even if it contains more principles.
+- If the trigger description is too generic, the skill may fire on low-value tasks and consume context unnecessarily.
+- If the skill mixes timeless programming principles with repo-specific workflow rules, it will become harder to reuse and reason about.
+- Too many examples can duplicate model priors instead of adding durable guidance.
+- TypeScript-specific rules may dominate the skill unless they are isolated cleanly from the language-agnostic core.
+
+## Verification plan
+
+- Review the final skill against the local `skill-creator` rules: concise frontmatter, compact body, and progressive disclosure.
+- Run `quick_validate.py` against the new skill directory.
+- Manually inspect whether the trigger description would fire for the intended cases: coding, refactoring, debugging, and design-review tasks.
+- Do a density pass after drafting: remove any line that does not change behavior or sharpen decision-making.
+- Optionally use a subagent for an independent "would this skill improve a real coding task?" validation pass before closing.
+
+## Review
+
+- Added a new mirrored `programming` skill at `dot_codex/skills/programming` and `dot_claude/skills/programming`.
+- Kept the core `SKILL.md` focused on decision order and defaults rather than turning it into a long manifesto:
+  - validate boundaries first
+  - encode invariants and future changes in types
+  - prefer composition and readability over abstraction
+  - keep observability high-signal
+  - keep tests sparse but strict around critical behavior
+- Moved language-specific guidance into progressive-disclosure references:
+  - `references/typescript.md` for `zod`, string literals over enums, exhaustive matching, kebab-case filenames, and class avoidance
+  - `references/python.md` for `pydantic`, tagged unions, `match`, and stateful-class guidance
+- Generated `dot_codex/skills/programming/agents/openai.yaml` with the local skill tooling so the Codex skill has standard UI metadata and a default prompt.
+- Added a short pointer in `dot_codex/AGENTS.md` so always-on instructions can invoke `$programming` without duplicating the philosophy text.
+- Updated the root `README.md` Codex skill list so it reflects the actual managed skill set, including `frontend-design`, `sql-read`, and the new `programming` skill.
+- Did not create a Claude-side `CLAUDE.md` because this repo does not currently manage one; the Claude-side implementation is the mirrored skill itself.
+- Verification:
+  - `uv run --with pyyaml /Users/anthonyaltieri/.codex/skills/.system/skill-creator/scripts/generate_openai_yaml.py dot_codex/skills/programming --interface short_description='Write simpler, safer application code' --interface default_prompt='Use $programming to design or refactor this code for validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.'`
+  - `uv run --with pyyaml /Users/anthonyaltieri/.codex/skills/.system/skill-creator/scripts/quick_validate.py dot_codex/skills/programming`
+  - `uv run --with pyyaml /Users/anthonyaltieri/.codex/skills/.system/skill-creator/scripts/quick_validate.py dot_claude/skills/programming`
+  - manual diff review of `README.md`, `dot_codex/AGENTS.md`, and the new mirrored skill files
+- Notes:
+  - The stock `python3` environment did not have `PyYAML`, so the local skill tooling was run through `uv`.
+  - No repo-level markdown linter or pre-commit config was present at the workspace root for targeted linting of these docs files.

@@ -11,5 +11,17 @@ name = "fetch-comments"
 path = "src/bin/fetch_comments.rs"
 
 [[bin]]
+name = "create-comment"
+path = "src/bin/create_comment.rs"
+
+[[bin]]
+name = "create-thread-reply"
+path = "src/bin/create_thread_reply.rs"
+
+[[bin]]
+name = "resolve-thread"
+path = "src/bin/resolve_thread.rs"
+
+[[bin]]
 name = "summarize-threads"
 path = "src/bin/summarize_threads.rs"

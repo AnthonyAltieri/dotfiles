@@ -26,6 +26,12 @@ If no PR exists for the current branch, report this and stop.
 2. Summarize unresolved threads before reading the full comment bodies.
    - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin summarize-threads -- /tmp/pr-threads.tsv`
 3. Build once and reuse the binaries from `target/release` when iterating.
+4. Post a top-level PR comment when you need to leave a general note outside a review thread.
+   - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin create-comment -- --body "FROM CLAUDE: Ready for another look."`
+5. Post a thread reply with the bundled helper.
+   - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin create-thread-reply -- --thread-id "<thread_id>" --body "FROM CLAUDE: Addressed in <sha> - <description>"`
+6. Resolve the thread after replying.
+   - `cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin resolve-thread -- --thread-id "<thread_id>"`
 
 ## Workflow
 
@@ -69,29 +75,23 @@ If no PR exists for the current branch, report this and stop.
      | False positive | `FROM CLAUDE: <explanation>` | Yes |
      | Addressed | `FROM CLAUDE: Addressed in <sha> — <description>` | Yes |
      | Question | `FROM CLAUDE: <answer>` | No |
-   - **Reply mutation:**
+   - **Reply helper:**
      ```bash
-     gh api graphql -f query='
-       mutation($threadId: ID!, $body: String!) {
-         addPullRequestReviewThreadReply(input: {
-           pullRequestReviewThreadId: $threadId, body: $body
-         }) { comment { id } }
-       }
-     ' -f threadId="{thread_id}" -f body="{reply_body}"
+     cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin create-thread-reply -- --thread-id "{thread_id}" --body "{reply_body}"
      ```
-   - **Resolve mutation** (only after replying):
+   - `create-thread-reply` automatically prefixes the final comment body with `🤖 `.
+   - Use `create-comment` for top-level PR comments that are not attached to a review thread:
      ```bash
-     gh api graphql -f query='
-       mutation($threadId: ID!) {
-         resolveReviewThread(input: { threadId: $threadId }) {
-           thread { isResolved }
-         }
-       }
-     ' -f threadId="{thread_id}"
+     cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin create-comment -- --body "{comment_body}"
+     ```
+   - `create-comment` also automatically prefixes the final comment body with `🤖 `.
+   - **Resolve helper** (only after replying):
+     ```bash
+     cargo run --quiet --release --manifest-path "$HOME/.claude/skills/gh-address-comments/scripts/Cargo.toml" --bin resolve-thread -- --thread-id "{thread_id}"
      ```
    - Always reply BEFORE resolving.
    - Do NOT resolve question threads — leave open for the reviewer.
-   - `resolveReviewThread` is idempotent — already-resolved threads won't error.
+   - `resolve-thread` is idempotent through GitHub's mutation behavior — already-resolved threads won't error.
 8. Re-run focused checks/tests relevant to touched files and summarize results.
 9. Update PR description.
    - After all comments are addressed and committed, update the PR description to reflect the **current state** of the PR (not the history of steps taken).
@@ -103,6 +103,9 @@ If no PR exists for the current branch, report this and stop.
 - Resolved and outdated threads are often noise unless the user explicitly asks for a full audit.
 - Keep GraphQL fetching in `gh`; the Rust helpers should only post-process saved thread metadata.
 - When multiple reviewers comment on the same file, address the blocking or request-changes paths first.
+- `create-comment` targets the current branch PR by default and can take `--pr` when you need an explicit PR target.
+- `create-thread-reply` expects a review thread ID, not a comment ID.
+- Keep the reply text agent-specific (`FROM CLAUDE:` etc.); the helper adds only the robot emoji prefix.
 
 ## Output Format
 
@@ -123,3 +126,6 @@ If no PR exists for the current branch, report this and stop.
 
 - `scripts/fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization.
 - `scripts/summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.
+- `scripts/create-comment` - Creates a top-level PR comment and automatically prefixes the body with `🤖 `.
+- `scripts/create-thread-reply` - Creates a review-thread reply and automatically prefixes the body with `🤖 `.
+- `scripts/resolve-thread` - Resolves a review thread by thread ID.

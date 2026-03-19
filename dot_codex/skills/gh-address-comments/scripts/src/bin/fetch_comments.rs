@@ -1,8 +1,7 @@
+use gh_address_comments_tools::{ensure_gh_authenticated, gh_graphql_json, run_json_command};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::env;
-use std::io::Write;
-use std::process::{Command, Stdio};
 
 const QUERY: &str = r#"query(
   $owner: String!,
@@ -131,14 +130,6 @@ fn parse_args(args: Vec<String>) -> Result<OutputFormat, String> {
     Ok(format)
 }
 
-fn ensure_gh_authenticated() -> Result<(), String> {
-    let output = run_command("gh", &["auth", "status"], None)?;
-    if output.status != 0 {
-        return Err("run `gh auth login` to authenticate the GitHub CLI".to_string());
-    }
-    Ok(())
-}
-
 fn get_current_pr_ref() -> Result<(String, String, i64), String> {
     let pr = gh_pr_view_json("number,headRepositoryOwner,headRepository")?;
     let owner = pr
@@ -168,17 +159,10 @@ fn gh_api_graphql(
     reviews_cursor: Option<&str>,
     threads_cursor: Option<&str>,
 ) -> Result<Value, String> {
-    let mut args = vec![
-        "api".to_string(),
-        "graphql".to_string(),
-        "-F".to_string(),
-        "query=@-".to_string(),
-        "-F".to_string(),
-        format!("owner={owner}"),
-        "-F".to_string(),
-        format!("repo={repo}"),
-        "-F".to_string(),
-        format!("number={number}"),
+    let mut fields = vec![
+        ("owner".to_string(), owner.to_string()),
+        ("repo".to_string(), repo.to_string()),
+        ("number".to_string(), number.to_string()),
     ];
 
     for (label, cursor) in [
@@ -187,24 +171,15 @@ fn gh_api_graphql(
         ("threadsCursor", threads_cursor),
     ] {
         if let Some(cursor) = cursor {
-            args.push("-F".to_string());
-            args.push(format!("{label}={cursor}"));
+            fields.push((label.to_string(), cursor.to_string()));
         }
     }
 
-    let output = run_command(
-        "gh",
-        &args.iter().map(String::as_str).collect::<Vec<&str>>(),
-        Some(QUERY),
-    )?;
-    if output.status != 0 {
-        return Err(format!(
-            "Command failed: gh {}\n{}",
-            args.join(" "),
-            output.stderr.trim()
-        ));
-    }
-    serde_json::from_slice(&output.stdout).map_err(|err| err.to_string())
+    let borrowed_fields: Vec<(&str, &str)> = fields
+        .iter()
+        .map(|(name, value)| (name.as_str(), value.as_str()))
+        .collect();
+    gh_graphql_json(QUERY, &borrowed_fields)
 }
 
 fn fetch_all(owner: &str, repo: &str, number: i64) -> Result<Value, String> {
@@ -226,10 +201,16 @@ fn fetch_all(owner: &str, repo: &str, number: i64) -> Result<Value, String> {
             threads_cursor.as_deref(),
         )?;
 
-        if payload.get("errors").and_then(Value::as_array).map(|items| !items.is_empty()) == Some(true) {
+        if payload
+            .get("errors")
+            .and_then(Value::as_array)
+            .map(|items| !items.is_empty())
+            == Some(true)
+        {
             return Err(format!(
                 "GitHub GraphQL errors:\n{}",
-                serde_json::to_string_pretty(payload.get("errors").unwrap()).map_err(|err| err.to_string())?
+                serde_json::to_string_pretty(payload.get("errors").unwrap())
+                    .map_err(|err| err.to_string())?
             ));
         }
 
@@ -374,55 +355,15 @@ fn bool_string(value: Option<&Value>) -> String {
 
 fn sanitize(value: Option<&Value>) -> String {
     match value {
-        Some(Value::String(text)) => text.replace('\t', " ").replace('\n', " ").trim().to_string(),
+        Some(Value::String(text)) => text
+            .replace('\t', " ")
+            .replace('\n', " ")
+            .trim()
+            .to_string(),
         Some(Value::Number(number)) => number.to_string(),
         Some(Value::Bool(boolean)) => boolean.to_string(),
         _ => String::new(),
     }
-}
-
-fn run_json_command(program: &str, args: &[&str], stdin: Option<&str>) -> Result<Value, String> {
-    let output = run_command(program, args, stdin)?;
-    if output.status != 0 {
-        return Err(format!(
-            "Command failed: {program} {}\n{}",
-            args.join(" "),
-            output.stderr.trim()
-        ));
-    }
-    serde_json::from_slice(&output.stdout).map_err(|err| err.to_string())
-}
-
-struct CommandOutput {
-    status: i32,
-    stdout: Vec<u8>,
-    stderr: String,
-}
-
-fn run_command(program: &str, args: &[&str], stdin: Option<&str>) -> Result<CommandOutput, String> {
-    let mut command = Command::new(program);
-    command.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
-
-    if stdin.is_some() {
-        command.stdin(Stdio::piped());
-    }
-
-    let mut child = command.spawn().map_err(|err| err.to_string())?;
-    if let Some(stdin_text) = stdin {
-        let mut handle = child
-            .stdin
-            .take()
-            .ok_or_else(|| "Failed to open stdin for child process.".to_string())?;
-        handle
-            .write_all(stdin_text.as_bytes())
-            .map_err(|err| err.to_string())?;
-    }
-    let output = child.wait_with_output().map_err(|err| err.to_string())?;
-    Ok(CommandOutput {
-        status: output.status.code().unwrap_or(1),
-        stdout: output.stdout,
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-    })
 }
 
 #[cfg(test)]
@@ -433,7 +374,10 @@ mod tests {
     #[test]
     fn parse_args_supports_compact_output() {
         let args = vec!["--format".to_string(), "compact".to_string()];
-        assert_eq!(parse_args(args).expect("parsed args"), OutputFormat::Compact);
+        assert_eq!(
+            parse_args(args).expect("parsed args"),
+            OutputFormat::Compact
+        );
     }
 
     #[test]
