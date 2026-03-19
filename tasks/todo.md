@@ -19,10 +19,10 @@ Create a feature branch from `origin/main`, commit the current Rust skill-helper
 
 ## Steps
 
-- [ ] Fetch `origin/main` and create a new `codex/*` branch from it.
-- [ ] Review the pending diff and run final verification.
-- [ ] Commit the intended files with a clear message.
-- [ ] Push the branch and open the PR.
+- [x] Fetch `origin/main` and create a new `codex/*` branch from it.
+- [x] Review the pending diff and run final verification.
+- [x] Commit the intended files with a clear message.
+- [x] Push the branch and open the PR.
 
 ## Risks / edge cases
 
@@ -35,6 +35,17 @@ Create a feature branch from `origin/main`, commit the current Rust skill-helper
 - Confirm the branch points to `origin/main` plus the intended working-tree changes.
 - Run `bash scripts/test-skill-helpers.sh` before commit.
 - Review `git status` after staging to ensure only intended files are included.
+
+## Review
+
+- Created `codex/rust-skill-helpers` from the latest `origin/main` after `git fetch origin --prune`.
+- Committed the staged change set as `feat: add rust-based skill helper tooling` (`ce0c73e`).
+- Pushed the branch to `origin/codex/rust-skill-helpers`.
+- Opened GitHub PR #13: `feat: add rust-based skill helper tooling`.
+- Verification:
+  - `bash scripts/test-skill-helpers.sh`
+  - `git diff --cached --stat`
+  - `git push -u origin codex/rust-skill-helpers`
 
 # Skill Helper Test Suite
 
