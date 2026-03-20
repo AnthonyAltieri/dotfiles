@@ -1,32 +1,38 @@
 use postgres::{Client, NoTls};
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, OpenFlags};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Number, Value};
 use sqlparser::ast::Statement;
 use sqlparser::dialect::{PostgreSqlDialect, SQLiteDialect};
 use sqlparser::parser::Parser;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::fs;
 use std::io::{self, Read};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 const DEFAULT_MAX_ROWS: usize = 200;
 const DEFAULT_TIMEOUT_MS: u64 = 5_000;
 const DEFAULT_FORMAT: OutputFormat = OutputFormat::Json;
+const TARGET_STORE_VERSION: u32 = 1;
+const TARGET_STORE_FILE: &str = "targets.json";
 const HELP_TEXT: &str = "\
 sql-read
 
 Usage:
-  sql-read safe-ro --engine postgres --dsn-env-var <ENV_VAR> [--file <PATH>] [--format json|table|tsv] [--max-rows <N>] [--timeout-ms <N>]
-  sql-read safe-ro --engine sqlite --sqlite-db-path-env-var <ENV_VAR> [--file <PATH>] [--format json|table|tsv] [--max-rows <N>] [--timeout-ms <N>]
-  sql-read query --engine postgres (--dsn-env-var <ENV_VAR> | --dsn <RAW_DSN>) [--file <PATH>] [--format json|table|tsv] [--max-rows <N>] [--timeout-ms <N>]
-  sql-read query --engine sqlite (--sqlite-db-path-env-var <ENV_VAR> | --sqlite-db-path <RAW_PATH>) [--file <PATH>] [--format json|table|tsv] [--max-rows <N>] [--timeout-ms <N>]
+  sql-read run --state-dir <DIR> --target <NAME> [--file <PATH>] [--format json|table|tsv] [--max-rows <N>] [--timeout-ms <N>]
+  sql-read target upsert --state-dir <DIR> --name <NAME> --engine postgres (--dsn <RAW_DSN> | --dsn-env-var <ENV_VAR>)
+  sql-read target upsert --state-dir <DIR> --name <NAME> --engine sqlite (--sqlite-db-path <RAW_PATH> | --sqlite-db-path-env-var <ENV_VAR>)
+  sql-read target list --state-dir <DIR>
+  sql-read target remove --state-dir <DIR> --name <NAME>
 
 Notes:
-  safe-ro is the approval-friendly env-var-only path.
-  query is the manual exception path.
+  `run` is the only blanket-approvable execution path.
+  Configure a named target first, then run read-only queries against it.
   Query text is read from --file or stdin.
 ";
 
@@ -36,16 +42,20 @@ pub enum CliError {
     Message(String),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Subcommand {
-    SafeRo,
-    Query,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 enum Engine {
     Postgres,
     Sqlite,
+}
+
+impl Engine {
+    fn as_str(self) -> &'static str {
+        match self {
+            Engine::Postgres => "postgres",
+            Engine::Sqlite => "sqlite",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,13 +66,15 @@ enum OutputFormat {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct CliConfig {
-    subcommand: Subcommand,
-    engine: Engine,
-    dsn_env_var: Option<String>,
-    dsn: Option<String>,
-    sqlite_db_path_env_var: Option<String>,
-    sqlite_db_path: Option<String>,
+enum Command {
+    Run(RunConfig),
+    Target(TargetCommand),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RunConfig {
+    state_dir: PathBuf,
+    target: String,
     file: Option<PathBuf>,
     format: OutputFormat,
     max_rows: usize,
@@ -70,27 +82,43 @@ struct CliConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+enum TargetCommand {
+    Upsert(UpsertConfig),
+    List(ListConfig),
+    Remove(RemoveConfig),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct UpsertConfig {
+    state_dir: PathBuf,
+    name: String,
+    engine: Engine,
+    dsn_env_var: Option<String>,
+    dsn: Option<String>,
+    sqlite_db_path_env_var: Option<String>,
+    sqlite_db_path: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ListConfig {
+    state_dir: PathBuf,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RemoveConfig {
+    state_dir: PathBuf,
+    name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct ExecutionPlan {
     engine: Engine,
-    target: ResolvedTarget,
+    target_name: String,
+    target_value: String,
     query_text: String,
     format: OutputFormat,
     max_rows: usize,
     timeout_ms: u64,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum ResolvedTargetKind {
-    PostgresDsn,
-    SqlitePath,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct ResolvedTarget {
-    kind: ResolvedTargetKind,
-    value: String,
-    mode: &'static str,
-    name: String,
     secrets: Vec<String>,
 }
 
@@ -105,6 +133,18 @@ struct QueryResult {
     duration_ms: u64,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+struct TargetStore {
+    version: u32,
+    targets: BTreeMap<String, StoredTarget>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct StoredTarget {
+    engine: Engine,
+    value: String,
+}
+
 pub fn run_from_env() -> Result<String, CliError> {
     run_args(env::args(), None)
 }
@@ -115,50 +155,140 @@ where
     S: Into<String>,
 {
     let args: Vec<String> = args.into_iter().map(Into::into).collect();
-    let config = parse_cli(&args)?;
-    let query_text =
-        load_query(config.file.as_deref(), stdin_override).map_err(CliError::Message)?;
-    let plan = resolve_plan(&config, query_text).map_err(CliError::Message)?;
-    let result = execute_plan(&plan)
-        .map_err(|err| CliError::Message(redact_error(&err, &plan.target.secrets)))?;
-    render_output(&result, plan.format).map_err(CliError::Message)
+    let command = parse_cli(&args)?;
+
+    match command {
+        Command::Run(config) => {
+            let query_text =
+                load_query(config.file.as_deref(), stdin_override).map_err(CliError::Message)?;
+            let plan = resolve_run_plan(&config, query_text).map_err(CliError::Message)?;
+            let result = execute_plan(&plan)
+                .map_err(|err| CliError::Message(redact_error(&err, &plan.secrets)))?;
+            render_output(&result, plan.format).map_err(CliError::Message)
+        }
+        Command::Target(command) => execute_target_command(&command).map_err(CliError::Message),
+    }
 }
 
-fn parse_cli(args: &[String]) -> Result<CliConfig, CliError> {
+fn parse_cli(args: &[String]) -> Result<Command, CliError> {
     if args.len() <= 1 {
         return Err(CliError::Help(HELP_TEXT.to_string()));
     }
 
-    let mut index = 1;
-    if matches!(args[index].as_str(), "--help" | "-h" | "help") {
-        return Err(CliError::Help(HELP_TEXT.to_string()));
+    match args[1].as_str() {
+        "--help" | "-h" | "help" => Err(CliError::Help(HELP_TEXT.to_string())),
+        "run" => parse_run_command(args),
+        "target" => parse_target_command(args),
+        "safe-ro" | "query" => Err(CliError::Message(migration_message(args[1].as_str()))),
+        other => Err(CliError::Message(format!(
+            "Unknown subcommand `{other}`. Expected `run` or `target`."
+        ))),
     }
+}
 
-    let subcommand = match args[index].as_str() {
-        "safe-ro" => Subcommand::SafeRo,
-        "query" => Subcommand::Query,
-        other => {
-            return Err(CliError::Message(format!(
-                "Unknown subcommand `{other}`. Expected `safe-ro` or `query`."
-            )));
-        }
-    };
-    index += 1;
-
-    let mut engine = None;
-    let mut dsn_env_var = None;
-    let mut dsn = None;
-    let mut sqlite_db_path_env_var = None;
-    let mut sqlite_db_path = None;
+fn parse_run_command(args: &[String]) -> Result<Command, CliError> {
+    let mut state_dir = None;
+    let mut target = None;
     let mut file = None;
     let mut format = DEFAULT_FORMAT;
     let mut max_rows = DEFAULT_MAX_ROWS;
     let mut timeout_ms = DEFAULT_TIMEOUT_MS;
+    let mut index = 2;
 
     while index < args.len() {
         let flag = args[index].as_str();
         match flag {
             "--help" | "-h" => return Err(CliError::Help(HELP_TEXT.to_string())),
+            "--state-dir" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                set_once(&mut state_dir, PathBuf::from(value), flag).map_err(CliError::Message)?;
+            }
+            "--target" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                let normalized = normalize_target_name(value).map_err(CliError::Message)?;
+                set_once(&mut target, normalized, flag).map_err(CliError::Message)?;
+            }
+            "--file" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                set_once(&mut file, PathBuf::from(value), flag).map_err(CliError::Message)?;
+            }
+            "--format" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                format = parse_format(value).map_err(CliError::Message)?;
+            }
+            "--max-rows" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                max_rows = parse_usize_flag(value, flag).map_err(CliError::Message)?;
+            }
+            "--timeout-ms" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                timeout_ms = parse_u64_flag(value, flag).map_err(CliError::Message)?;
+            }
+            other if other.starts_with("--") => {
+                return Err(CliError::Message(format!("Unknown flag `{other}`.")));
+            }
+            other => {
+                return Err(CliError::Message(format!(
+                    "Unexpected positional argument `{other}`. Query text must come from --file or stdin."
+                )));
+            }
+        }
+        index += 1;
+    }
+
+    Ok(Command::Run(RunConfig {
+        state_dir: state_dir.ok_or_else(|| {
+            CliError::Message("`run` requires `--state-dir`.".to_string())
+        })?,
+        target: target.ok_or_else(|| CliError::Message("`run` requires `--target`.".to_string()))?,
+        file,
+        format,
+        max_rows,
+        timeout_ms,
+    }))
+}
+
+fn parse_target_command(args: &[String]) -> Result<Command, CliError> {
+    if args.len() <= 2 {
+        return Err(CliError::Message(
+            "Missing target subcommand. Expected `upsert`, `list`, or `remove`.".to_string(),
+        ));
+    }
+
+    match args[2].as_str() {
+        "--help" | "-h" | "help" => Err(CliError::Help(HELP_TEXT.to_string())),
+        "upsert" => parse_target_upsert(args),
+        "list" => parse_target_list(args),
+        "remove" => parse_target_remove(args),
+        other => Err(CliError::Message(format!(
+            "Unknown target subcommand `{other}`. Expected `upsert`, `list`, or `remove`."
+        ))),
+    }
+}
+
+fn parse_target_upsert(args: &[String]) -> Result<Command, CliError> {
+    let mut state_dir = None;
+    let mut name = None;
+    let mut engine = None;
+    let mut dsn_env_var = None;
+    let mut dsn = None;
+    let mut sqlite_db_path_env_var = None;
+    let mut sqlite_db_path = None;
+    let mut index = 3;
+
+    while index < args.len() {
+        let flag = args[index].as_str();
+        match flag {
+            "--help" | "-h" => return Err(CliError::Help(HELP_TEXT.to_string())),
+            "--state-dir" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                set_once(&mut state_dir, PathBuf::from(value), flag).map_err(CliError::Message)?;
+            }
+            "--name" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                let normalized = normalize_target_name(value).map_err(CliError::Message)?;
+                set_once(&mut name, normalized, flag).map_err(CliError::Message)?;
+            }
             "--engine" => {
                 let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
                 engine = Some(parse_engine(value).map_err(CliError::Message)?);
@@ -181,57 +311,106 @@ fn parse_cli(args: &[String]) -> Result<CliConfig, CliError> {
                 set_once(&mut sqlite_db_path, value.to_string(), flag)
                     .map_err(CliError::Message)?;
             }
-            "--file" => {
-                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                set_once(&mut file, PathBuf::from(value), flag).map_err(CliError::Message)?;
-            }
-            "--format" => {
-                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                format = parse_format(value).map_err(CliError::Message)?;
-            }
-            "--max-rows" => {
-                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                max_rows = value.parse::<usize>().map_err(|_| {
-                    CliError::Message(format!(
-                        "Invalid value `{value}` for {flag}. Expected a non-negative integer."
-                    ))
-                })?;
-            }
-            "--timeout-ms" => {
-                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                timeout_ms = value.parse::<u64>().map_err(|_| {
-                    CliError::Message(format!(
-                        "Invalid value `{value}` for {flag}. Expected a non-negative integer."
-                    ))
-                })?;
-            }
             other if other.starts_with("--") => {
                 return Err(CliError::Message(format!("Unknown flag `{other}`.")));
             }
             other => {
                 return Err(CliError::Message(format!(
-                    "Unexpected positional argument `{other}`. Query text must come from --file or stdin."
+                    "Unexpected positional argument `{other}`."
                 )));
             }
         }
         index += 1;
     }
 
-    let engine =
-        engine.ok_or_else(|| CliError::Message("Missing required flag `--engine`.".to_string()))?;
+    let engine = engine.ok_or_else(|| {
+        CliError::Message("`target upsert` requires `--engine`.".to_string())
+    })?;
 
-    Ok(CliConfig {
-        subcommand,
+    Ok(Command::Target(TargetCommand::Upsert(UpsertConfig {
+        state_dir: state_dir.ok_or_else(|| {
+            CliError::Message("`target upsert` requires `--state-dir`.".to_string())
+        })?,
+        name: name.ok_or_else(|| {
+            CliError::Message("`target upsert` requires `--name`.".to_string())
+        })?,
         engine,
         dsn_env_var,
         dsn,
         sqlite_db_path_env_var,
         sqlite_db_path,
-        file,
-        format,
-        max_rows,
-        timeout_ms,
-    })
+    })))
+}
+
+fn parse_target_list(args: &[String]) -> Result<Command, CliError> {
+    let mut state_dir = None;
+    let mut index = 3;
+
+    while index < args.len() {
+        let flag = args[index].as_str();
+        match flag {
+            "--help" | "-h" => return Err(CliError::Help(HELP_TEXT.to_string())),
+            "--state-dir" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                set_once(&mut state_dir, PathBuf::from(value), flag).map_err(CliError::Message)?;
+            }
+            other if other.starts_with("--") => {
+                return Err(CliError::Message(format!("Unknown flag `{other}`.")));
+            }
+            other => {
+                return Err(CliError::Message(format!(
+                    "Unexpected positional argument `{other}`."
+                )));
+            }
+        }
+        index += 1;
+    }
+
+    Ok(Command::Target(TargetCommand::List(ListConfig {
+        state_dir: state_dir.ok_or_else(|| {
+            CliError::Message("`target list` requires `--state-dir`.".to_string())
+        })?,
+    })))
+}
+
+fn parse_target_remove(args: &[String]) -> Result<Command, CliError> {
+    let mut state_dir = None;
+    let mut name = None;
+    let mut index = 3;
+
+    while index < args.len() {
+        let flag = args[index].as_str();
+        match flag {
+            "--help" | "-h" => return Err(CliError::Help(HELP_TEXT.to_string())),
+            "--state-dir" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                set_once(&mut state_dir, PathBuf::from(value), flag).map_err(CliError::Message)?;
+            }
+            "--name" => {
+                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
+                let normalized = normalize_target_name(value).map_err(CliError::Message)?;
+                set_once(&mut name, normalized, flag).map_err(CliError::Message)?;
+            }
+            other if other.starts_with("--") => {
+                return Err(CliError::Message(format!("Unknown flag `{other}`.")));
+            }
+            other => {
+                return Err(CliError::Message(format!(
+                    "Unexpected positional argument `{other}`."
+                )));
+            }
+        }
+        index += 1;
+    }
+
+    Ok(Command::Target(TargetCommand::Remove(RemoveConfig {
+        state_dir: state_dir.ok_or_else(|| {
+            CliError::Message("`target remove` requires `--state-dir`.".to_string())
+        })?,
+        name: name.ok_or_else(|| {
+            CliError::Message("`target remove` requires `--name`.".to_string())
+        })?,
+    })))
 }
 
 fn next_value<'a>(args: &'a [String], index: &mut usize, flag: &str) -> Result<&'a str, String> {
@@ -262,12 +441,38 @@ fn parse_format(value: &str) -> Result<OutputFormat, String> {
     }
 }
 
+fn parse_usize_flag(value: &str, flag: &str) -> Result<usize, String> {
+    value.parse::<usize>().map_err(|_| {
+        format!("Invalid value `{value}` for {flag}. Expected a non-negative integer.")
+    })
+}
+
+fn parse_u64_flag(value: &str, flag: &str) -> Result<u64, String> {
+    value.parse::<u64>().map_err(|_| {
+        format!("Invalid value `{value}` for {flag}. Expected a non-negative integer.")
+    })
+}
+
 fn set_once<T>(slot: &mut Option<T>, value: T, flag: &str) -> Result<(), String> {
     if slot.is_some() {
         return Err(format!("Flag `{flag}` was provided more than once."));
     }
     *slot = Some(value);
     Ok(())
+}
+
+fn normalize_target_name(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("Target names must not be empty.".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn migration_message(subcommand: &str) -> String {
+    format!(
+        "Subcommand `{subcommand}` was removed. Configure a named target with `sql-read target upsert --state-dir <dir> --name <target> ...`, then execute queries with `sql-read run --state-dir <dir> --target <name> [--file <path>]`."
+    )
 }
 
 fn load_query(file: Option<&Path>, stdin_override: Option<&str>) -> Result<String, String> {
@@ -293,132 +498,158 @@ fn load_query(file: Option<&Path>, stdin_override: Option<&str>) -> Result<Strin
     Ok(query)
 }
 
-fn resolve_plan(config: &CliConfig, query_text: String) -> Result<ExecutionPlan, String> {
-    validate_query(config.engine, &query_text)?;
-    let target = resolve_target(config)?;
+fn resolve_run_plan(config: &RunConfig, query_text: String) -> Result<ExecutionPlan, String> {
+    let store = load_target_store_or_default(&config.state_dir)?;
+    let targets_file = target_store_path(&config.state_dir);
+    let target = store.targets.get(&config.target).ok_or_else(|| {
+        format!(
+            "Target `{}` not found in `{}`. Create it with `sql-read target upsert --state-dir {} --name {} ...`.",
+            config.target,
+            targets_file.display(),
+            config.state_dir.display(),
+            config.target
+        )
+    })?;
+    validate_query(target.engine, &query_text)?;
 
     Ok(ExecutionPlan {
-        engine: config.engine,
-        target,
+        engine: target.engine,
+        target_name: config.target.clone(),
+        target_value: target.value.clone(),
         query_text,
         format: config.format,
         max_rows: config.max_rows,
         timeout_ms: config.timeout_ms,
+        secrets: vec![target.value.clone()],
     })
 }
 
-fn resolve_target(config: &CliConfig) -> Result<ResolvedTarget, String> {
-    match (config.subcommand, config.engine) {
-        (Subcommand::SafeRo, Engine::Postgres) => {
-            if config.dsn.is_some()
-                || config.sqlite_db_path.is_some()
-                || config.sqlite_db_path_env_var.is_some()
-            {
-                return Err("`safe-ro --engine postgres` only accepts `--dsn-env-var`.".to_string());
-            }
-            let env_name = config.dsn_env_var.as_deref().ok_or_else(|| {
-                "`safe-ro --engine postgres` requires `--dsn-env-var`.".to_string()
-            })?;
-            let value = read_env_var(env_name)?;
-            Ok(ResolvedTarget {
-                kind: ResolvedTargetKind::PostgresDsn,
-                value: value.clone(),
-                mode: "env-var",
-                name: env_name.to_string(),
-                secrets: vec![value],
+fn execute_target_command(command: &TargetCommand) -> Result<String, String> {
+    match command {
+        TargetCommand::Upsert(config) => upsert_target(config),
+        TargetCommand::List(config) => list_targets(config),
+        TargetCommand::Remove(config) => remove_target(config),
+    }
+}
+
+fn upsert_target(config: &UpsertConfig) -> Result<String, String> {
+    let target = resolve_upsert_target(config)?;
+    let mut store = load_target_store_or_default(&config.state_dir)?;
+    store.targets.insert(config.name.clone(), target);
+    write_target_store(&config.state_dir, &store)?;
+
+    Ok(json!({
+        "action": "upsert",
+        "name": config.name,
+        "engine": config.engine.as_str(),
+    })
+    .to_string())
+}
+
+fn list_targets(config: &ListConfig) -> Result<String, String> {
+    let store = load_target_store_or_default(&config.state_dir)?;
+    let targets: Vec<Value> = store
+        .targets
+        .iter()
+        .map(|(name, target)| {
+            json!({
+                "name": name,
+                "engine": target.engine.as_str(),
             })
-        }
-        (Subcommand::SafeRo, Engine::Sqlite) => {
-            if config.dsn.is_some()
-                || config.dsn_env_var.is_some()
-                || config.sqlite_db_path.is_some()
-            {
-                return Err(
-                    "`safe-ro --engine sqlite` only accepts `--sqlite-db-path-env-var`."
-                        .to_string(),
-                );
-            }
-            let env_name = config.sqlite_db_path_env_var.as_deref().ok_or_else(|| {
-                "`safe-ro --engine sqlite` requires `--sqlite-db-path-env-var`.".to_string()
-            })?;
-            let value = read_env_var(env_name)?;
-            Ok(ResolvedTarget {
-                kind: ResolvedTargetKind::SqlitePath,
-                value: value.clone(),
-                mode: "env-var",
-                name: env_name.to_string(),
-                secrets: vec![value],
-            })
-        }
-        (Subcommand::Query, Engine::Postgres) => {
+        })
+        .collect();
+
+    Ok(json!({ "targets": targets }).to_string())
+}
+
+fn remove_target(config: &RemoveConfig) -> Result<String, String> {
+    let mut store = load_target_store_or_default(&config.state_dir)?;
+    let path = target_store_path(&config.state_dir);
+
+    if store.targets.remove(&config.name).is_none() {
+        return Err(format!(
+            "Target `{}` not found in `{}`.",
+            config.name,
+            path.display()
+        ));
+    }
+
+    write_target_store(&config.state_dir, &store)?;
+
+    Ok(json!({
+        "action": "remove",
+        "name": config.name,
+        "removed": true,
+    })
+    .to_string())
+}
+
+fn resolve_upsert_target(config: &UpsertConfig) -> Result<StoredTarget, String> {
+    match config.engine {
+        Engine::Postgres => {
             if config.sqlite_db_path.is_some() || config.sqlite_db_path_env_var.is_some() {
                 return Err(
-                    "`query --engine postgres` only accepts Postgres target flags.".to_string(),
+                    "`target upsert --engine postgres` only accepts `--dsn` or `--dsn-env-var`."
+                        .to_string(),
                 );
             }
             match (config.dsn_env_var.as_deref(), config.dsn.as_deref()) {
                 (Some(_), Some(_)) => Err(
-                    "`query --engine postgres` accepts either `--dsn-env-var` or `--dsn`, not both."
+                    "`target upsert --engine postgres` accepts either `--dsn` or `--dsn-env-var`, not both."
                         .to_string(),
                 ),
                 (None, None) => Err(
-                    "`query --engine postgres` requires `--dsn-env-var` or `--dsn`.".to_string(),
+                    "`target upsert --engine postgres` requires `--dsn` or `--dsn-env-var`."
+                        .to_string(),
                 ),
-                (Some(env_name), None) => {
-                    let value = read_env_var(env_name)?;
-                    Ok(ResolvedTarget {
-                        kind: ResolvedTargetKind::PostgresDsn,
-                        value: value.clone(),
-                        mode: "env-var",
-                        name: env_name.to_string(),
-                        secrets: vec![value],
-                    })
-                }
-                (None, Some(value)) => Ok(ResolvedTarget {
-                    kind: ResolvedTargetKind::PostgresDsn,
-                    value: value.to_string(),
-                    mode: "raw",
-                    name: "provided".to_string(),
-                    secrets: vec![value.to_string()],
+                (Some(env_name), None) => Ok(StoredTarget {
+                    engine: Engine::Postgres,
+                    value: read_env_var(env_name)?,
+                }),
+                (None, Some(value)) => Ok(StoredTarget {
+                    engine: Engine::Postgres,
+                    value: normalize_non_empty_value(value, "--dsn")?,
                 }),
             }
         }
-        (Subcommand::Query, Engine::Sqlite) => {
+        Engine::Sqlite => {
             if config.dsn.is_some() || config.dsn_env_var.is_some() {
-                return Err("`query --engine sqlite` only accepts SQLite target flags.".to_string());
+                return Err(
+                    "`target upsert --engine sqlite` only accepts `--sqlite-db-path` or `--sqlite-db-path-env-var`."
+                        .to_string(),
+                );
             }
             match (
                 config.sqlite_db_path_env_var.as_deref(),
                 config.sqlite_db_path.as_deref(),
             ) {
                 (Some(_), Some(_)) => Err(
-                    "`query --engine sqlite` accepts either `--sqlite-db-path-env-var` or `--sqlite-db-path`, not both."
+                    "`target upsert --engine sqlite` accepts either `--sqlite-db-path` or `--sqlite-db-path-env-var`, not both."
                         .to_string(),
                 ),
                 (None, None) => Err(
-                    "`query --engine sqlite` requires `--sqlite-db-path-env-var` or `--sqlite-db-path`."
+                    "`target upsert --engine sqlite` requires `--sqlite-db-path` or `--sqlite-db-path-env-var`."
                         .to_string(),
                 ),
-                (Some(env_name), None) => {
-                    let value = read_env_var(env_name)?;
-                    Ok(ResolvedTarget {
-                        kind: ResolvedTargetKind::SqlitePath,
-                        value: value.clone(),
-                        mode: "env-var",
-                        name: env_name.to_string(),
-                        secrets: vec![value],
-                    })
-                }
-                (None, Some(value)) => Ok(ResolvedTarget {
-                    kind: ResolvedTargetKind::SqlitePath,
-                    value: value.to_string(),
-                    mode: "raw",
-                    name: "provided".to_string(),
-                    secrets: vec![value.to_string()],
+                (Some(env_name), None) => Ok(StoredTarget {
+                    engine: Engine::Sqlite,
+                    value: read_env_var(env_name)?,
+                }),
+                (None, Some(value)) => Ok(StoredTarget {
+                    engine: Engine::Sqlite,
+                    value: normalize_non_empty_value(value, "--sqlite-db-path")?,
                 }),
             }
         }
     }
+}
+
+fn normalize_non_empty_value(value: &str, flag: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(format!("Value for `{flag}` must not be empty."));
+    }
+    Ok(trimmed.to_string())
 }
 
 fn read_env_var(name: &str) -> Result<String, String> {
@@ -427,6 +658,77 @@ fn read_env_var(name: &str) -> Result<String, String> {
         return Err(format!("Environment variable `{name}` is empty."));
     }
     Ok(value)
+}
+
+fn target_store_path(state_dir: &Path) -> PathBuf {
+    state_dir.join(TARGET_STORE_FILE)
+}
+
+fn load_target_store_or_default(state_dir: &Path) -> Result<TargetStore, String> {
+    let path = target_store_path(state_dir);
+    if !path.exists() {
+        return Ok(TargetStore {
+            version: TARGET_STORE_VERSION,
+            targets: BTreeMap::new(),
+        });
+    }
+
+    let content = fs::read_to_string(&path)
+        .map_err(|err| format!("Failed to read target store `{}`: {err}", path.display()))?;
+    let store: TargetStore = serde_json::from_str(&content)
+        .map_err(|err| format!("Failed to parse target store `{}`: {err}", path.display()))?;
+
+    if store.version != TARGET_STORE_VERSION {
+        return Err(format!(
+            "Unsupported target store version `{}` in `{}`.",
+            store.version,
+            path.display()
+        ));
+    }
+
+    Ok(store)
+}
+
+fn write_target_store(state_dir: &Path, store: &TargetStore) -> Result<(), String> {
+    fs::create_dir_all(state_dir)
+        .map_err(|err| format!("Failed to create state dir `{}`: {err}", state_dir.display()))?;
+    set_permissions(state_dir, 0o700)?;
+
+    let path = target_store_path(state_dir);
+    let tmp_path = state_dir.join(format!("{TARGET_STORE_FILE}.tmp"));
+    let mut rendered = serde_json::to_vec_pretty(store)
+        .map_err(|err| format!("Failed to serialize target store: {err}"))?;
+    rendered.push(b'\n');
+
+    fs::write(&tmp_path, rendered)
+        .map_err(|err| format!("Failed to write target store `{}`: {err}", tmp_path.display()))?;
+    set_permissions(&tmp_path, 0o600)?;
+    fs::rename(&tmp_path, &path).map_err(|err| {
+        format!(
+            "Failed to replace target store `{}` with `{}`: {err}",
+            path.display(),
+            tmp_path.display()
+        )
+    })?;
+    set_permissions(&path, 0o600)?;
+
+    Ok(())
+}
+
+fn set_permissions(path: &Path, mode: u32) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        let permissions = fs::Permissions::from_mode(mode);
+        fs::set_permissions(path, permissions)
+            .map_err(|err| format!("Failed to set permissions on `{}`: {err}", path.display()))?;
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (path, mode);
+    }
+
+    Ok(())
 }
 
 fn validate_query(engine: Engine, query_text: &str) -> Result<(), String> {
@@ -455,15 +757,15 @@ fn validate_query(engine: Engine, query_text: &str) -> Result<(), String> {
 }
 
 fn execute_plan(plan: &ExecutionPlan) -> Result<QueryResult, String> {
-    match plan.target.kind {
-        ResolvedTargetKind::PostgresDsn => execute_postgres(plan),
-        ResolvedTargetKind::SqlitePath => execute_sqlite(plan),
+    match plan.engine {
+        Engine::Postgres => execute_postgres(plan),
+        Engine::Sqlite => execute_sqlite(plan),
     }
 }
 
 fn execute_postgres(plan: &ExecutionPlan) -> Result<QueryResult, String> {
     let start = Instant::now();
-    let mut client = Client::connect(&plan.target.value, NoTls)
+    let mut client = Client::connect(&plan.target_value, NoTls)
         .map_err(|err| format!("Failed to connect to Postgres: {err}"))?;
     let mut transaction = client
         .transaction()
@@ -523,7 +825,7 @@ fn execute_postgres(plan: &ExecutionPlan) -> Result<QueryResult, String> {
 fn execute_sqlite(plan: &ExecutionPlan) -> Result<QueryResult, String> {
     let start = Instant::now();
     let connection = Connection::open_with_flags(
-        &plan.target.value,
+        &plan.target_value,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
     .map_err(|err| format!("Failed to open SQLite database: {err}"))?;
@@ -588,8 +890,8 @@ fn finalize_result(
 
     QueryResult {
         engine,
-        target_mode: plan.target.mode,
-        target_name: plan.target.name.clone(),
+        target_mode: "named-target",
+        target_name: plan.target_name.clone(),
         columns,
         rows,
         truncated,
@@ -773,161 +1075,321 @@ fn redact_error(message: &str, secrets: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
-    fn safe_ro_postgres_requires_env_var_only() {
-        let error = parse_cli(&args(&[
-            "sql-read",
-            "safe-ro",
-            "--engine",
-            "postgres",
-            "--dsn",
-            "postgres://localhost/test",
-        ]))
-        .expect("cli parse");
-        let result = resolve_plan(&error, "select 1".to_string());
+    fn target_upsert_writes_expected_store_shape() {
+        let state_dir = temp_state_dir("shape");
+        let db_path = sqlite_fixture_db();
 
-        assert_eq!(
-            result.expect_err("should reject"),
-            "`safe-ro --engine postgres` only accepts `--dsn-env-var`."
-        );
-    }
-
-    #[test]
-    fn query_postgres_accepts_raw_dsn() {
-        let config = parse_cli(&args(&[
-            "sql-read",
-            "query",
-            "--engine",
-            "postgres",
-            "--dsn",
-            "postgres://writer",
-        ]))
-        .expect("cli parse");
-        let plan = resolve_plan(&config, "select 1".to_string()).expect("plan");
-
-        assert_eq!(plan.target.mode, "raw");
-        assert_eq!(plan.target.name, "provided");
-    }
-
-    #[test]
-    fn safe_ro_sqlite_requires_env_var() {
-        let config =
-            parse_cli(&args(&["sql-read", "safe-ro", "--engine", "sqlite"])).expect("cli parse");
-        let error = resolve_plan(&config, "select 1".to_string()).expect_err("should reject");
-
-        assert_eq!(
-            error,
-            "`safe-ro --engine sqlite` requires `--sqlite-db-path-env-var`."
-        );
-    }
-
-    #[test]
-    fn rejects_multiple_statements() {
-        let error =
-            validate_query(Engine::Postgres, "select 1; select 2;").expect_err("should reject");
-        assert_eq!(error, "Only a single read query is allowed.");
-    }
-
-    #[test]
-    fn rejects_non_read_statement() {
-        let error =
-            validate_query(Engine::Postgres, "delete from widgets;").expect_err("should reject");
-        assert_eq!(
-            error,
-            "Only read queries (`SELECT`, `WITH ... SELECT`, or `VALUES`) are allowed."
-        );
-    }
-
-    #[test]
-    fn redacts_raw_secrets_from_errors() {
-        let message = redact_error(
-            "Failed to connect to postgres://user:secret@db.example/app",
-            &[String::from("postgres://user:secret@db.example/app")],
-        );
-
-        assert_eq!(message, "Failed to connect to [REDACTED]");
-    }
-
-    #[test]
-    fn render_json_reports_truncation_and_row_count() {
-        let rendered = render_json(&QueryResult {
-            engine: "sqlite",
-            target_mode: "env-var",
-            target_name: "LOCAL_DB".to_string(),
-            columns: vec!["id".to_string()],
-            rows: vec![vec![Value::Number(Number::from(1))]],
-            truncated: true,
-            duration_ms: 12,
-        });
-        let parsed: Value = serde_json::from_str(&rendered).expect("json");
-
-        assert_eq!(
-            parsed.pointer("/row_count").and_then(Value::as_u64),
-            Some(1)
-        );
-        assert_eq!(
-            parsed.pointer("/truncated").and_then(Value::as_bool),
-            Some(true)
-        );
-        assert_eq!(
-            parsed.pointer("/target/name").and_then(Value::as_str),
-            Some("LOCAL_DB")
-        );
-    }
-
-    #[test]
-    fn sqlite_safe_ro_executes_select_and_returns_json() {
-        let path = sqlite_fixture_db();
-        let env_name = "SQL_READ_TEST_SQLITE_DB_SELECT";
-        env::set_var(env_name, &path);
-
-        let output = run_args(
+        run_args(
             args(&[
                 "sql-read",
-                "safe-ro",
+                "target",
+                "upsert",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "local-app",
+                "--engine",
+                "sqlite",
+                "--sqlite-db-path",
+                &db_path,
+            ]),
+            None,
+        )
+        .expect("upsert");
+
+        let content =
+            fs::read_to_string(target_store_path(Path::new(&state_dir))).expect("read store");
+        let parsed: Value = serde_json::from_str(&content).expect("json");
+
+        assert_eq!(
+            parsed.pointer("/version").and_then(Value::as_u64),
+            Some(TARGET_STORE_VERSION as u64)
+        );
+        assert_eq!(
+            parsed
+                .pointer("/targets/local-app/engine")
+                .and_then(Value::as_str),
+            Some("sqlite")
+        );
+        assert_eq!(
+            parsed
+                .pointer("/targets/local-app/value")
+                .and_then(Value::as_str),
+            Some(db_path.as_str())
+        );
+
+        cleanup_path(&db_path);
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    fn target_upsert_env_var_persists_value_and_run_works_without_env() {
+        let state_dir = temp_state_dir("persist");
+        let db_path = sqlite_fixture_db();
+        let env_name = "SQL_READ_TARGET_SQLITE_DB";
+        env::set_var(env_name, &db_path);
+
+        run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "local",
                 "--engine",
                 "sqlite",
                 "--sqlite-db-path-env-var",
                 env_name,
             ]),
+            None,
+        )
+        .expect("upsert");
+        env::remove_var(env_name);
+
+        let output = run_args(
+            args(&[
+                "sql-read",
+                "run",
+                "--state-dir",
+                &state_dir,
+                "--target",
+                "local",
+            ]),
             Some("select id, name from widgets order by id"),
         )
         .expect("run");
-
         let parsed: Value = serde_json::from_str(&output).expect("json");
+
         assert_eq!(
-            parsed.pointer("/engine").and_then(Value::as_str),
-            Some("sqlite")
+            parsed.pointer("/target/mode").and_then(Value::as_str),
+            Some("named-target")
+        );
+        assert_eq!(
+            parsed.pointer("/target/name").and_then(Value::as_str),
+            Some("local")
         );
         assert_eq!(
             parsed.pointer("/row_count").and_then(Value::as_u64),
             Some(2)
         );
-        assert_eq!(
-            parsed.pointer("/rows/0/1").and_then(Value::as_str),
-            Some("alpha")
-        );
 
-        let _ = fs::remove_file(path);
-        env::remove_var(env_name);
+        cleanup_path(&db_path);
+        cleanup_path(&state_dir);
     }
 
     #[test]
-    fn sqlite_safe_ro_rejects_write_statement_before_execution() {
-        let path = sqlite_fixture_db();
-        let env_name = "SQL_READ_TEST_SQLITE_DB_WRITE";
-        env::set_var(env_name, &path);
+    fn target_list_redacts_values() {
+        let state_dir = temp_state_dir("list");
+        let dsn = "postgresql://reader:secret@db.example/app";
+
+        run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "prod-readonly",
+                "--engine",
+                "postgres",
+                "--dsn",
+                dsn,
+            ]),
+            None,
+        )
+        .expect("upsert");
+
+        let output = run_args(
+            args(&["sql-read", "target", "list", "--state-dir", &state_dir]),
+            None,
+        )
+        .expect("list");
+        let parsed: Value = serde_json::from_str(&output).expect("json");
+
+        assert!(!output.contains(dsn));
+        assert_eq!(
+            parsed.pointer("/targets/0/name").and_then(Value::as_str),
+            Some("prod-readonly")
+        );
+        assert_eq!(
+            parsed.pointer("/targets/0/engine").and_then(Value::as_str),
+            Some("postgres")
+        );
+
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    fn target_remove_deletes_named_target_only() {
+        let state_dir = temp_state_dir("remove");
+        let db_path = sqlite_fixture_db();
+
+        for name in ["first", "second"] {
+            run_args(
+                args(&[
+                    "sql-read",
+                    "target",
+                    "upsert",
+                    "--state-dir",
+                    &state_dir,
+                    "--name",
+                    name,
+                    "--engine",
+                    "sqlite",
+                    "--sqlite-db-path",
+                    &db_path,
+                ]),
+                None,
+            )
+            .expect("upsert");
+        }
+
+        run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "remove",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "first",
+            ]),
+            None,
+        )
+        .expect("remove");
+
+        let output = run_args(
+            args(&["sql-read", "target", "list", "--state-dir", &state_dir]),
+            None,
+        )
+        .expect("list");
+        let parsed: Value = serde_json::from_str(&output).expect("json");
+
+        assert_eq!(
+            parsed.pointer("/targets/0/name").and_then(Value::as_str),
+            Some("second")
+        );
+        assert!(parsed.pointer("/targets/1").is_none());
+
+        cleanup_path(&db_path);
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    fn run_reports_missing_target_clearly() {
+        let state_dir = temp_state_dir("missing");
+        let error = run_args(
+            args(&[
+                "sql-read",
+                "run",
+                "--state-dir",
+                &state_dir,
+                "--target",
+                "missing",
+            ]),
+            Some("select 1"),
+        )
+        .expect_err("missing target");
+
+        match error {
+            CliError::Message(message) => {
+                assert!(message.contains("Target `missing` not found"));
+                assert!(message.contains("target upsert"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    fn run_executes_select_against_stored_sqlite_target() {
+        let state_dir = temp_state_dir("sqlite-run");
+        let db_path = sqlite_fixture_db();
+
+        run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "local-app",
+                "--engine",
+                "sqlite",
+                "--sqlite-db-path",
+                &db_path,
+            ]),
+            None,
+        )
+        .expect("upsert");
+
+        let output = run_args(
+            args(&[
+                "sql-read",
+                "run",
+                "--state-dir",
+                &state_dir,
+                "--target",
+                "local-app",
+            ]),
+            Some("select id, name from widgets order by id"),
+        )
+        .expect("run");
+        let parsed: Value = serde_json::from_str(&output).expect("json");
+
+        assert_eq!(
+            parsed.pointer("/engine").and_then(Value::as_str),
+            Some("sqlite")
+        );
+        assert_eq!(
+            parsed.pointer("/rows/1/1").and_then(Value::as_str),
+            Some("beta")
+        );
+
+        cleanup_path(&db_path);
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    fn run_rejects_write_statement_before_execution() {
+        let state_dir = temp_state_dir("reject-write");
+        let db_path = sqlite_fixture_db();
+
+        run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "local-app",
+                "--engine",
+                "sqlite",
+                "--sqlite-db-path",
+                &db_path,
+            ]),
+            None,
+        )
+        .expect("upsert");
 
         let error = run_args(
             args(&[
                 "sql-read",
-                "safe-ro",
-                "--engine",
-                "sqlite",
-                "--sqlite-db-path-env-var",
-                env_name,
+                "run",
+                "--state-dir",
+                &state_dir,
+                "--target",
+                "local-app",
             ]),
             Some("update widgets set name = 'oops'"),
         )
@@ -941,16 +1403,100 @@ mod tests {
             )
         );
 
-        let _ = fs::remove_file(path);
-        env::remove_var(env_name);
+        cleanup_path(&db_path);
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn target_store_uses_restrictive_permissions() {
+        let state_dir = temp_state_dir("perms");
+        let db_path = sqlite_fixture_db();
+
+        run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "local-app",
+                "--engine",
+                "sqlite",
+                "--sqlite-db-path",
+                &db_path,
+            ]),
+            None,
+        )
+        .expect("upsert");
+
+        let state_mode = fs::metadata(&state_dir)
+            .expect("state metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+        let file_mode = fs::metadata(target_store_path(Path::new(&state_dir)))
+            .expect("file metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+
+        assert_eq!(state_mode, 0o700);
+        assert_eq!(file_mode, 0o600);
+
+        cleanup_path(&db_path);
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    fn old_safe_ro_and_query_commands_return_migration_errors() {
+        for legacy in ["safe-ro", "query"] {
+            let error = run_args(args(&["sql-read", legacy]), None).expect_err("legacy command");
+            match error {
+                CliError::Message(message) => {
+                    assert!(message.contains("was removed"));
+                    assert!(message.contains("target upsert"));
+                    assert!(message.contains("run --state-dir"));
+                }
+                other => panic!("unexpected error: {other:?}"),
+            }
+        }
     }
 
     #[test]
     #[ignore = "requires SQL_READ_TEST_POSTGRES_DSN"]
-    fn postgres_query_runs_in_read_only_mode() {
+    fn postgres_run_uses_named_target() {
+        let state_dir = temp_state_dir("postgres");
         let dsn = env::var("SQL_READ_TEST_POSTGRES_DSN").expect("test dsn");
+
+        run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                &state_dir,
+                "--name",
+                "prod-readonly",
+                "--engine",
+                "postgres",
+                "--dsn",
+                &dsn,
+            ]),
+            None,
+        )
+        .expect("upsert");
+
         let output = run_args(
-            args(&["sql-read", "query", "--engine", "postgres", "--dsn", &dsn]),
+            args(&[
+                "sql-read",
+                "run",
+                "--state-dir",
+                &state_dir,
+                "--target",
+                "prod-readonly",
+            ]),
             Some("select 1 as value"),
         )
         .expect("run");
@@ -960,6 +1506,8 @@ mod tests {
             parsed.pointer("/row_count").and_then(Value::as_u64),
             Some(1)
         );
+
+        cleanup_path(&state_dir);
     }
 
     fn args(values: &[&str]) -> Vec<String> {
@@ -968,11 +1516,7 @@ mod tests {
 
     fn sqlite_fixture_db() -> String {
         let mut path = env::temp_dir();
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("time")
-            .as_nanos();
-        path.push(format!("sql-read-{unique}.sqlite"));
+        path.push(format!("sql-read-{}.sqlite", unique_suffix()));
 
         let connection = Connection::open(&path).expect("create sqlite db");
         connection
@@ -990,5 +1534,32 @@ mod tests {
         drop(connection);
 
         path.to_string_lossy().into_owned()
+    }
+
+    fn temp_state_dir(label: &str) -> String {
+        let mut path = env::temp_dir();
+        path.push(format!("sql-read-state-{label}-{}", unique_suffix()));
+        path.to_string_lossy().into_owned()
+    }
+
+    fn unique_suffix() -> String {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time")
+            .as_nanos();
+        let sequence = COUNTER.fetch_add(1, Ordering::Relaxed);
+
+        format!("{nanos}-{sequence}")
+    }
+
+    fn cleanup_path(path: &str) {
+        let target = Path::new(path);
+        if target.is_dir() {
+            let _ = fs::remove_dir_all(target);
+        } else {
+            let _ = fs::remove_file(target);
+        }
     }
 }

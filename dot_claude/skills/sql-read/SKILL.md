@@ -1,6 +1,6 @@
 ---
 name: sql-read
-description: Use when a user needs live read-only Postgres or SQLite inspection; prefer the blanket-approvable `sql-read safe-ro` path, inspect schema first, and keep queries narrow.
+description: Use when a user needs live read-only Postgres or SQLite inspection; configure a named read-only target once, then use the blanket-approvable `sql-read run` path for later queries.
 metadata:
   short-description: Read Postgres or SQLite safely
 ---
@@ -23,49 +23,54 @@ Do not use it for:
 
 Bootstrap installs `sql-read` into `~/.local/bin`, so call it directly.
 
-1. Assign the target env var in its own command before asking for approval.
+1. Use the default Claude state dir: `"$HOME/.claude/skills/sql-read/state"`.
+2. Export the connection input in its own command.
    - `export PROD_READONLY_URL='postgresql://user:pass@host:5432/dbname'`
-2. Prefer the approval-friendly `safe-ro` path as a separate command.
-   - `sql-read safe-ro --engine postgres --dsn-env-var PROD_READONLY_URL --file "$HOME/.claude/skills/sql-read/assets/queries/postgres-schema-overview.sql"`
-3. Use SQLite read-only via an env var, not a raw path, when you want the stable command surface.
+3. Persist the named target in a separate command.
+   - `sql-read target upsert --state-dir "$HOME/.claude/skills/sql-read/state" --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL`
+4. Run read-only queries against the stored target in a separate command.
+   - `sql-read run --state-dir "$HOME/.claude/skills/sql-read/state" --target prod-readonly --file "$HOME/.claude/skills/sql-read/assets/queries/postgres-schema-overview.sql" --format json`
+5. Use the same split workflow for SQLite targets.
    - `export LOCAL_APP_DB='/absolute/path/to/app.sqlite3'`
-   - `sql-read safe-ro --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB --file "$HOME/.claude/skills/sql-read/assets/queries/sqlite-schema-overview.sql"`
-4. Use `query` only when the user is explicitly leaving the blanket-approved path.
-   - `sql-read query --engine postgres --dsn "$DATABASE_URL" --file /tmp/query.sql`
+   - `sql-read target upsert --state-dir "$HOME/.claude/skills/sql-read/state" --name local-app --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB`
+   - `sql-read run --state-dir "$HOME/.claude/skills/sql-read/state" --target local-app --file "$HOME/.claude/skills/sql-read/assets/queries/sqlite-schema-overview.sql" --format json`
+6. Inspect or remove configured targets with explicit target-management commands.
+   - `sql-read target list --state-dir "$HOME/.claude/skills/sql-read/state"`
+   - `sql-read target remove --state-dir "$HOME/.claude/skills/sql-read/state" --name local-app`
 
 ## Workflow
 
 1. Start with schema inspection.
    - Use the bundled query templates in `assets/queries/`.
    - Load the relevant engine notes from `references/postgres.md` or `references/sqlite.md` only when needed.
-2. Prefer `sql-read safe-ro`.
-   - `safe-ro` accepts env-var targets only.
-   - This is the only path meant for blanket approval.
-   - Do not chain env-var assignment with the `sql-read` invocation; assign first, then run `sql-read` as its own command so approval can target `sql-read safe-ro:*`.
+2. Configure the target once.
+   - Use `sql-read target upsert --state-dir <dir> --name <target> ...` to persist the resolved read-only DSN or SQLite path under the skill state dir.
+   - Keep env-var assignment and `target upsert` in separate commands.
+   - Do target setup in its own command; it is not part of the blanket-approved surface.
 3. Keep queries narrow.
    - Ask for aggregates, counts, or explicit filters before scanning large tables.
    - Add an explicit `limit` in the SQL unless the query is already aggregate-only.
 4. Prefer JSON output.
    - Use `--format json` by default so the agent sees compact, structured rows.
    - Switch to `table` only when the user explicitly wants a human-readable table.
-5. Escalate to `sql-read query` only when needed.
-   - Use it when the user explicitly wants a raw DSN or raw SQLite path.
-   - Even there, the helper still enforces read-only execution and rejects non-query statements.
+5. Run read-only queries through the stored target.
+   - `sql-read run --state-dir <dir> --target <name> ...` is the only blanket-approved execution path.
+   - Later `run` calls do not require the env var to still exist.
 
 ## Output
 
 Default JSON output is compact and stable:
 
 ```json
-{"engine":"postgres","target":{"mode":"env-var","name":"PROD_READONLY_URL"},"columns":["id","email"],"rows":[[1,"a@example.com"]],"row_count":1,"truncated":false,"duration_ms":38}
+{"engine":"postgres","target":{"mode":"named-target","name":"prod-readonly"},"columns":["id","email"],"rows":[[1,"a@example.com"]],"row_count":1,"truncated":false,"duration_ms":38}
 ```
 
 ## Bundled Resources
 
 - `sql-read`
   - Bootstrap installs this command into `~/.local/bin`.
-  - `safe-ro` is the approval-friendly, env-var-only path.
-  - `query` is the manual exception path that still enforces read-only execution.
+  - `run` is the blanket-approvable read-only execution path.
+  - `target upsert|list|remove` manages persisted named targets.
 - `scripts/`
   - Contains the Rust source package that bootstrap uses to install `sql-read`.
 - `references/postgres.md`
@@ -79,8 +84,8 @@ Default JSON output is compact and stable:
 
 - Rust is a control and safety tool here, not a speed win over `psql`.
 - If `sql-read` is missing, rerun bootstrap so the installed helper is refreshed in `~/.local/bin`.
-- Blanket approval should target `sql-read safe-ro:*`, not `sql-read:*`.
-- Keep env-var assignment and `sql-read` execution as separate shell commands; `export ... && sql-read ...` weakens the approval surface.
-- `safe-ro` accepts env vars only; do not add raw `--dsn` or raw `--sqlite-db-path` to the approval-friendly path.
+- Blanket approval should target `sql-read run`, not `sql-read target`.
+- Keep env-var assignment, `target upsert`, and `run` as separate commands.
+- `run` does not accept raw DSNs, raw SQLite paths, or env-var target flags; configure the target first.
 - Read-only enforcement in the helper is defense-in-depth, not a substitute for least-privilege credentials.
 - Postgres queries with duplicate column names are rejected; alias duplicate columns before running them.

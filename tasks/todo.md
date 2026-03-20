@@ -1038,3 +1038,64 @@ Generalize the installed-binary workflow from `sql-read` to every Rust-backed sk
   - `classify-ci-log` ran successfully from `PATH` and produced the expected compact JSON classification.
   - The deployed Codex and Claude skill docs are in sync with the repo after bootstrap.
   - No remaining `cargo run` or `target/release` instructions remain in the affected Rust-backed skill docs.
+
+# SQL Read Named Targets
+
+## Goal
+
+Redesign `sql-read` around persisted named targets so `sql-read run --state-dir <dir> --target <name>` is the only blanket-approvable execution path and later queries do not depend on shell env var persistence between tool calls.
+
+## Success criteria
+
+- `sql-read run --state-dir <dir> --target <name> ...` executes read-only queries using a persisted target definition.
+- `sql-read target upsert|list|remove ...` manages targets stored under the skill state dir.
+- No execution path accepts raw DSNs, raw SQLite paths, or env-var target flags anymore.
+- Old `safe-ro` and `query` invocations fail closed with a migration message.
+- State is stored in `targets.json` with restrictive permissions.
+- Both mirrored skill docs are updated to the setup-then-run workflow.
+
+## Assumptions / constraints
+
+- Persisting resolved read-only DSNs and SQLite paths at rest under the skill directory is acceptable on this machine.
+- Target mutation stays explicit and separate from the blanket-approved `run` path.
+- `--state-dir` remains explicit in the CLI to avoid ambiguity when both Codex and Claude homes exist.
+- The Codex and Claude Rust packages should remain identical after the change.
+
+## Steps
+
+- [x] Update the `sql-read` Rust CLI to support `run` and `target {upsert,list,remove}` with persisted target state.
+- [x] Add target-store read/write logic, permission handling, redacted list output, and migration errors for `safe-ro` / `query`.
+- [x] Add or update tests for target persistence, missing targets, read-only execution, migration errors, and permission creation.
+- [x] Mirror the Rust package changes into the Claude skill tree.
+- [x] Update both `sql-read` skill docs to the new target setup and execution workflow.
+- [x] Rebuild via bootstrap and verify the installed `sql-read` binary using a persisted SQLite target across separate commands.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- Persisted targets must not leak secrets through CLI output or error text.
+- Existing `safe-ro` / `query` users need a precise migration error so the failure is actionable.
+- State file writes must create the directory and file with restrictive permissions without breaking repeated updates.
+- Query execution still needs to reject writes both statically and at runtime.
+
+## Verification plan
+
+- Run focused `cargo test --offline --manifest-path ...` for both mirrored `sql-read` packages.
+- Re-run `./bootstrap.sh`.
+- Use `sql-read target upsert ...` in one command, then `sql-read run ...` in a separate command against a temporary SQLite database.
+- Confirm `sql-read target list` shows only target names and engines.
+- Confirm `sql-read safe-ro ...` now returns the migration error.
+
+## Review
+
+- Reworked both mirrored `sql-read` crates around persisted named targets in `targets.json`, with `sql-read run` as the only execution path and `target upsert|list|remove` as explicit setup/mutation commands.
+- The target store now writes under an explicit `--state-dir`, stores resolved DSNs or SQLite paths, redacts secrets from `target list`, and creates the state directory/file with `0700` / `0600` permissions on Unix.
+- `safe-ro` and `query` now fail closed with a migration message pointing callers to `target upsert` plus `run`; no run-time path accepts raw DSNs, raw SQLite paths, or env-var target selectors anymore.
+- Verification:
+- `cargo test --offline --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
+- `cargo test --offline --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
+- `./bootstrap.sh`
+- `sql-read target upsert --state-dir /tmp/sql-read-verify.bUZMZD/state --name local-app --engine sqlite --sqlite-db-path /tmp/sql-read-verify.bUZMZD/app.sqlite`
+- `sql-read run --state-dir /tmp/sql-read-verify.bUZMZD/state --target local-app --file /tmp/sql-read-verify.bUZMZD/query.sql --format json`
+- `sql-read target list --state-dir /tmp/sql-read-verify.bUZMZD/state`
+- `sql-read safe-ro --engine sqlite --sqlite-db-path /tmp/sql-read-verify.bUZMZD/app.sqlite --file /tmp/sql-read-verify.bUZMZD/query.sql --format json`
