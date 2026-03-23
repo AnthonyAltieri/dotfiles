@@ -99,6 +99,12 @@ git switch -c <branch-name> origin/main
 
 - If branch creation fails due to uncommitted changes or conflicts, stop and report the blocker.
 ---
+## PR Creation Policy
+
+- When creating a new PR, default to a draft PR unless I explicitly ask for a ready-for-review/open PR.
+- Use `gh pr create --draft ...` for the default create path.
+- Do not convert an existing PR to draft or ready-for-review unless I explicitly ask.
+---
 ## Focused Testing (Speed)
 - When debugging **one** failing test, **do not** run the full test suite.
 - Run only the **specific test file** and/or the **specific test** inside that file.

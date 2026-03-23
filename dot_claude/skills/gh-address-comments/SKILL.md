@@ -23,10 +23,10 @@ If no PR exists for the current branch, report this and stop.
 
 ## Quick start
 
-1. Fetch review data with the Rust helper.
-   - `fetch-comments --format compact > /tmp/pr-threads.tsv`
-2. Summarize unresolved threads before reading the full comment bodies.
-   - `summarize-threads /tmp/pr-threads.tsv`
+1. Fetch and summarize review data with a direct helper pipeline when you need compact grouping first.
+   - `fetch-comments --format compact | summarize-threads`
+2. Fetch raw thread JSON directly when you need the full review payload.
+   - `fetch-comments --format json`
 3. Summarize unresolved threads before reading the full comment bodies.
 4. Post a top-level PR comment when you need to leave a general note outside a review thread.
    - `create-comment --body "FROM CLAUDE: Ready for another look."`
@@ -43,7 +43,7 @@ If no PR exists for the current branch, report this and stop.
    - `gh pr checks`
 2. Fetch comments and review threads.
    - Preferred: run `fetch-comments` for full conversation, review, and thread data.
-   - For large review sets, use `--format compact` and `summarize-threads` first so the model sees grouped metadata before opening individual threads.
+   - For large review sets, use `fetch-comments --format compact | summarize-threads` first so the model sees grouped metadata before opening individual threads.
    - Manual fallback: use `gh api graphql` to retrieve `reviewThreads`, `reviews`, and thread comments directly.
 3. Filter scope.
    - By default, process unresolved threads only.
@@ -127,8 +127,8 @@ If no PR exists for the current branch, report this and stop.
 
 ## Bundled Resources
 
-- `fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization.
-- `summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.
+- `fetch-comments --format compact` - Emits flattened tab-separated thread metadata for local summarization and pipes cleanly into `summarize-threads`.
+- `summarize-threads` - Groups flattened thread metadata from stdin or a file path by file, reviewer, and resolution state into compact JSON.
 - `create-comment` - Creates a top-level PR comment and automatically prefixes the body with `🤖 `.
 - `create-thread-reply` - Creates a review-thread reply and automatically prefixes the body with `🤖 `.
 - `resolve-thread` - Resolves a review thread by thread ID.

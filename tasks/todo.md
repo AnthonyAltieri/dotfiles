@@ -1099,3 +1099,114 @@ Redesign `sql-read` around persisted named targets so `sql-read run --state-dir 
 - `sql-read run --state-dir /tmp/sql-read-verify.bUZMZD/state --target local-app --file /tmp/sql-read-verify.bUZMZD/query.sql --format json`
 - `sql-read target list --state-dir /tmp/sql-read-verify.bUZMZD/state`
 - `sql-read safe-ro --engine sqlite --sqlite-db-path /tmp/sql-read-verify.bUZMZD/app.sqlite --file /tmp/sql-read-verify.bUZMZD/query.sql --format json`
+
+# Read-Only Helper Rules
+
+## Goal
+
+Update the managed Codex rules so read-only helper commands can run without approval while mutating helper commands remain prompt-gated.
+
+## Success criteria
+
+- The managed [dot_codex/rules/default.rules](/Users/anthonyaltieri/code/dotfiles/dot_codex/rules/default.rules) preserves the current deployed allow-list baseline and adds stable read-only helper rules.
+- `sql-read run`, `fetch-comments`, `summarize-threads`, `inspect-pr-checks`, and `classify-ci-log` evaluate to `allow`.
+- `sql-read target`, `create-comment`, `create-thread-reply`, and `resolve-thread` evaluate to `prompt`.
+- Stale exact-match helper rules tied to specific PRs, thread IDs, or shell wrappers are removed from the managed rules file.
+- The `gh-address-comments` and `gh-fix-ci` skill docs prefer direct helper invocation or safe plain-word pipelines that match the new rules.
+
+## Assumptions / constraints
+
+- The repo-managed rules file is the source of truth and should absorb the current deployed baseline before bootstrap overwrites `~/.codex/rules/default.rules`.
+- Atlas remains out of scope because its CLI mixes read-only inspection with state-changing UI actions.
+- Codex must be restarted after bootstrap for the running app session to reload the updated rules.
+
+## Steps
+
+- [x] Diff the managed rules file against `~/.codex/rules/default.rules` and preserve the current non-helper baseline.
+- [x] Replace brittle helper-specific allow rules with stable prefix rules plus prompt guardrails.
+- [x] Normalize the `gh-address-comments` workflow docs to use direct helper pipelines and mirror the change to Claude.
+- [x] Normalize the `gh-fix-ci` workflow docs to prefer direct helper invocation or plain-word pipelines and mirror the change to Claude.
+- [x] Run `codex execpolicy check` against the managed rules file for the allow/prompt cases and shell-shape cases.
+- [x] Re-run `./bootstrap.sh` and verify the deployed rules/skill docs match the repo-managed copies.
+- [x] Record review notes here.
+
+## Risks / edge cases
+
+- Replacing the managed rules file from a stale copy would silently drop existing approvals, so the current deployed baseline must be preserved.
+- Shell wrappers that include redirection or env-var assignments may not be split by Codex, so docs need to prefer direct commands or plain-word pipelines.
+- Broad prefix rules could accidentally allow mutating helper paths unless explicit prompt rules remain in place.
+
+## Verification plan
+
+- Use `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- ...` for each expected allow/prompt command.
+- Check `codex execpolicy check` on a plain pipeline wrapper and on a redirection-heavy wrapper to confirm the documented shape matters.
+- Re-run `./bootstrap.sh`.
+- Run `chezmoi diff --source "$PWD" --no-pager ~/.codex/rules/default.rules ~/.codex/skills/gh-address-comments ~/.codex/skills/gh-fix-ci ~/.claude/skills/gh-address-comments ~/.claude/skills/gh-fix-ci`.
+
+## Review
+
+- Promoted the current deployed `~/.codex/rules/default.rules` baseline into [dot_codex/rules/default.rules](/Users/anthonyaltieri/code/dotfiles/dot_codex/rules/default.rules), removed stale helper-specific exact-match rules, and replaced them with stable helper prefix rules for `sql-read run`, `fetch-comments`, `summarize-threads`, `inspect-pr-checks`, and `classify-ci-log`.
+- Added explicit `prompt` guardrails for `sql-read target`, `create-comment`, `create-thread-reply`, and `resolve-thread` so the read-only helper allow rules cannot silently widen to mutating helper paths.
+- Normalized the `gh-address-comments` skill docs in [dot_codex/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-address-comments/SKILL.md) and [dot_claude/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-address-comments/SKILL.md) to prefer `fetch-comments --format compact | summarize-threads` and raw `fetch-comments --format json`.
+- Normalized the `gh-fix-ci` skill docs in [dot_codex/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-fix-ci/SKILL.md) and [dot_claude/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-fix-ci/SKILL.md) to prefer direct `classify-ci-log` invocation or `gh run view <run_id> --log-failed | classify-ci-log`.
+- Found and fixed a bootstrap deployment bug: [/.chezmoiignore](/Users/anthonyaltieri/code/dotfiles/.chezmoiignore) was excluding `.codex/rules/**`, which prevented the managed rules file from ever reaching `~/.codex/rules/default.rules`.
+- Verification:
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- fetch-comments --format compact`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- summarize-threads /tmp/pr-threads.tsv`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- inspect-pr-checks --repo . --json`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- classify-ci-log /tmp/failed.log`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- sql-read target upsert --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- create-thread-reply --thread-id PRRT_example --body 'FROM CODEX: Addressed in abc123 - fixed the issue.'`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- resolve-thread --thread-id PRRT_example`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- /bin/zsh -lc 'fetch-comments --format compact | summarize-threads'`
+- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- /bin/zsh -lc 'fetch-comments --format compact > /tmp/pr.tsv && summarize-threads /tmp/pr.tsv'`
+- `./bootstrap.sh`
+- `chezmoi diff --source "$PWD" --no-pager ~/.codex/rules/default.rules ~/.codex/skills/gh-address-comments ~/.codex/skills/gh-fix-ci ~/.claude/skills/gh-address-comments ~/.claude/skills/gh-fix-ci`
+- `codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json`
+- `codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- create-comment --body 'FROM CODEX: ready for another look.'`
+- Results:
+- Direct helper commands now evaluate as intended from the deployed home rules file: `sql-read run` resolves to `allow`, and mutating helpers such as `create-comment` resolve to `prompt`.
+- Wrapper checks using `/bin/zsh -lc '...'` produced no rule match for both the plain pipeline and redirection-heavy forms in `execpolicy check`, so the rules are reliably scoped to direct helper invocations; the doc normalization avoids redirection-heavy examples but shell-wrapper approval still depends on how the caller constructs the command.
+
+# Draft PR Default
+
+## Goal
+
+Make PR creation default to draft status unless the user explicitly asks for an open/non-draft PR.
+
+## Success criteria
+
+- Global Codex guidance states that newly created PRs should default to draft unless the user says otherwise.
+- The mirrored `gh-manage-pr` skill docs instruct PR creation flows to use draft by default.
+- The create examples use `gh pr create --draft ...`.
+
+## Assumptions / constraints
+
+- This applies only when creating a new PR, not when updating an existing one.
+- “Unless otherwise specified” means an explicit user request for a ready-for-review/open PR overrides the default.
+
+## Steps
+
+- [x] Update the global Codex guidance with a default-draft PR policy.
+- [x] Update the mirrored `gh-manage-pr` skill docs so create flows default to `gh pr create --draft ...`.
+- [x] Re-run bootstrap and verify the deployed Codex/Claude copies match the repo-managed files.
+- [x] Record review notes here.
+
+## Verification plan
+
+- Re-read the affected guidance files to confirm the create path is draft-by-default and the override condition is explicit.
+- Run `./bootstrap.sh`.
+- Run `chezmoi diff --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills/gh-manage-pr ~/.claude/skills/gh-manage-pr`.
+
+## Review
+
+- Added a global PR creation default in [dot_codex/AGENTS.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/AGENTS.md): new PRs should default to draft, `gh pr create --draft ...` is the standard create path, and existing PR draft/ready-for-review state should only be changed on explicit user request.
+- Updated the mirrored PR-management skill docs in [dot_codex/skills/gh-manage-pr/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-manage-pr/SKILL.md) and [dot_claude/skills/gh-manage-pr/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-manage-pr/SKILL.md) so the create workflow now explicitly defaults to `gh pr create --draft --title ... --body-file ...`, with the override condition documented inline.
+- Verification:
+- `rg -n "draft PR|--draft|ready-for-review|open PR|PR Creation Policy" dot_codex/AGENTS.md dot_codex/skills/gh-manage-pr/SKILL.md dot_claude/skills/gh-manage-pr/SKILL.md`
+- `./bootstrap.sh`
+- `chezmoi diff --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills/gh-manage-pr ~/.claude/skills/gh-manage-pr`
+- Results:
+- The deployed Codex and Claude guidance files match the repo-managed copies.
+- This policy change is now active in the managed dotfiles, but the current git worktree still also contains the earlier uncommitted read-only-helper rules and helper-doc changes from the previous task.

@@ -23,10 +23,11 @@ If no PR exists for the current branch, report this and stop.
 
 1. Fetch failing checks with `gh` via the bundled Rust helper.
    - `inspect-pr-checks --repo "." --json`
-2. Run the local classifier when the raw logs are too large to hand directly to the model.
-   - `gh run view <run_id> --log-failed > /tmp/failed.log`
+2. Prefer a direct helper pipeline when the raw logs are too large to hand directly to the model.
+   - `gh run view <run_id> --log-failed | classify-ci-log`
+3. If you already saved a log locally, classify it directly.
    - `classify-ci-log /tmp/failed.log`
-3. Summarize failing logs before reading full job output when the raw logs are large.
+4. Summarize failing logs before reading full job output when the raw logs are large.
 
 ## Workflow
 
@@ -38,7 +39,7 @@ If no PR exists for the current branch, report this and stop.
    - Preferred quick path:
      - `inspect-pr-checks --repo "." --pr "<number-or-url>"`
      - Add `--json` for structured summaries.
-     - Use `classify-ci-log` when the raw logs are large and you need a local classifier to shrink the context.
+     - Use `gh run view <run_id> --log-failed | classify-ci-log` when the raw logs are large and you need a local classifier to shrink the context without introducing redirection-heavy wrappers.
    - Manual deep dive:
      - `gh run view <run_id> --log-failed`
      - `gh run view <run_id> --json jobs --jq '.jobs[] | {name, status, conclusion, steps}'`

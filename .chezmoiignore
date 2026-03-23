@@ -42,7 +42,6 @@ bootstrap.sh
 .codex/skills/.system/**
 .codex/skills/**/scripts/target
 .codex/skills/**/scripts/target/**
-.codex/rules/**
 
 {{ if ne .chezmoi.os "darwin" }}
 .config/ghostty/**

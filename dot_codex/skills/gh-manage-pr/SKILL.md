@@ -30,7 +30,7 @@ Create or update a pull request with the GitHub CLI (`gh`).
 1. Resolve PR context.
    - Check whether a PR already exists for the current branch:
      - `gh pr view --json number,url,title,body,baseRefName,headRefName`
-   - If no PR exists, prepare `gh pr create`.
+   - If no PR exists, prepare `gh pr create --draft` unless the user explicitly asks for a ready-for-review/open PR.
    - If PR exists, prepare `gh pr edit`.
 2. Analyze changes against base branch.
    - `git diff <base>...HEAD --stat`
@@ -44,7 +44,8 @@ Create or update a pull request with the GitHub CLI (`gh`).
    - Start from `assets/pr-body-template.md` rather than freehanding the structure.
 4. Apply the PR update.
    - Create:
-     - `gh pr create --title "<title>" --body-file <tmpfile>`
+     - Default: `gh pr create --draft --title "<title>" --body-file <tmpfile>`
+     - Only omit `--draft` when the user explicitly asks for a ready-for-review/open PR.
    - Update:
      - `gh pr edit <pr> --title "<title>" --body-file <tmpfile>`
 5. Return final PR URL and a concise summary of what was updated.
@@ -77,6 +78,7 @@ For each major change area:
 - Do not let raw diff volume dominate the prompt. Summarize first, then pull exact snippets only for the sections that need examples.
 - For mixed-feature branches, group by subsystem and user-visible capability instead of by commit order.
 - Keep the summary section outcome-focused; implementation details belong in later sections.
+- New PRs default to draft unless the user explicitly asks for a ready-for-review/open PR.
 
 ## Output Format
 
