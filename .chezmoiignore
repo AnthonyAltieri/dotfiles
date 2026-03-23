@@ -20,6 +20,8 @@ bootstrap.sh
 .claude/todos/**
 .claude/usage-data/**
 .claude/history.jsonl
+.claude/skills/**/scripts/target
+.claude/skills/**/scripts/target/**
 
 # Codex runtime and machine-local state (keep out of managed dotfiles)
 .codex/.codex-global-state.json
@@ -38,7 +40,8 @@ bootstrap.sh
 .codex/vendor_imports/**
 .codex/tasks/**
 .codex/skills/.system/**
-.codex/rules/**
+.codex/skills/**/scripts/target
+.codex/skills/**/scripts/target/**
 
 {{ if ne .chezmoi.os "darwin" }}
 .config/ghostty/**
