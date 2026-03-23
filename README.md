@@ -1,129 +1,164 @@
 # dotfiles
 
-Managed with [chezmoi](https://www.chezmoi.io/).
+Managed with Nix using `nix-darwin` for macOS and Home Manager for user configuration.
 
-## Setup a new machine
+## Configuration model
 
-```bash
-git clone git@github.com:AnthonyAltieri/dotfiles.git ~/code/dotfiles
-~/code/dotfiles/bootstrap.sh
+This repo composes configuration on two axes:
+
+- **Role**
+  - `common` — shared configuration for personal and work machines
+  - `personal` — `common + personal`
+  - `work` — `common + work`
+  - `sandbox` — standalone profile for agent sandboxes
+- **Platform**
+  - `darwin` — `nix-darwin` system modules, Homebrew integration, macOS defaults
+  - `linux` — Home Manager plus Nix packages
+
+The resulting outputs are:
+
+- `darwinConfigurations.personal`
+- `darwinConfigurations.work`
+- `homeConfigurations.personal-linux`
+- `homeConfigurations.work-linux`
+- `homeConfigurations.sandbox-aarch64-darwin`
+- `homeConfigurations.sandbox-aarch64-linux`
+- `homeConfigurations.sandbox-x86_64-linux`
+
+## Repo layout
+
+```text
+.
+├── flake.nix
+├── bootstrap.sh
+├── home/
+│   ├── .zshrc
+│   ├── .tmux.conf
+│   ├── .vimrc
+│   ├── .config/
+│   ├── .codex/
+│   └── .claude/
+├── lib/
+└── modules/
+    ├── shared/
+    ├── roles/
+    └── platforms/
 ```
 
-This will:
-1. Install Homebrew (macOS, if missing)
-2. Install chezmoi (if missing)
-3. Run chezmoi bootstrap scripts (packages, Oh My Zsh, zsh plugins, TPM, NVM)
-4. Deploy all dotfiles
+`home/` stores the managed payloads using their real target names, so the tree matches the home directory layout Home Manager deploys.
+
+## Composition
+
+```mermaid
+flowchart TD
+    A["flake.nix"] --> B["Platform Modules"]
+    A --> C["Role Modules"]
+
+    B --> D["darwin system modules"]
+    B --> E["linux home modules"]
+
+    C --> F["common"]
+    C --> G["personal"]
+    C --> H["work"]
+    C --> I["sandbox"]
+
+    D --> J["nix-darwin + Homebrew + macOS defaults"]
+    E --> K["Home Manager + Nix packages"]
+
+    F --> L["shared Home Manager modules"]
+    G --> L
+    H --> L
+    I --> M["sandbox package overlay"]
+
+    J --> N["darwinConfigurations.personal"]
+    J --> O["darwinConfigurations.work"]
+    K --> P["homeConfigurations.personal-linux"]
+    K --> Q["homeConfigurations.work-linux"]
+    M --> R["homeConfigurations.sandbox-*"]
+```
+
+## Bootstrap a new macOS machine
+
+Bootstrap installs Nix, installs Homebrew if needed, builds the Darwin system from this flake, then switches to it:
+
+```bash
+./bootstrap.sh personal
+./bootstrap.sh work
+```
 
 ## Day-to-day usage
 
-Edit a config:
+Apply the Darwin role on macOS:
 
 ```bash
-chezmoi edit ~/.zshrc
-chezmoi apply
+darwin-rebuild switch --flake .#personal
+darwin-rebuild switch --flake .#work
 ```
 
-Add a new file:
+Apply a Linux profile:
 
 ```bash
-chezmoi add ~/.config/some-tool/config
+home-manager switch --flake .#personal-linux
+home-manager switch --flake .#work-linux
 ```
 
-See what would change:
+Apply a sandbox profile:
 
 ```bash
-chezmoi diff
+home-manager switch --flake .#sandbox-aarch64-darwin
+home-manager switch --flake .#sandbox-aarch64-linux
+home-manager switch --flake .#sandbox-x86_64-linux
 ```
 
-Pull and apply updates:
+Update flake inputs:
 
 ```bash
-chezmoi update
+nix flake update
 ```
 
-## How chezmoi works
+## Package strategy
 
-[chezmoi](https://www.chezmoi.io/) manages dotfiles by keeping a **source directory** (this repo) that maps to files in your home directory. It never symlinks — it copies files into place, so your home directory has normal files and chezmoi owns the "source of truth" in the repo.
+- **Darwin** uses Homebrew through `modules/platforms/darwin/homebrew.nix`.
+- **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
+- **Sandbox** stays lean and avoids desktop-specific settings.
 
-### File naming conventions
+Current hidden runtime dependencies are also declared, including `jq`.
 
-chezmoi uses special prefixes in the source directory to control how files are deployed:
+## Managed vs unmanaged files
 
-| Source (this repo)                  | Deployed to                        |
-|-------------------------------------|------------------------------------|
-| `dot_zshrc`                         | `~/.zshrc`                         |
-| `dot_config/nvim/init.lua`          | `~/.config/nvim/init.lua`          |
-| `dot_config/starship.toml`          | `~/.config/starship.toml`          |
-| `executable_dev`                    | `dev` (with `chmod +x`)            |
+This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
-The `dot_` prefix becomes a `.` in the target path. The `executable_` prefix sets the file as executable. Directories map 1:1 (minus the prefixes).
+Examples of intentionally unmanaged local state:
 
-### Bootstrap scripts
+- `~/.codex/config.toml`
+- `~/.codex/auth.json`
+- `~/.codex/history.jsonl`
+- `~/.codex/sessions/**`
+- `~/.codex/worktrees/**`
+- `~/.codex/sqlite/**`
+- `~/.codex/log/**`
+- machine-local Claude/Codex runtime state
 
-Scripts in `.chezmoiscripts/` run automatically during `chezmoi apply`. The naming controls **when** and **how often** they run:
+## Where changes go
 
-```
-.chezmoiscripts/
-├── darwin/                          # macOS-only scripts
-│   ├── run_once_before_01-install-homebrew.sh.tmpl
-│   ├── run_once_before_02-install-brews.sh.tmpl
-│   └── run_once_before_03-configure-macos-keyboard.sh.tmpl
-├── run_once_before_03-install-oh-my-zsh.sh
-├── run_once_before_04-install-zsh-plugins.sh
-├── run_once_before_05-install-tpm.sh
-└── run_once_before_06-install-nvm.sh
-```
+- role-specific policy: `modules/roles/`
+- platform-specific policy: `modules/platforms/`
+- shared Home Manager behavior: `modules/shared/`
+- raw config payloads: `home/`
 
-Breaking down the name `run_once_before_01-install-homebrew.sh.tmpl`:
+## Verification
 
-- **`run_once`** — chezmoi tracks a hash of the script and only re-runs it if the contents change. Without this, it would run on every `chezmoi apply`.
-- **`before`** — run before any files are copied into place (use `after` for the opposite).
-- **`01-`** — controls execution order. Scripts run in lexicographic order, so `01-` runs before `02-`, etc.
-- **`.tmpl`** — the file is a chezmoi template. This lets you use Go template syntax like `{{ if eq .chezmoi.os "darwin" }}` to conditionally include content (e.g., skip macOS-specific scripts on Linux).
-
-### Templates
-
-Files ending in `.tmpl` are processed through Go's `text/template` engine before being deployed. This repo uses templates mainly for OS guards in scripts:
+Once Nix is available on the target machine, run:
 
 ```bash
-{{ if eq .chezmoi.os "darwin" -}}
-#!/bin/bash
-# This only runs on macOS
-{{ end -}}
+nix flake check
+nix build .#darwinConfigurations.personal.system
+nix build .#darwinConfigurations.work.system
+nix build .#homeConfigurations.personal-linux.activationPackage
+nix build .#homeConfigurations.work-linux.activationPackage
+nix build .#homeConfigurations.sandbox-aarch64-darwin.activationPackage
+nix build .#homeConfigurations.sandbox-aarch64-linux.activationPackage
+nix build .#homeConfigurations.sandbox-x86_64-linux.activationPackage
 ```
 
-The trailing `-` trims whitespace so the rendered output is clean.
-
-### Key commands
-
-| Command             | What it does                                           |
-|---------------------|--------------------------------------------------------|
-| `chezmoi add FILE`  | Copy a file from `~` into the source directory         |
-| `chezmoi edit FILE` | Open the source version of a file in your editor       |
-| `chezmoi diff`      | Show what `apply` would change (dry-run diff)          |
-| `chezmoi apply`     | Deploy everything: run scripts + copy files to `~`     |
-| `chezmoi update`    | `git pull` the source repo then `apply`                |
-
-After editing files in this repo directly (not via `chezmoi edit`), run `chezmoi apply` to push changes to your home directory.
-
-## What's included
-
-- **zsh** — Oh My Zsh with zsh-autosuggestions and F-Sy-H
-- **neovim** — Lazy.nvim config with LSP, Telescope, Treesitter
-- **tmux** — TPM with vim-tmux-navigator
-- **starship** — Cross-shell prompt
-- **ghostty** — Terminal config (macOS)
-
-## Codex configuration
-
-This repo manages a curated subset of `~/.codex` via `dot_codex/`:
-
-- `~/.codex/AGENTS.md`
-- `~/.codex/prompts/pr.md`
-- `~/.codex/rules/default.rules`
-- `~/.codex/skills/{atlas,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture}`
-
-Machine-local Codex state is intentionally not managed, including auth/history/sessions/worktrees/sqlite/logs/cache.
-
-`~/.codex/config.toml` is intentionally local-only so each machine can keep its own trust settings and local runtime preferences.
+`flake.lock` is not generated in this workspace because `nix` is not installed here. Generate it with `nix flake lock` on a machine with Nix available before relying on reproducible input pinning.
