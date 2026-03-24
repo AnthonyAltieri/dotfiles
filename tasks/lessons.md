@@ -29,6 +29,3 @@
 - Mistake: I initially treated a missing `/run/current-system` during `--diff` as a generic skip instead of explaining that first-run nix-darwin machines have no active baseline generation yet.
 - Why it happened: I focused on making the diff path non-fatal and did not tailor the message to the machine state or tell the user what action would create the missing baseline.
 - Prevention rule: When a preview or diff path depends on an existing active generation, detect the first-run state explicitly and print the reason, the immediate consequence, and the exact next command to make future previews meaningful.
-- Mistake: I started patching a separate chezmoi-style worktree before confirming which repo actually drove the live Ghostty config.
-- Why it happened: I assumed the current workspace was the deployment source of truth instead of checking the Nix module wiring first.
-- Prevention rule: When a user says a config is Nix-managed, locate the live Nix module and sourced file before editing or applying any parallel dotfiles repo.
