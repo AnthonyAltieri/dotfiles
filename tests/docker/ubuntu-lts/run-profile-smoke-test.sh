@@ -3,11 +3,61 @@ set -euo pipefail
 
 profile="${1:-}"
 
-case "$profile" in
+host_arch="$(uname -m)"
+case "${host_arch}" in
+  arm64|aarch64)
+    linux_suffix="aarch64-linux"
+    ;;
+  x86_64|amd64)
+    linux_suffix="x86_64-linux"
+    ;;
+  *)
+    echo "Unsupported container architecture: ${host_arch}" >&2
+    exit 1
+    ;;
+esac
+
+resolve_profile_output() {
+  local requested_profile="$1"
+  case "${requested_profile}" in
+    personal)
+      if [[ "${linux_suffix}" == "aarch64-linux" ]]; then
+        echo "personal-aarch64-linux"
+      else
+        echo "personal-linux"
+      fi
+      ;;
+    work)
+      if [[ "${linux_suffix}" == "aarch64-linux" ]]; then
+        echo "work-aarch64-linux"
+      else
+        echo "work-linux"
+      fi
+      ;;
+    sandbox)
+      echo "sandbox-${linux_suffix}"
+      ;;
+    personal-linux|personal-aarch64-linux|work-linux|work-aarch64-linux|sandbox-x86_64-linux|sandbox-aarch64-linux)
+      echo "${requested_profile}"
+      ;;
+    *)
+      echo "" >&2
+      return 1
+      ;;
+  esac
+}
+
+profile_output="$(resolve_profile_output "${profile}")" || {
+  echo "Usage: $0 <personal|work|sandbox>" >&2
+  echo "       or $0 <personal-linux|personal-aarch64-linux|work-linux|work-aarch64-linux|sandbox-x86_64-linux|sandbox-aarch64-linux>" >&2
+  exit 1
+}
+
+case "$profile_output" in
   personal-linux|personal-aarch64-linux|work-linux|work-aarch64-linux|sandbox-x86_64-linux|sandbox-aarch64-linux)
     ;;
   *)
-    echo "Usage: $0 <personal-linux|personal-aarch64-linux|work-linux|work-aarch64-linux|sandbox-x86_64-linux|sandbox-aarch64-linux>" >&2
+    echo "Resolved unsupported profile output: ${profile_output}" >&2
     exit 1
     ;;
 esac
@@ -28,7 +78,7 @@ cd /work
 summary="$(nix eval --impure --json --no-write-lock-file --expr '
 let
   flake = builtins.getFlake "path:/work";
-  hm = flake.homeConfigurations.'"${profile}"';
+  hm = flake.homeConfigurations.'"${profile_output}"';
   cfg = hm.config;
   packageName = pkg:
     if pkg ? pname then pkg.pname
@@ -63,6 +113,22 @@ assert_jq '.packages | index("starship") != null' "Expected starship in home.pac
 assert_jq '.packages | index("vim") != null' "Expected vim in home.packages"
 
 case "$profile" in
+  personal)
+    assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
+    assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for personal"
+    assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for personal"
+    ;;
+  work)
+    assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
+    assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for work"
+    assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for work"
+    ;;
+  sandbox)
+    assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
+    assert_jq '.sessionVariables.CODEX_SANDBOX == "1"' "Expected CODEX_SANDBOX=1 for sandbox"
+    assert_jq '(.sessionVariables | has("DOTFILES_COMMON")) | not' "Did not expect DOTFILES_COMMON for sandbox"
+    assert_jq '.ohMyZsh == false' "Did not expect Oh My Zsh for sandbox"
+    ;;
   personal-linux|personal-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for personal-linux"
@@ -83,8 +149,8 @@ esac
 
 if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
   rm -f result
-  nix --extra-experimental-features "nix-command flakes" build --no-write-lock-file ".#homeConfigurations.${profile}.activationPackage"
+  nix --extra-experimental-features "nix-command flakes" build --no-write-lock-file ".#homeConfigurations.${profile_output}.activationPackage"
   ./result/activate
 fi
 
-echo "Smoke test passed for ${profile}"
+echo "Smoke test passed for ${profile} (${profile_output})"

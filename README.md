@@ -175,18 +175,17 @@ Ubuntu LTS smoke tests are available through Docker and validate the Linux Home 
 ./tests/run-linux-docker-smoke.sh
 ```
 
-You can also target a specific profile:
+By default the runner tests the three logical Linux roles, `personal`, `work`, and `sandbox`, and maps each one to the correct Linux output for the container architecture.
+
+You can also target specific roles:
 
 ```bash
-./tests/run-linux-docker-smoke.sh personal-linux
-./tests/run-linux-docker-smoke.sh personal-aarch64-linux
-./tests/run-linux-docker-smoke.sh work-linux
-./tests/run-linux-docker-smoke.sh work-aarch64-linux
-./tests/run-linux-docker-smoke.sh sandbox-x86_64-linux
-./tests/run-linux-docker-smoke.sh sandbox-aarch64-linux
+./tests/run-linux-docker-smoke.sh personal
+./tests/run-linux-docker-smoke.sh work
+./tests/run-linux-docker-smoke.sh sandbox
 ```
 
-The Docker harness installs Nix inside the container, evaluates the Linux Home Manager profiles for the container architecture, and asserts key managed files, package selections, and profile-specific behavior such as Oh My Zsh being present on `personal` and `work` but absent on `sandbox`.
+The Docker harness installs Nix inside the container, evaluates the Linux Home Manager profile that corresponds to the requested role and container architecture, and asserts key managed files, package selections, and profile-specific behavior such as Oh My Zsh being present on `personal` and `work` but absent on `sandbox`.
 
 If you want to force full activation as well, set `FULL_ACTIVATE=1`:
 
