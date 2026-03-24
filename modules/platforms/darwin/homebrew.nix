@@ -1,7 +1,6 @@
 {
   homebrew = {
     enable = true;
-    enableZshIntegration = true;
 
     onActivation = {
       autoUpdate = false;
@@ -19,21 +18,23 @@
       "bun"
       "fd"
       "fzf"
+      "gh"
       "git"
       "jq"
-      "mcfly"
       "neovim"
       "nvm"
       "pnpm"
       "ripgrep"
       "starship"
       "tmux"
+      "uv"
       "vim"
     ];
 
     casks = [
       "1password-cli"
       "ghostty"
+      "raycast"
     ];
   };
 }

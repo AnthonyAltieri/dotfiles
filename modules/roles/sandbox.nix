@@ -7,7 +7,6 @@
     fzf
     git
     jq
-    mcfly
     nodejs
     pnpm
     ripgrep

@@ -17,3 +17,15 @@
 - Mistake: I initially solved the installed-binary problem only for `sql-read` instead of inventorying every Rust-backed skill helper that used the same `cargo run` pattern.
 - Why it happened: I optimized for the immediate failing helper and did not broaden the audit to the shared packaging pattern across mirrored skill trees.
 - Prevention rule: When a bootstrap or packaging fix applies to one Rust-backed skill helper, inventory every `scripts/Cargo.toml` under `dot_codex/skills` and `dot_claude/skills` before closing the change, then install and document the whole set consistently.
+
+## 2026-03-24
+
+- Mistake: I added `bootstrap.sh --dry-run` without making the first-install limitation explicit, so the preview path looked broken when Nix was not installed yet.
+- Why it happened: I focused on preserving dry-run purity and did not surface the prerequisite clearly enough in the script output and docs.
+- Prevention rule: When adding a preview or dry-run path that depends on an already-installed toolchain, explicitly document and print the prerequisite and the valid next steps in the initial implementation.
+- Mistake: I initially fixed the missing-Nix preview UX with manual guidance only instead of routing users to a repo-supported prerequisite command.
+- Why it happened: I treated the problem as messaging-only and did not step back to add the explicit dependency-install path the workflow needed.
+- Prevention rule: When a bootstrap flow has prerequisite tooling, prefer a first-class repo command for installing those dependencies and point failure paths to that command rather than only to manual setup.
+- Mistake: I initially treated a missing `/run/current-system` during `--diff` as a generic skip instead of explaining that first-run nix-darwin machines have no active baseline generation yet.
+- Why it happened: I focused on making the diff path non-fatal and did not tailor the message to the machine state or tell the user what action would create the missing baseline.
+- Prevention rule: When a preview or diff path depends on an existing active generation, detect the first-run state explicitly and print the reason, the immediate consequence, and the exact next command to make future previews meaningful.

@@ -6,11 +6,12 @@
     bun
     fd
     fzf
+    gh
     git
     jq
-    mcfly
     nodejs
     pnpm
     ripgrep
+    uv
   ];
 }

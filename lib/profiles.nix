@@ -49,7 +49,7 @@ in {
   mkHomeModules = { role, platform }:
     let
       platformModules =
-        if platform == "linux"
+        if platform == "linux" && role != "sandbox"
         then linuxHomeModules
         else if platform == "darwin"
         then [ ]

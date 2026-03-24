@@ -56,10 +56,34 @@ The resulting outputs are:
 
 `bootstrap.sh` is the supported macOS apply path. It is safe to rerun after pulling changes or editing the flake. It installs missing prerequisites only, reloads Nix and Homebrew when they already exist, then reapplies the selected Darwin role.
 
+First-time prerequisite install:
+
+```bash
+./bootstrap.sh install-dependencies
+```
+
 ```bash
 ./bootstrap.sh personal
 ./bootstrap.sh work
 ```
+
+Preview without switching:
+
+```bash
+./bootstrap.sh personal --dry-run
+./bootstrap.sh personal --dry-run --diff
+```
+
+`--dry-run` is available only after Nix is already installed on the machine. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
+
+Show a closure diff before a real apply:
+
+```bash
+./bootstrap.sh personal --diff
+./bootstrap.sh work --diff
+```
+
+During a real apply, Home Manager backs up conflicting managed files with the `.hm-backup` suffix before replacing them.
 
 The deeper explanation of what bootstrap does and how the flake composes roles and platforms lives in [`docs/nix/README.md`](docs/nix/README.md).
 
@@ -70,6 +94,13 @@ On macOS, rerunning bootstrap is the simplest path:
 ```bash
 ./bootstrap.sh personal
 ./bootstrap.sh work
+```
+
+If you want to preview first:
+
+```bash
+./bootstrap.sh personal --dry-run --diff
+./bootstrap.sh work --dry-run --diff
 ```
 
 You can still apply the Darwin role directly if you want the native command:

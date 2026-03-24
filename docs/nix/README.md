@@ -188,7 +188,13 @@ What it does:
 6. builds the selected Darwin system closure from this flake
 7. runs `darwin-rebuild switch --flake` for the chosen role
 
-That makes the normal macOS workflow:
+That makes the first-install prerequisite flow:
+
+```bash
+./bootstrap.sh install-dependencies
+```
+
+Then the normal macOS workflow:
 
 ```bash
 ./bootstrap.sh personal
@@ -196,6 +202,20 @@ That makes the normal macOS workflow:
 ```
 
 You do not need a separate "first install" command and "later updates" command. After pulling repo changes, rerun bootstrap for your role and it will re-apply the current flake state.
+
+Preview modes:
+
+```bash
+./bootstrap.sh personal --dry-run
+./bootstrap.sh personal --dry-run --diff
+./bootstrap.sh work --diff
+```
+
+- `--dry-run` builds the target Darwin closure but does not switch the system.
+- `--dry-run` also refuses to install missing Nix or Homebrew so the preview path stays side-effect free.
+- `--dry-run` only works after Nix is already installed. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
+- `--diff` runs `nix store diff-closures` against `/run/current-system` when that link exists.
+- On a normal apply, Home Manager backs up conflicting managed files using the `.hm-backup` suffix before replacing them.
 
 ## Daily commands
 

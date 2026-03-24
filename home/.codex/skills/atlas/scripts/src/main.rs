@@ -9,8 +9,6 @@ use serde_json::Value;
 use std::env;
 use std::fs;
 use std::process::{Command, Stdio};
-use time::macros::format_description;
-use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 const ROW_SEP: &str = "|||";
 const CHROME_EPOCH_OFFSET_SECONDS: i64 = 11_644_473_600;
@@ -594,23 +592,15 @@ fn chrome_microseconds_to_iso_date(value: Option<&str>) -> String {
     };
 
     let unix_seconds = timestamp / 1_000_000 - CHROME_EPOCH_OFFSET_SECONDS;
-    let Ok(datetime) = OffsetDateTime::from_unix_timestamp(unix_seconds) else {
-        return "unknown".to_string();
-    };
-    let local = datetime.to_offset(current_offset());
-    local
-        .date()
-        .format(&format_description!("[year]-[month]-[day]"))
-        .unwrap_or_else(|_| "unknown".to_string())
+    local_date_from_unix_seconds(unix_seconds).unwrap_or_else(|| "unknown".to_string())
 }
 
 fn chrome_time_bounds_today() -> Result<(i64, i64), String> {
-    let now = OffsetDateTime::now_utc().to_offset(current_offset());
-    let start = PrimitiveDateTime::new(now.date(), Time::MIDNIGHT).assume_offset(now.offset());
-    let end = start + Duration::days(1);
+    let start = local_day_start_unix_seconds(0)?;
+    let end = local_day_start_unix_seconds(1)?;
     Ok((
-        chrome_time_from_unix_seconds(start.unix_timestamp()),
-        chrome_time_from_unix_seconds(end.unix_timestamp()),
+        chrome_time_from_unix_seconds(start),
+        chrome_time_from_unix_seconds(end),
     ))
 }
 
@@ -618,8 +608,55 @@ fn chrome_time_from_unix_seconds(unix_seconds: i64) -> i64 {
     (unix_seconds + CHROME_EPOCH_OFFSET_SECONDS) * 1_000_000
 }
 
-fn current_offset() -> UtcOffset {
-    UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
+fn local_date_from_unix_seconds(unix_seconds: i64) -> Option<String> {
+    let output = Command::new("/bin/date")
+        .arg("-r")
+        .arg(unix_seconds.to_string())
+        .arg("+%Y-%m-%d")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let date = String::from_utf8(output.stdout).ok()?;
+    let trimmed = date.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn local_day_start_unix_seconds(days_from_today: i64) -> Result<i64, String> {
+    let mut command = Command::new("/bin/date");
+    if days_from_today != 0 {
+        command.arg(format!("-v{days_from_today:+}d"));
+    }
+
+    let output = command
+        .arg("-v0H")
+        .arg("-v0M")
+        .arg("-v0S")
+        .arg("+%s")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|err| format!("failed to calculate local day bounds: {err}"))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+
+    let stdout = String::from_utf8(output.stdout)
+        .map_err(|err| format!("failed to parse local day bounds: {err}"))?;
+    stdout
+        .trim()
+        .parse::<i64>()
+        .map_err(|err| format!("failed to parse local day bounds: {err}"))
 }
 
 #[cfg(test)]
