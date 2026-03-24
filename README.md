@@ -2,6 +2,8 @@
 
 Managed with Nix using `nix-darwin` for macOS and Home Manager for user configuration.
 
+For the full architecture walkthrough, see [`docs/nix/README.md`](docs/nix/README.md).
+
 ## Configuration model
 
 This repo composes configuration on two axes:
@@ -33,6 +35,7 @@ The resulting outputs are:
 .
 ├── flake.nix
 ├── bootstrap.sh
+├── docs/
 ├── home/
 │   ├── .zshrc
 │   ├── .tmux.conf
@@ -49,48 +52,27 @@ The resulting outputs are:
 
 `home/` stores the managed payloads using their real target names, so the tree matches the home directory layout Home Manager deploys.
 
-## Composition
+## Bootstrap on macOS
 
-```mermaid
-flowchart TD
-    A["flake.nix"] --> B["Platform Modules"]
-    A --> C["Role Modules"]
-
-    B --> D["darwin system modules"]
-    B --> E["linux home modules"]
-
-    C --> F["common"]
-    C --> G["personal"]
-    C --> H["work"]
-    C --> I["sandbox"]
-
-    D --> J["nix-darwin + Homebrew + macOS defaults"]
-    E --> K["Home Manager + Nix packages"]
-
-    F --> L["shared Home Manager modules"]
-    G --> L
-    H --> L
-    I --> M["sandbox package overlay"]
-
-    J --> N["darwinConfigurations.personal"]
-    J --> O["darwinConfigurations.work"]
-    K --> P["homeConfigurations.personal-linux"]
-    K --> Q["homeConfigurations.work-linux"]
-    M --> R["homeConfigurations.sandbox-*"]
-```
-
-## Bootstrap a new macOS machine
-
-Bootstrap installs Nix, installs Homebrew if needed, builds the Darwin system from this flake, then switches to it:
+`bootstrap.sh` is the supported macOS apply path. It is safe to rerun after pulling changes or editing the flake. It installs missing prerequisites only, reloads Nix and Homebrew when they already exist, then reapplies the selected Darwin role.
 
 ```bash
 ./bootstrap.sh personal
 ./bootstrap.sh work
 ```
 
+The deeper explanation of what bootstrap does and how the flake composes roles and platforms lives in [`docs/nix/README.md`](docs/nix/README.md).
+
 ## Day-to-day usage
 
-Apply the Darwin role on macOS:
+On macOS, rerunning bootstrap is the simplest path:
+
+```bash
+./bootstrap.sh personal
+./bootstrap.sh work
+```
+
+You can still apply the Darwin role directly if you want the native command:
 
 ```bash
 darwin-rebuild switch --flake .#personal

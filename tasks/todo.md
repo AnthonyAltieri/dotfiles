@@ -95,3 +95,43 @@ Add a Docker-based smoke test harness that validates the Linux Home Manager prof
 - Local verification passed for `bash -n tests/run-linux-docker-smoke.sh tests/docker/ubuntu-lts/run-profile-smoke-test.sh` and `git diff --check` on the touched files.
 - End-to-end Docker runs exposed and drove two real fixes: excluding the git worktree metadata from the Docker build context with `.dockerignore`, and updating `modules/shared/shell.nix` to the current Home Manager 25.05 zsh option names.
 - End-to-end Docker execution is still blocked in this environment by Docker/Nix store space exhaustion while materializing flake inputs inside the container (`No space left on device` under `/nix/store`). The harness is committed as a repo asset, but it still needs to be exercised on a machine with more Docker disk available.
+
+## Follow-up: Bootstrap ergonomics and Nix docs
+
+### Goal
+
+Make the bootstrap path safe to rerun as the normal update entrypoint, and add a dedicated explainer for how the Nix flake composes roles, platforms, and shared modules in this repo.
+
+### Success criteria
+
+- `bootstrap.sh` is explicitly idempotent for the supported Darwin roles and can be rerun after pulling repo changes.
+- Bootstrap installs missing prerequisites only, reloads the required environment when they already exist, and applies the selected flake role on every run.
+- The repo has a dedicated Nix explainer document covering flake structure, module composition, managed files, and day-to-day update flows.
+- The top-level README points readers to the deeper Nix explainer instead of trying to carry all of that detail inline.
+
+### Assumptions / constraints
+
+- The bootstrap entrypoint remains Darwin-only and continues to support only `personal` and `work`.
+- Linux remains Home Manager driven; the bootstrap script is not widened into a cross-platform installer in this pass.
+- Verification is still limited by the lack of local Nix tooling in this workspace.
+
+### Steps
+
+- [x] Update `bootstrap.sh` so rerunning it is the normal supported apply/update path.
+- [x] Add a dedicated Nix explainer doc under `docs/`.
+- [x] Trim and link the top-level README so the overview stays readable while the detailed explanation lives in the new doc.
+- [x] Run available shell/docs verification and record the follow-up review.
+
+### Risks / edge cases
+
+- Freshly installed Nix or Homebrew may not be on `PATH` in the current shell unless bootstrap reloads their shell environment explicitly.
+- Using a built `result` symlink is convenient but can be brittle if the script does not ensure it points at the newly built system each run.
+- The explainer must match the actual constructor logic in `lib/` and not drift from the implemented merge order.
+
+### Review
+
+- Added `docs/nix/README.md` as the long-form flake explainer. It documents the role/platform model, constructor responsibilities, merge order, directory ownership, managed versus unmanaged state, and the intended validation flows.
+- Updated the top-level `README.md` to stay focused on the repo overview and supported workflows, while linking readers to the deeper Nix architecture guide for the full explanation.
+- Reworked `bootstrap.sh` so the supported macOS path is explicitly rerunnable: it now verifies Darwin up front, reloads Nix and Homebrew when they are already installed, installs them only when missing, builds the selected Darwin closure without leaving a repo-local `result` symlink behind, and reapplies the chosen role on every run.
+- Verification completed locally: `bash -n bootstrap.sh`, `git diff --check -- README.md bootstrap.sh docs/nix/README.md tasks/todo.md`, and a targeted docs/link grep all passed.
+- Full `nix` evaluation remains blocked in this workspace because the Nix toolchain is still unavailable here, so `nix flake check`, `nix build`, and an end-to-end bootstrap run on macOS still need to happen on a machine with Nix installed.
