@@ -178,6 +178,47 @@ Carry forward the upstream skill and helper changes that landed on `main` after 
 - Verification completed locally: `bash -n bootstrap.sh scripts/test-skill-helpers.sh`, `git diff --check --cached`, `git ls-files -u`, a path-existence sweep for the new managed helper sources, and a stale-reference grep for `dot_codex/`, `dot_claude/`, and `~/.local/bin` assumptions all passed.
 - Full `nix flake check`, `nix build`, helper-package builds, and an end-to-end profile apply are still blocked here because the local Nix toolchain is not installed in this workspace.
 
+## Follow-up: Bootstrap skill pickup verification
+
+### Goal
+
+Verify that a real `bootstrap.sh` apply leaves Codex with the expected managed skill set on the live machine, and fix any bootstrap-path issue that would prevent newly added managed files from participating in that apply.
+
+### Success criteria
+
+- `bootstrap.sh personal` evaluates the current working tree, including newly added managed files.
+- The live `~/.codex/skills` tree matches the managed profile after apply.
+- A real Codex invocation can see the expected managed skills after bootstrap.
+
+### Assumptions / constraints
+
+- The current host role is `personal` on Darwin.
+- A live bootstrap apply may require elevated access to the Nix daemon and system switch path.
+- Codex skill verification should prefer an actual Codex invocation over static file inspection alone.
+
+### Steps
+
+- [x] Patch `bootstrap.sh` so it builds and switches from the working-tree flake path instead of a Git snapshot.
+- [x] Run targeted bootstrap verification on the `personal` role.
+- [x] Inspect the live `~/.codex/skills` tree after apply.
+- [x] Run a Codex invocation that reports the available skills and compare the result to the expected set.
+- [x] Record the review.
+
+### Risks / edge cases
+
+- A Git-based flake ref ignores untracked files, which can hide newly added managed payloads until they are committed or staged.
+- A live `darwin-rebuild switch` may fail for unrelated machine-local reasons outside the scope of the skill wiring itself.
+- Codex CLI verification may need network/auth access depending on the configured provider.
+
+### Review
+
+- Updated `bootstrap.sh` to use `path:${SCRIPT_DIR}` for both the build and switch flake refs. That prevents the bootstrap path from silently ignoring newly added managed files that are still untracked in Git, which was directly relevant to the new `base.rules` payload.
+- `bash -n bootstrap.sh` and `git diff --check bootstrap.sh tasks/todo.md` both passed after that change.
+- The live bootstrap apply on the `personal` Darwin role completed successfully when run as root. The Home Manager activation log included `Activating codexLocalDefaultRules`, confirming the new rules migration hook executed during the real switch.
+- Post-apply filesystem verification passed: every managed custom skill `SKILL.md` under `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}` now points at the active Home Manager generation in `/nix/store`, `~/.codex/rules/base.rules` is a managed symlink, and `~/.codex/rules/default.rules` is now a writable regular file owned by `anthonyaltieri`.
+- Runtime verification did not pass for custom skill loading. Two separate non-interactive `codex exec` runs after bootstrap reported only `openai-docs`, `skill-creator`, and `skill-installer` as available skills, which exactly matches the contents of `~/.codex/skills/.system`. A direct probe using `Use the $programming skill` returned `The $programming skill is not available in this session`, so the live Codex runtime is not loading the managed custom skills even though they are present on disk.
+- Inference from the evidence: the remaining problem is no longer the bootstrap or file-linking path. It appears to be a Codex runtime discovery issue for user-managed skills, potentially limited to non-`.system` skills. I did not change the skill layout further in this pass.
+
 ## Follow-up: Live ~/.config audit
 
 ### Goal
@@ -258,6 +299,57 @@ Add `gh`, `op`, `raycast`, `uv`, and `pnpm` to the shared `common` tool surface 
 - Updated `modules/platforms/darwin/homebrew.nix` so the Darwin common-role machines now install `gh` and `uv` as Homebrew formulae and `raycast` as a cask, while preserving the existing `1password-cli` (`op`) and `pnpm` entries.
 - Updated `modules/platforms/linux/packages.nix` so Linux common-role machines now install `gh` and `uv` through nixpkgs, while preserving the existing `_1password-cli` (`op`) and `pnpm` packages.
 - Tightened `lib/profiles.nix` so the Linux platform package module no longer applies to the `sandbox` role. That keeps these common-role additions scoped to `personal` and `work` instead of leaking through the platform layer to all Linux roles.
+
+## Follow-up: Codex managed base rules and local writable default rules
+
+### Goal
+
+Keep the Codex baseline rules declarative in Nix while making the live `default.rules` file writable on the local machine so Codex can append execpolicy amendments without needing `sudo`.
+
+### Success criteria
+
+- The repo-managed Codex rules payload is renamed to `base.rules`.
+- Home Manager manages only `~/.codex/rules/base.rules`, not the whole `~/.codex/rules` directory.
+- `~/.codex/rules/default.rules` is a regular writable local file after activation.
+- Existing `default.rules.hm-backup` content is restored into the new local `default.rules` when migrating from the old Nix-managed path.
+- The docs clearly describe `base.rules` as managed and `default.rules` as intentionally unmanaged local state.
+
+### Assumptions / constraints
+
+- Codex loads every `*.rules` file in `~/.codex/rules`, so the managed baseline remains active as `base.rules`.
+- Codex continues to target `default.rules` when it persists execpolicy amendments.
+- Local edits to `default.rules` must survive future Nix applies unchanged.
+
+### Steps
+
+- [x] Rename the managed rules payload from `home/.codex/rules/default.rules` to `home/.codex/rules/base.rules`.
+- [x] Update the shared files module so only `~/.codex/rules/base.rules` is managed.
+- [x] Add a Codex Home Manager activation step that creates or restores a writable local `default.rules` without overwriting an existing regular file.
+- [x] Update the docs for the new managed-versus-local rules contract.
+- [x] Run available verification and record the review.
+
+### Risks / edge cases
+
+- The migration must handle the current symlinked `default.rules` layout without losing the existing `.hm-backup` content.
+- The activation hook must run late enough that the managed `base.rules` link already exists.
+- Full Nix/Home Manager evaluation may still be blocked in this workspace if the toolchain is unavailable.
+
+### Verification plan
+
+- Review the diff for the payload rename, files module change, activation hook, and docs updates.
+- If `nix` is available, build the relevant Home Manager activation package.
+- Inspect the post-change local `~/.codex/rules` contract for a managed `base.rules` symlink and a writable regular `default.rules`.
+- Reproduce the prior execpolicy amendment path or simulate the expected file mutation target to confirm `default.rules` is now writable.
+
+### Review
+
+- Renamed the tracked Codex rules payload to `home/.codex/rules/base.rules` and changed `modules/shared/files.nix` so Home Manager now manages only `~/.codex/rules/base.rules` instead of recursively taking over the full rules directory.
+- Added `home.activation.codexLocalDefaultRules` in `modules/shared/agents-codex.nix`. The hook runs after `linkGeneration`, ensures `~/.codex/rules` exists, removes the old symlinked `default.rules` when present, restores `default.rules.hm-backup` into a new regular file when available, otherwise seeds an empty file, and finishes by making the resulting `default.rules` user-writable.
+- Updated `README.md` and `docs/nix/README.md` so the managed contract now explicitly says `~/.codex/rules/base.rules` is the shared Nix baseline and `~/.codex/rules/default.rules` is intentionally unmanaged local state for Codex-written execpolicy amendments.
+- Verification passed for `git diff --check` and for a real `nix build "path:$PWD#homeConfigurations.sandbox-aarch64-darwin.activationPackage" --no-link --print-out-paths`. The generated activation script contains the new `codexLocalDefaultRules` hook, and the generated Home Manager files tree now exposes `~/.codex/rules/base.rules` as a managed symlink.
+- Migration behavior was exercised in `/tmp` for the three critical cases: a symlinked `default.rules` with `.hm-backup` restores the backup content into a regular file, a symlink without backup becomes an empty regular file, and an existing regular `default.rules` remains unchanged.
+- A plain Git-flake `nix build .#...` initially failed during verification because untracked files are excluded from Git flake snapshots until they are added. The successful verification used `path:$PWD` to validate the working tree without staging.
+- I did not run a real `darwin-rebuild switch` or `./bootstrap.sh personal`, so the live machine still needs one apply before `~/.codex/rules/default.rules` on this host stops being the old symlinked path.
 - Static verification completed locally: `git diff --check -- lib/profiles.nix modules/platforms/linux/packages.nix modules/platforms/darwin/homebrew.nix tasks/todo.md`, a targeted `git diff` review of the changed package lists, and a grep sweep confirming `raycast` only appears in the Darwin Homebrew module all passed.
 - Full `nix` evaluation and package build validation remain blocked in this workspace because the local Nix toolchain is still unavailable.
 

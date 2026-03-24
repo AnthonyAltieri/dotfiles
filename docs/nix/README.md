@@ -157,7 +157,7 @@ Managed examples:
 - `~/.vimrc`
 - `~/.claude/settings.json`
 - selected Claude commands and skills
-- selected Codex prompts, rules, skills, and `AGENTS.md`
+- selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, skills, and `AGENTS.md`
 
 The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read`.
 
@@ -165,12 +165,15 @@ Unmanaged examples:
 
 - `~/.codex/config.toml`
 - `~/.codex/auth.json`
+- `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`
 - `~/.codex/sessions/**`
 - `~/.codex/worktrees/**`
 - `~/.codex/sqlite/**`
 - `~/.codex/log/**`
 - other machine-local runtime state
+
+For Codex execpolicy specifically, the flake owns `~/.codex/rules/base.rules` as the shared baseline while `~/.codex/rules/default.rules` stays writable and untracked so the local app can persist new approvals there.
 
 The rule is simple: portable config goes in the flake, machine-local state stays out.
 

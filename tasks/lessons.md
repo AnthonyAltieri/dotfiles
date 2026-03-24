@@ -29,3 +29,6 @@
 - Mistake: I initially treated a missing `/run/current-system` during `--diff` as a generic skip instead of explaining that first-run nix-darwin machines have no active baseline generation yet.
 - Why it happened: I focused on making the diff path non-fatal and did not tailor the message to the machine state or tell the user what action would create the missing baseline.
 - Prevention rule: When a preview or diff path depends on an existing active generation, detect the first-run state explicitly and print the reason, the immediate consequence, and the exact next command to make future previews meaningful.
+- Mistake: I told the user to run the entire Darwin bootstrap flow under `sudo` instead of limiting privilege escalation to the `darwin-rebuild switch` step.
+- Why it happened: I optimized for getting past the root-required activation error quickly and did not step back to preserve the correct ownership boundary between user-level build steps and system-level activation.
+- Prevention rule: For `nix-darwin` bootstrap flows, build and evaluate as the user and escalate only the final system activation command; never recommend running the whole bootstrap script with `sudo` unless the script is explicitly designed for that.

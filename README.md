@@ -149,7 +149,7 @@ Managed agent files include:
 
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
-- `~/.codex/rules/default.rules`
+- `~/.codex/rules/base.rules`
 - `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}`
 - `~/.claude/skills/{frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,programming,sql-read}`
 
@@ -159,12 +159,15 @@ Examples of intentionally unmanaged local state:
 
 - `~/.codex/config.toml`
 - `~/.codex/auth.json`
+- `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`
 - `~/.codex/sessions/**`
 - `~/.codex/worktrees/**`
 - `~/.codex/sqlite/**`
 - `~/.codex/log/**`
 - machine-local Claude/Codex runtime state
+
+`~/.codex/rules/base.rules` is the tracked Nix baseline. `~/.codex/rules/default.rules` is left as a normal local file so Codex can append execpolicy amendments without fighting the Nix-managed path.
 
 ## Where changes go
 
