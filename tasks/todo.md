@@ -1,1212 +1,464 @@
-# Rust Helper Conventions Audit
-
-# Programming Skill Review
+# Nix Migration
 
 ## Goal
 
-Review `dot_codex/skills/programming` and `dot_codex/AGENTS.md` for low-signal guidance, including redundant, weak, or bloated lines that should be trimmed, and identify any missing high-impact principle from the user's requested list.
+Replace the current chezmoi-managed dotfiles repo with a flake-based Nix layout that composes role and platform modules.
 
 ## Success criteria
 
-- The programming skill files are inspected with concrete file and line references.
-- `dot_codex/AGENTS.md` is checked for overlap or contradiction with the skill guidance.
-- The review clearly distinguishes redundant, weak, and bloated guidance.
-- Any missing high-impact principle from the requested list is called out explicitly.
-- Review notes are recorded here.
+- `flake.nix` exposes Darwin and Linux/Home Manager outputs for `personal`, `work`, and `sandbox`.
+- Existing managed payloads are sourced from `home/` and linked into `$HOME` via Nix modules.
+- Darwin uses `nix-darwin` with declarative Homebrew and macOS defaults.
+- Linux uses Home Manager with Nix packages instead of distro package managers.
+- chezmoi-era scripts, ignore rules, and docs are removed or replaced.
 
 ## Assumptions / constraints
 
-- Scope is limited to review only; no skill or agent files will be edited.
-- Task-log updates in `tasks/todo.md` are allowed for process tracking.
-- The user wants concise, high-signal recommendations rather than a rewrite.
+- The repo remains conservative in v1: current shared behavior stays shared.
+- `personal` and `work` overlays remain thin until real differences exist.
+- `sandbox` is standalone and does not import the public `common` role.
+- Local runtime state under `~/.codex` and similar machine-local directories remains unmanaged.
+- Verification is limited by the current environment if `nix` or `home-manager` are unavailable.
 
 ## Steps
 
-- [x] Read `dot_codex/AGENTS.md` and all files under `dot_codex/skills/programming`.
-- [x] Compare the programming skill guidance against the requested principle list and against existing agent-level guidance.
-- [x] Produce a concise findings-first review with exact trim targets and one missing-principle assessment.
-- [x] Record review notes here.
+- [x] Audit the moved payloads in `home/` and finalize the exact Nix file mappings.
+- [x] Create `flake.nix`, `lib/`, and role/platform/shared modules.
+- [x] Wire Darwin/Homebrew, Linux/Nix packages, and file linking for shared payloads.
+- [x] Replace bootstrap and README workflow from chezmoi to Nix.
+- [x] Remove chezmoi-era files and clean up the repo layout.
+- [x] Run available verification and record the review.
 
 ## Risks / edge cases
 
-- Some lines may be intentionally repetitive across agent and skill layers, so suggestions need to distinguish useful reinforcement from actual bloat.
-- The "requested list" is inferred from the repo-level AGENTS guidance provided in the prompt, so any missing-principle callout must stay anchored to that source.
+- `nix-darwin` and Home Manager option syntax cannot be fully validated without local Nix tooling.
+- `tsgo` may still require a compatibility activation hook.
+- Existing shell files contain macOS/Homebrew assumptions that must be softened for Linux.
+- Homebrew integration on Darwin depends on Homebrew already being installed or bootstrapped.
 
 ## Verification plan
 
-- Cross-check every target file in `dot_codex/skills/programming`.
-- Verify cited lines against the current file contents before finalizing the review.
-- Confirm whether each suggested trim is redundant with nearby text or with `dot_codex/AGENTS.md`.
+- Run shell syntax checks on `bootstrap.sh`.
+- If `nix` is available, run `nix flake check` and targeted build commands for the exposed outputs.
+- Review `git diff --stat` and `git diff` for scope and correctness.
+- Call out any verification gaps caused by missing local tooling.
 
 ## Review
 
-- Highest-value trim is duplicated programming-default text across `dot_codex/AGENTS.md`, `dot_codex/skills/programming/SKILL.md`, and `dot_codex/skills/programming/agents/openai.yaml`; one pointer plus one compact definition is enough.
-- The weakest lines are slogan-style statements that restate nearby rules without adding actionability, especially in `SKILL.md` Observability, Tests, and Review Pass.
-- The TypeScript reference includes one repo-style-specific default (`lowercase kebab-case` filenames) that is too opinionated for a cross-repo programming skill and likely to conflict with framework conventions.
-- The TypeScript example is longer than necessary for a guidance file because it only re-demonstrates bullets already stated above it.
-- The main missing high-impact principle in the programming skill package is evidence-first debugging: the skill says to use it for debugging, but it does not carry over the AGENTS requirement to start from logs/errors/failing tests, reproduce first, and verify the fix against the failing case.
+- Implemented a flake-based Nix layout with separate constructor helpers, shared Home Manager modules, Darwin `nix-darwin` system modules, Linux package modules, and role overlays for `common`, `personal`, `work`, and `sandbox`.
+- Moved the managed payloads into `home/` using actual target names, linked the curated `~/.codex` and `~/.claude` subsets without taking over local runtime state, and replaced the old chezmoi bootstrap/docs with Nix workflows.
+- Corrected two Home Manager evaluation hazards during review: `modules/shared/shell.nix` now uses the documented `programs.zsh.enableAutosuggestions`, `programs.zsh.enableSyntaxHighlighting`, and `programs.zsh.initExtra` options, and `modules/shared/tmux.nix` now uses a Homebrew-backed tmux wrapper on Darwin instead of assigning `null` to a package-typed option.
+- Verification completed locally: `bash -n bootstrap.sh home/.claude/statusline-command.sh home/.claude/tmux-notify.sh`, `zsh -n home/.zshrc home/.config/zsh/config.zsh home/.config/zsh/features/00_vim-command-line-navigation.zsh home/.config/zsh/features/01_mcfly.zsh home/.config/zsh/functions/git-current-branch.zsh home/.config/zsh/os/config-osx.zsh`, a stale-reference grep across the migrated repo, and a static path existence sweep across `modules/**/*.nix` and `lib/**/*.nix` all passed.
+- Verification remains blocked for `nix flake check`, `nix build`, and `flake.lock` generation because `nix`, `home-manager`, and `darwin-rebuild` are not installed in this workspace.
 
-## Goal
+## Follow-up: Oh My Zsh scope
 
-Inspect the existing Rust helper crates under `dot_codex/skills` and `dot_claude/skills` and extract the conventions that a new `sql-read` crate should follow.
+- [x] Move Oh My Zsh enablement into the `common` role so `personal` and `work` inherit it while `sandbox` does not.
+- [x] Review the touched Nix modules and confirm the shared shell module still handles generic zsh behavior.
 
-## Success criteria
+## Follow-up Review
 
-- The existing helper crates are inventoried.
-- Repeated `Cargo.toml` patterns are identified.
-- Repeated test-layout patterns are identified.
-- Repeated helper CLI patterns are identified.
-- Concrete file examples are captured for the final notes.
-
-## Assumptions / constraints
-
-- Scope is limited to actual Cargo crates under the mirrored skill trees.
-- Mirrored Claude crates may confirm conventions but should not be treated as independent patterns when they are direct copies.
-- The output is a concise implementation guide, not a design proposal for `sql-read`.
-
-## Steps
-
-- [x] Inventory the existing Rust helper crates in both skill trees.
-- [x] Inspect manifest, source, and test patterns in representative files.
-- [x] Summarize actionable conventions for `sql-read` with file examples.
-- [x] Record review notes here.
+- `modules/shared/shell.nix` now keeps only the generic zsh/Home Manager wiring, while `modules/roles/common.nix` owns the `programs.zsh.oh-my-zsh` block that composes into `personal` and `work`.
+- Static review confirms `sandbox` no longer receives Oh My Zsh through the shared shell module. Full `nix` evaluation remains blocked by the missing local Nix toolchain.
 
-## Risks / edge cases
+## Docker smoke testing
 
-- Some Rust helpers in the repo are standalone `.rs` scripts rather than Cargo crates, so they should not drive crate-structure guidance.
-- Atlas is a single-binary crate while GitHub helpers are multi-bin crates, so `sql-read` needs the right pattern chosen deliberately.
+### Goal
 
-## Verification plan
+Add a Docker-based smoke test harness that validates the Linux Home Manager profiles in a fresh container and documents the boundary between Docker-testable Linux behavior and Darwin-only behavior.
 
-- Cross-check every `Cargo.toml` found under `dot_codex/skills` and `dot_claude/skills`.
-- Confirm test placement by locating `#[cfg(test)]` usage in the helper sources.
-- Confirm CLI conventions by checking argument parsing, `--help`, exit codes, and stdout/stderr behavior in representative binaries.
+### Success criteria
 
-## Review
+- A fresh Docker container can build and activate `personal-linux`, `work-linux`, and `sandbox-x86_64-linux`.
+- A fresh Docker container can evaluate Linux profiles for the host container architecture and optionally attempt full activation when requested.
+- The harness asserts key managed files and commands after activation.
+- The harness proves the profile difference we care about right now, including Oh My Zsh on `personal`/`work` but not `sandbox`.
+- The docs explain that `nix-darwin` and macOS bootstrap validation cannot be covered by Docker.
 
-- Found three actual helper crates under the skill trees:
-  - `dot_codex/skills/atlas/scripts`
-  - `dot_codex/skills/gh-address-comments/scripts` mirrored in `dot_claude/skills/gh-address-comments/scripts`
-  - `dot_codex/skills/gh-fix-ci/scripts` mirrored in `dot_claude/skills/gh-fix-ci/scripts`
-- Manifest convention is intentionally small: package metadata, minimal dependencies, and explicit `[[bin]]` entries only when a crate exposes multiple executables.
-- Test convention is inline unit tests in the same source file via `#[cfg(test)]`; there are no `tests/` directories under either skill tree.
-- CLI convention is a thin `main()` wrapper around a `run()` function, manual argument parsing, `--help` usage text on stdout, errors on stderr, and deterministic machine-friendly stdout output.
-- Shared verification currently uses `cargo test --offline --manifest-path ...` in `scripts/test-skill-helpers.sh`, so new helper crates should keep a committed lockfile and avoid requiring network access during normal test runs.
+### Steps
 
-# GH Address Comments Mutation Helpers
+- [x] Add a Linux Dockerfile and runner scripts for per-profile smoke tests.
+- [x] Add assertions for managed files, package availability, and profile-specific behavior.
+- [x] Document how to run the Docker smoke tests and what they do not cover.
+- [x] Run the available local verification on the new scripts and record the outcome.
 
-## Goal
+### Risks / edge cases
 
-Add Rust helpers to `gh-address-comments` for posting PR comments, posting review-thread replies, and resolving review threads, with robot-emoji prefixing on every comment-creation path.
+- Docker can validate Linux Home Manager activation, but not `nix-darwin` or Homebrew behavior on macOS.
+- Container tests will need network access to install Nix and fetch flake inputs.
+- Home Manager activation can be sensitive to the configured username and home directory inside the container.
+- Full activation of the Linux profiles pulls a large closure and may exceed Docker Desktop disk limits, so the default smoke test should stay evaluation-based.
 
-## Success criteria
+### Review
 
-- The Codex `gh-address-comments` Rust crate exposes helpers to create PR comments, create review-thread replies, and resolve review threads.
-- Every comment-creation helper automatically prefixes the submitted body with a robot emoji without double-prefixing already-prefixed input.
-- The Claude `gh-address-comments` tree mirrors the same helper scripts and documentation updates.
-- The existing offline Cargo tests and shared helper suite cover the new functionality.
-- Verification and review notes are recorded here.
+- Added an Ubuntu 24.04 Docker harness in `tests/docker/ubuntu-lts/` and a host runner in `tests/run-linux-docker-smoke.sh`. The runner now targets the three logical roles, `personal`, `work`, and `sandbox`, and resolves them to the matching Linux profile architecture automatically.
+- Local verification passed for `bash -n tests/run-linux-docker-smoke.sh tests/docker/ubuntu-lts/run-profile-smoke-test.sh` and `git diff --check` on the touched files.
+- End-to-end Docker runs exposed and drove two real fixes: excluding the git worktree metadata from the Docker build context with `.dockerignore`, and updating `modules/shared/shell.nix` to the current Home Manager 25.05 zsh option names.
+- End-to-end Docker execution is still blocked in this environment by Docker/Nix store space exhaustion while materializing flake inputs inside the container (`No space left on device` under `/nix/store`). The harness is committed as a repo asset, but it still needs to be exercised on a machine with more Docker disk available.
 
-## Assumptions / constraints
+## Follow-up: Bootstrap ergonomics and Nix docs
 
-- Scope is limited to GitHub pull requests: top-level PR comments plus review-thread replies/resolution.
-- Live GitHub mutations should stay on `gh`; the Rust helpers should assemble and submit focused GraphQL mutations locally.
-- Existing `fetch-comments` and `summarize-threads` behavior should remain intact.
+### Goal
 
-## Steps
+Make the bootstrap path safe to rerun as the normal update entrypoint, and add a dedicated explainer for how the Nix flake composes roles, platforms, and shared modules in this repo.
 
-- [x] Add the new top-level comment helper plus the reply/resolve workflow to the Codex `gh-address-comments` crate and skill docs.
-- [x] Add offline Rust tests for mutation payload construction, robot-prefix behavior, and argument parsing.
-- [x] Mirror the helper and documentation changes into the Claude skill tree.
-- [x] Run focused Cargo tests plus the shared helper suite and record the review summary.
-
-## Risks / edge cases
-
-- GitHub review-thread mutations use thread IDs, while top-level PR comments target the pull request subject ID, so the helpers must keep those identifiers explicit.
-- Auto-prefixing should not duplicate the robot emoji when the caller already included it.
-- The helper output must stay machine-friendly and should not leak raw GraphQL input bodies in error text unnecessarily.
-
-## Verification plan
-
-- Run `cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`.
-- Run `cargo test --offline --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`.
-- Run `bash scripts/test-skill-helpers.sh`.
-
-## Review
-
-- Added a shared Rust helper library at `dot_codex/skills/gh-address-comments/scripts/src/lib.rs` and mirrored it to `dot_claude/skills/gh-address-comments/scripts/src/lib.rs`.
-- The shared library now owns:
-  - `gh` auth checks
-  - GraphQL command execution helpers
-  - robot-prefix enforcement via `ensure_robot_prefix`
-- Added three comment-mutation Rust binaries in both trees:
-  - `create-comment`
-    - creates a top-level PR comment
-    - targets the current branch PR by default and accepts `--pr` for an explicit PR target
-    - accepts `--body`, `--body-file`, or stdin
-    - automatically prefixes the final body with `🤖 `
-  - `create-thread-reply`
-    - creates a review-thread reply
-    - accepts `--thread-id` plus either `--body`, `--body-file`, or stdin
-    - automatically prefixes the final body with `🤖 `
-  - `resolve-thread`
-    - resolves a review thread by thread ID
-    - emits compact JSON with the thread id and resolved state
-- Refactored `fetch-comments` to reuse the shared `gh`/GraphQL helpers instead of keeping another local command-execution copy.
-- Updated both `gh-address-comments` skill docs to use the new Rust helpers instead of raw GraphQL mutation examples.
-- The workflow now documents that comment bodies should stay agent-specific (`FROM CODEX:` / `FROM CLAUDE:`), while the helpers add the robot emoji prefix.
-- Verification:
-  - `cargo fmt --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
-  - `cargo fmt --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`
-  - `cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
-  - `cargo test --offline --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`
-  - `bash scripts/test-skill-helpers.sh`
-
-# SQL Read Skill
-
-## Goal
-
-Add a mirrored `sql-read` skill with a Rust-backed `sql-read safe-ro` entrypoint for blanket-approvable read-only Postgres and SQLite access, plus a manual `sql-read query` path.
-
-## Success criteria
-
-- New `sql-read` skills exist under both `dot_codex/skills` and `dot_claude/skills`.
-- The Rust crate exposes one binary `sql-read` with `safe-ro` and `query` subcommands.
-- `safe-ro` enforces env-var-only targets and read-only execution.
-- `query` supports env-var or raw targets but still enforces read-only execution.
-- SQLite tests run locally and the shared test runner includes the new skill.
-- Verification and review notes are recorded here.
-
-## Assumptions / constraints
-
-- v1 scope is Postgres and SQLite only.
-- Postgres integration tests may need to be ignored unless a test DSN is available.
-- The blanket-approved path is `sql-read safe-ro:*`, not `sql-read:*`.
-
-## Steps
-
-- [x] Add the Codex `sql-read` skill resources and Rust crate.
-- [x] Add tests for parsing, query validation, output shaping, and SQLite execution.
-- [x] Mirror the skill and crate into the Claude skill tree.
-- [x] Update the shared helper test runner and record verification.
-
-## Risks / edge cases
-
-- New Rust dependencies may require a networked Cargo fetch the first time.
-- Postgres value handling must avoid leaking DSNs while still returning stable JSON.
-- SQL parsing must stay conservative and reject ambiguous statements.
-
-## Verification plan
-
-- Run Cargo tests for the new Codex and Claude `sql-read` crates.
-- Run the shared `scripts/test-skill-helpers.sh` suite after updating it.
-- Review the final diff for mirrored Codex/Claude behavior and safe-ro/query separation.
-
-## Review
-
-- Added a new mirrored `sql-read` skill under `dot_codex/skills/sql-read` and `dot_claude/skills/sql-read`.
-- The skill stays lean and follows the documented best-practice shape:
-  - `SKILL.md` for trigger rules, workflow, and gotchas
-  - `references/postgres.md` and `references/sqlite.md` for engine-specific guidance
-  - `assets/queries/` for reusable schema-inspection templates
-  - a Rust crate in `scripts/` with one `sql-read` binary
-- Implemented one binary with two subcommands:
-  - `sql-read safe-ro` for the approval-friendly env-var-only path
-  - `sql-read query` for manual env-var or raw-target exceptions
-- Both paths enforce read-only behavior:
-  - Postgres starts a read-only transaction and applies a statement timeout
-  - SQLite opens the database in read-only mode and applies a busy timeout
-- Added conservative SQL validation with `sqlparser`:
-  - exactly one statement
-  - only `Statement::Query` is allowed
-  - multi-statement, DDL, DML, transaction control, `EXPLAIN`, and SQLite `PRAGMA` forms are rejected by staying query-only
-- Output is stable and compact:
-  - default `json`
-  - optional `table` and `tsv`
-  - raw DSNs and raw SQLite paths are redacted from errors and never echoed in the result payload
-- Added inline Rust tests for:
-  - subcommand and target-flag validation
-  - env-var-only enforcement on `safe-ro`
-  - raw-target support on `query`
-  - SQL guard behavior
-  - truncation/output shaping
-  - SQLite read-only execution
-  - an ignored Postgres integration test gated on `SQL_READ_TEST_POSTGRES_DSN`
-- Updated `scripts/test-skill-helpers.sh` so the shared offline suite now covers both Codex and Claude `sql-read` crates.
-- Verification:
-  - `cargo test --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
-  - `cargo test --offline --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
-  - `cargo fmt --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
-  - `cargo fmt --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
-  - `bash scripts/test-skill-helpers.sh`
-- Notes:
-  - the first Codex-side Cargo test required a one-time crates.io fetch before the suite could run offline
-  - Postgres runtime verification remains env-gated because no disposable DSN was configured in this repo
-
-# Branch And PR
-
-## Goal
-
-Create a feature branch from `origin/main`, commit the current Rust skill-helper and Claude sync work, and open a GitHub PR with a structured description.
-
-## Success criteria
-
-- A new `codex/*` branch exists and is based on the latest `origin/main`.
-- The relevant changes are committed with a clear message.
-- The branch is pushed to `origin`.
-- A GitHub PR is created with a concise, structured body.
-
-## Assumptions / constraints
-
-- The current dirty worktree is the intended change set for the PR.
-- Branch creation must follow repo policy: fetch `origin/main`, then create the branch from that ref.
-- Final verification should use the existing skill-helper test suite before commit.
-
-## Steps
-
-- [x] Fetch `origin/main` and create a new `codex/*` branch from it.
-- [x] Review the pending diff and run final verification.
-- [x] Commit the intended files with a clear message.
-- [x] Push the branch and open the PR.
-
-## Risks / edge cases
-
-- The dirty worktree may contain changes that do not belong in the PR.
-- Branch creation from `origin/main` can fail if the current worktree conflicts with the target base.
-- PR creation depends on `gh` auth and push access being available.
-
-## Verification plan
-
-- Confirm the branch points to `origin/main` plus the intended working-tree changes.
-- Run `bash scripts/test-skill-helpers.sh` before commit.
-- Review `git status` after staging to ensure only intended files are included.
-
-## Review
-
-- Created `codex/rust-skill-helpers` from the latest `origin/main` after `git fetch origin --prune`.
-- Committed the staged change set as `feat: add rust-based skill helper tooling` (`ce0c73e`).
-- Pushed the branch to `origin/codex/rust-skill-helpers`.
-- Opened GitHub PR #13: `feat: add rust-based skill helper tooling`.
-- Verification:
-  - `bash scripts/test-skill-helpers.sh`
-  - `git diff --cached --stat`
-  - `git push -u origin codex/rust-skill-helpers`
-
-# Skill Helper Test Suite
-
-## Goal
-
-Add a repeatable test suite for the Rust-based skill helper scripts so behavior can be verified without relying on manual smoke tests.
-
-## Success criteria
-
-- Deterministic helper logic has automated Rust tests.
-- There is one top-level command/script to run the skill-helper test suite.
-- The suite covers both the Codex and Claude helper trees where scripts are mirrored.
-- Verification results are recorded here.
-
-## Assumptions / constraints
-
-- Keep tests local and offline; do not depend on live `gh`, network access, or Atlas automation permissions.
-- Prefer unit tests around parsing/classification/rendering logic over brittle end-to-end mocking.
-- Preserve existing CLI behavior while refactoring only enough to expose pure logic for tests.
-
-## Steps
-
-- [x] Identify the pure helper logic that should be covered by tests.
-- [x] Add Rust unit tests to the helper scripts and supporting functions.
-- [x] Add a top-level runner for the skill-helper test suite.
-- [x] Run the focused test suite and record the review summary.
-
-## Risks / edge cases
-
-- Some helpers are duplicated across `dot_codex/skills` and `dot_claude/skills`, so tests need to stay aligned across both trees.
-- Atlas helpers depend on macOS-only tooling, so coverage needs to stay focused on deterministic parsing/query logic.
-- Cargo test may still need the Rust dependency cache to exist locally.
-
-## Verification plan
-
-- Run the new top-level test suite command.
-- Confirm the targeted Cargo packages report non-zero real test counts instead of build-only success.
-- Review the diff for mirrored Codex/Claude test coverage where appropriate.
-
-## Review
-
-- Added inline Rust unit tests for deterministic helper logic in the Codex source-of-truth scripts:
-  - `dot_codex/skills/atlas/scripts/src/main.rs`
-  - `dot_codex/skills/atlas/scripts/src/atlas_common.rs`
-  - `dot_codex/skills/gh-address-comments/scripts/src/bin/fetch_comments.rs`
-  - `dot_codex/skills/gh-address-comments/scripts/src/bin/summarize_threads.rs`
-  - `dot_codex/skills/gh-fix-ci/scripts/src/bin/classify_ci_log.rs`
-  - `dot_codex/skills/gh-fix-ci/scripts/src/bin/inspect_pr_checks.rs`
-  - `dot_codex/skills/gh-manage-pr/scripts/summarize_diff.rs`
-- Mirrored the tested helper source files into the Claude skill tree so the duplicated scripts share the same test coverage and behavior checks.
-- Added a one-command runner at `scripts/test-skill-helpers.sh` that executes the full offline suite across Codex and Claude helpers.
-- Coverage focus:
-  - Atlas: CLI arg parsing, SQL/query generation, bookmark collection, escaping, local copy, and permission hints.
-  - GitHub comment helpers: arg parsing, compact rendering, sanitization, TSV summarization, and unresolved/blocking grouping.
-  - GitHub CI helpers: log classification, failure snippet extraction, field parsing, and run/job id extraction.
-  - PR summarizer: diffstat grouping, insertion/deletion parsing, and empty-input handling.
-- Verification:
-  - `bash scripts/test-skill-helpers.sh`
-  - The suite reported real test execution, not build-only success:
-    - Codex Atlas: 6 tests
-    - Codex gh-address-comments: 6 tests
-    - Codex gh-fix-ci: 9 tests
-    - Codex gh-manage-pr: 3 tests
-    - Claude gh-address-comments: 6 tests
-    - Claude gh-fix-ci: 9 tests
-    - Claude gh-manage-pr: 3 tests
-
-# Claude Skill Sync
-
-## Goal
-
-Mirror the recent Rust helper, asset, and documentation upgrades into the matching `dot_claude/skills` tree so the Claude skills stay in lockstep with the Codex skills.
-
-## Success criteria
-
-- Claude-side `gh-manage-pr`, `gh-fix-ci`, and `gh-address-comments` include the same Rust helper coverage as the Codex skills.
-- Claude-side `frontend-design` includes the same anti-generic reference guidance added on the Codex side.
-- Updated Claude skill docs point at the bundled helpers/resources instead of older markdown-only workflows.
-- Claude-side Rust helpers build and smoke-test successfully.
-- Verification and review notes are recorded here.
-
-## Assumptions / constraints
-
-- Preserve Claude-specific reply wording and guidance where it already differs intentionally from the Codex copy.
-- Use the installed Claude skill path (`$HOME/.claude/skills/...`) in command examples.
-- Scope is limited to the mirrored skills already present under `dot_claude/skills`.
-
-## Steps
+### Success criteria
 
-- [x] Add the missing Claude-side helper files, assets, and references.
-- [x] Update the affected Claude `SKILL.md` files to document the new helper workflows.
-- [x] Compile and smoke-test the Claude-side Rust helpers.
-- [x] Add a review summary.
+- `bootstrap.sh` is explicitly idempotent for the supported Darwin roles and can be rerun after pulling repo changes.
+- Bootstrap installs missing prerequisites only, reloads the required environment when they already exist, and applies the selected flake role on every run.
+- The repo has a dedicated Nix explainer document covering flake structure, module composition, managed files, and day-to-day update flows.
+- The top-level README points readers to the deeper Nix explainer instead of trying to carry all of that detail inline.
 
-## Risks / edge cases
+### Assumptions / constraints
 
-- The Claude skills are not byte-for-byte copies of the Codex skills, so some wording needs to stay Claude-specific.
-- Helper examples need to use a Claude-appropriate install path without introducing broken path assumptions.
-- The new Cargo packages rely on crates.io during the first build.
+- The bootstrap entrypoint remains Darwin-only and continues to support only `personal` and `work`.
+- Linux remains Home Manager driven; the bootstrap script is not widened into a cross-platform installer in this pass.
+- Verification is still limited by the lack of local Nix tooling in this workspace.
 
-## Verification plan
+### Steps
 
-- Build the Claude-side Cargo packages with `cargo build --release`.
-- Run `--help` or fixture-based smoke tests for the new helper binaries.
-- Search `dot_claude/skills` for stale Python references after the sync.
-- Review the diff to ensure the added resources match the intended Codex-side functionality.
-
-# Skill Convention Audit
-
-## Goal
-
-Inspect the existing skill folder conventions for mirrored Codex and Claude skills and summarize the current patterns for `SKILL.md`, references/assets usage, and agent metadata.
-
-## Success criteria
-
-- The mirrored skill directories under `dot_codex/skills` and `dot_claude/skills` are compared directly.
-- The summary calls out the common `SKILL.md` structure with file examples.
-- The summary notes how `references`, `assets`, `scripts`, and related folders are used today.
-- The summary highlights concrete differences between Codex and Claude skill packaging, including agent metadata.
-
-## Assumptions / constraints
-
-- This is a documentation audit only; no repo behavior changes are needed.
-- The output should stay concise and grounded in current on-disk examples.
-- File examples should prefer mirrored skills where possible.
-
-## Steps
-
-- [x] Inspect representative mirrored skill folders and `SKILL.md` files.
-- [x] Compare supporting folders such as `references`, `assets`, `scripts`, and `agents`.
-- [x] Summarize the conventions and differences in a concise checklist.
-- [x] Record a brief review note here.
-
-## Risks / edge cases
-
-- The mirrored trees are not exact copies, so a convention may apply only to a subset of skills.
-- Some skills exist only in one tree, which can skew a naive folder-level comparison.
-- Folder naming is not fully normalized (`reference` vs `references`), so examples need to be precise.
-
-## Verification plan
-
-- Read a representative set of mirrored `SKILL.md` files from both trees.
-- List folder structures for both trees to confirm where supporting resources exist.
-- Check for agent metadata files and note where they are present or absent.
-
-## Review
-
-- Mirrored skills with substantive content today are `frontend-design`, `gh-address-comments`, `gh-fix-ci`, and `gh-manage-pr`; `sql-read` exists as a populated Codex skill but only as an empty directory in the Claude tree.
-- Shared `SKILL.md` convention is YAML frontmatter (`name`, `description`, optional `metadata.short-description`) followed by a task-oriented markdown body with `Quick start`, `Workflow`, and resource/gotcha sections.
-- Shared resource usage is relative-path linking from `SKILL.md` into bundled helpers such as `references/design-gotchas.md`, `assets/pr-body-template.md`, and Rust helper crates under `scripts/`.
-- Codex-specific packaging adds `agents/openai.yaml` interface metadata and, for some skills, icon assets and `LICENSE.txt`; Claude mirrored skills currently omit per-skill `agents/` metadata.
-- Claude `SKILL.md` files are not byte-for-byte mirrors: they swap command paths to `$HOME/.claude/skills/...` and sometimes include extra Claude-specific workflow detail.
-
-# Python-to-Rust Skill Script Migration
-
-## Goal
-
-Convert all remaining Python scripts under `dot_codex/skills` into Rust-based scripts and update the affected skills to use the new Rust entrypoints.
-
-## Success criteria
-
-- No `.py` files remain under `dot_codex/skills`.
-- Atlas, GitHub comments, and GitHub CI scripts all have Rust replacements with equivalent CLI entrypoints.
-- Affected `SKILL.md` files no longer reference Python or `.py` files.
-- New Rust packages compile successfully.
-- Verification and review notes are recorded here.
-
-## Assumptions / constraints
-
-- Scope is limited to repo-managed skills under `dot_codex/skills`, not preinstalled `.system` skills outside this repo.
-- Cargo packages are acceptable where JSON or SQLite support makes std-only Rust impractical.
-- Existing skill behavior should remain recognizable even if the implementation path changes.
-
-## Steps
-
-- [x] Replace the remaining Python scripts with Rust implementations.
-- [x] Update skill documentation and command examples to use Rust/Cargo.
-- [x] Remove Python file references from the repo-managed skills.
-- [x] Compile the new Rust packages and run focused smoke tests.
-- [x] Add a review summary.
-
-## Risks / edge cases
-
-- Atlas history and bookmarks rely on JSON parsing and SQLite access, which are more complex in Rust than in Python.
-- Cargo builds will create `target/` directories unless ignored.
-- GitHub helper behavior depends on `gh` output shapes, so CLI compatibility needs smoke testing.
-
-## Verification plan
-
-- Search for `.py` files under `dot_codex/skills` after the migration.
-- Compile each new Rust package with `cargo build --release`.
-- Run `--help` or fixture-based smoke tests for each migrated script.
-- Review the final diff for stale Python references.
-
-## Review
-
-- Migrated all repo-managed Python scripts under `dot_codex/skills` to Rust:
-  - `atlas/scripts/atlas_cli.py` + `atlas/scripts/atlas_common.py` -> Cargo package with `src/main.rs` and `src/atlas_common.rs`
-  - `gh-address-comments/scripts/fetch_comments.py` -> Cargo bin `fetch-comments`
-  - `gh-fix-ci/scripts/inspect_pr_checks.py` -> Cargo bin `inspect-pr-checks`
-- Consolidated the new Rust helpers into Cargo packages so JSON and SQLite support can be handled natively in Rust without keeping Python wrappers.
-- Updated skill docs to use Cargo-based commands and removed stale Python references.
-- Added `.gitignore` entries for `.DS_Store` and Cargo `target/` directories.
-- Verification:
-  - `find dot_codex/skills -type f -name '*.py'` returned no results.
-  - `cargo build --release --manifest-path dot_codex/skills/atlas/scripts/Cargo.toml`
-  - `cargo build --release --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
-  - `cargo build --release --manifest-path dot_codex/skills/gh-fix-ci/scripts/Cargo.toml`
-  - `dot_codex/skills/atlas/scripts/target/release/atlas-cli --help`
-  - `dot_codex/skills/gh-address-comments/scripts/target/release/fetch-comments --help`
-  - `dot_codex/skills/gh-address-comments/scripts/target/release/summarize-threads /tmp/pr-threads.tsv`
-  - `dot_codex/skills/gh-fix-ci/scripts/target/release/inspect-pr-checks --help`
-  - `dot_codex/skills/gh-fix-ci/scripts/target/release/classify-ci-log /tmp/failed.log`
-- Remaining note: the worktree still contains earlier uncommitted changes from the previous Rust rollout (`gh-manage-pr`, `frontend-design`, rustup bootstrap, and task files). They were preserved and not reverted.
-
-## Claude Skill Sync Review
-
-- Mirrored the recent helper-backed skill upgrades into `dot_claude/skills`:
-  - `gh-manage-pr` now includes `scripts/summarize_diff.rs`, `assets/pr-body-template.md`, and a helper-first workflow in `SKILL.md`.
-  - `gh-fix-ci` now includes a Cargo package with `inspect-pr-checks` and `classify-ci-log`, plus updated bundled-resource guidance in `SKILL.md`.
-  - `gh-address-comments` now includes a Cargo package with `fetch-comments` and `summarize-threads`, while preserving the Claude-specific reply conventions and thread-action output section.
-  - `frontend-design` now includes `references/design-gotchas.md` and matching quick-start/gotcha/reference guidance.
-- Verification:
-  - `find dot_claude/skills -type f | sort`
-  - `rg -n '\.py|python|uv run --python|Python helper' dot_claude/skills`
-  - `"$HOME/.cargo/bin/cargo" build --release --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`
-  - `"$HOME/.cargo/bin/cargo" build --release --manifest-path dot_claude/skills/gh-fix-ci/scripts/Cargo.toml`
-  - `rustc dot_claude/skills/gh-manage-pr/scripts/summarize_diff.rs -O -o /tmp/claude-gh-manage-pr-summarize`
-  - `dot_claude/skills/gh-address-comments/scripts/target/release/fetch-comments --help`
-  - `printf 'thread_id\tpath\tis_resolved\tis_outdated\tline\treviewer\treview_state\tcomment_count\tpreview\n1\tsrc/app.ts\tfalse\tfalse\t42\talice\tCHANGES_REQUESTED\t2\tNeeds a null check\n' | dot_claude/skills/gh-address-comments/scripts/target/release/summarize-threads`
-  - `dot_claude/skills/gh-fix-ci/scripts/target/release/inspect-pr-checks --help`
-  - `printf 'Compiling app\nerror[E0425]: cannot find value \`x\` in this scope\nBuild failed\n' | dot_claude/skills/gh-fix-ci/scripts/target/release/classify-ci-log`
-  - `printf ' src/lib.rs | 4 ++--\n README.md | 2 +-\n 2 files changed, 3 insertions(+), 3 deletions(-)\n' | /tmp/claude-gh-manage-pr-summarize`
-- Note: the first Claude-side Cargo builds required network-enabled escalation because the sandbox could not resolve `index.crates.io`.
-
-# Rust Helper Test Strategy Review
-
-## Goal
-
-Inspect the Rust helper scripts under `dot_codex/skills` and `dot_claude/skills` and recommend the most pragmatic automated test strategy across unit tests, Cargo integration tests, and any top-level shell harness usage.
-
-## Success criteria
-
-- Enumerate the Rust helper crates and standalone Rust scripts currently in scope.
-- Identify which files/modules contain pure parsing or formatting logic versus CLI and process orchestration.
-- Recommend a primary test approach with concrete tradeoffs.
-- Call out the exact files or modules that should receive coverage first.
-- Record review and verification notes here.
-
-## Assumptions / constraints
-
-- This task is analysis-only; no production Rust code changes are required.
-- The Codex and Claude skill trees are mirrored in several places, so duplicated helpers should not be tested independently unless behavior diverges.
-- Recommendations should optimize for low maintenance in a dotfiles/skills repo rather than maximal Rust testing sophistication.
-
-## Steps
-
-- [x] Inventory the Rust helper entrypoints and shared modules in both skill trees.
-- [x] Inspect where the meaningful logic lives and separate pure transforms from CLI or subprocess glue.
-- [x] Compare unit-test, Cargo integration-test, and shell-harness options against the current code shape.
-- [x] Write a concise recommendation with tradeoffs and concrete coverage targets.
-- [x] Add a review summary.
-
-## Risks / edge cases
-
-- Some helpers are duplicated byte-for-byte across `dot_codex` and `dot_claude`, which can hide whether coverage should live once or twice.
-- Several binaries call external tools (`gh`, `git`, `osascript`, `sqlite3`), so recommendations need to distinguish deterministic local logic from environment-dependent behavior.
-- A few helpers are standalone `.rs` files compiled with `rustc`, not Cargo crates, which changes the practical test options.
-
-## Verification plan
-
-- Read each relevant Rust file and Cargo manifest under the two skill trees.
-- Diff mirrored helper files where needed to confirm whether coverage can be shared conceptually.
-- Summarize the recommendation against the actual file/module layout rather than generic Rust testing advice.
-
-## Review
-
-- Inventory:
-  - Cargo crates: `dot_codex/skills/gh-fix-ci/scripts`, `dot_codex/skills/gh-address-comments/scripts`, `dot_codex/skills/atlas/scripts`, plus mirrored Cargo crates under `dot_claude/skills/gh-fix-ci/scripts` and `dot_claude/skills/gh-address-comments/scripts`.
-  - Standalone Rust scripts compiled with `rustc`: `dot_codex/skills/gh-manage-pr/scripts/summarize_diff.rs` and `dot_claude/skills/gh-manage-pr/scripts/summarize_diff.rs`.
-- Mirror check:
-  - Identical source pairs: `classify_ci_log.rs`, `summarize_threads.rs`, and both `summarize_diff.rs` files.
-  - `inspect_pr_checks.rs` and `fetch_comments.rs` differ only in formatting, not behavior.
-- Recommendation:
-  - Use inline Rust unit tests as the primary strategy for the pure parsing and rendering helpers already embedded in the binaries.
-  - Keep a very small shell-based smoke layer only for CLI invocation and environment-sensitive helpers.
-  - Do not invest in Cargo integration tests as the default path unless the crates are first refactored to expose `src/lib.rs` modules.
-- Why:
-  - Most meaningful logic is pure and local: `inspect_pr_checks.rs` has parser/snippet helpers, `classify_ci_log.rs` is a pure classifier, `fetch_comments.rs` has pure compact-rendering helpers, `summarize_threads.rs` and `summarize_diff.rs` are pure fixture transforms, and Atlas contains several pure query/bookmark/time helpers.
-  - The hard parts of the binaries are subprocess and environment boundaries (`gh`, `git`, `sqlite3`, `osascript`), which are awkward to cover well with Cargo integration tests in the current binary-only layout.
-  - A top-level shell harness would be useful for smoke checks, but using it as the main test layer would be brittle, slower, and duplicative across the mirrored Codex/Claude trees.
-- First coverage targets:
-  - `dot_codex/skills/gh-fix-ci/scripts/src/bin/classify_ci_log.rs`
-  - `dot_codex/skills/gh-fix-ci/scripts/src/bin/inspect_pr_checks.rs`
-  - `dot_codex/skills/gh-address-comments/scripts/src/bin/summarize_threads.rs`
-  - `dot_codex/skills/gh-address-comments/scripts/src/bin/fetch_comments.rs`
-  - `dot_codex/skills/gh-manage-pr/scripts/summarize_diff.rs`
-  - `dot_codex/skills/atlas/scripts/src/main.rs`
-  - `dot_codex/skills/atlas/scripts/src/atlas_common.rs`
-  - Claude-side duplicates only need smoke or compile parity unless behavior intentionally diverges later.
-- Verification:
-  - `rg --files dot_codex/skills dot_claude/skills`
-  - `sed -n` review of the relevant `Cargo.toml`, `SKILL.md`, and Rust source files
-  - `shasum` comparison across mirrored Rust helpers
-  - `diff -u` on the non-identical mirrored files to confirm formatting-only differences
-  - `find dot_codex/skills dot_claude/skills -path '*/tests' -type d` returned no test directories
-
-# Programming Skill Design
-
-## Goal
-
-Design a high-signal `programming` skill that codifies the user's type-safety, boundary-validation, simplicity, composition, observability, and testing principles in a form that is concise enough to trigger often without wasting context.
-
-## Success criteria
-
-- The final artifact set is decided before writing the skill.
-- The skill name and trigger description are explicit enough to invoke on coding, refactoring, and bug-fix tasks without being so broad that they add noise.
-- The core `SKILL.md` structure is defined, including which principles belong in the main file versus optional references.
-- Type-system, boundary-validation, observability, testing, and readability rules are organized into a durable taxonomy rather than a flat principle dump.
-- TypeScript-specific guidance is separated cleanly from language-agnostic guidance.
-- The implementation plan accounts for the mirrored skill trees in this repo.
-- A concrete validation plan exists for syntax, trigger quality, and instruction density.
-
-## Assumptions / constraints
-
-- The user's bullet list is the canonical source for the skill content; the linked X post is treated as optional inspiration and was not required to define the requested principles.
-- Per the local `skill-creator` guidance, the main `SKILL.md` should stay lean; references should only exist if they materially reduce token cost or improve reuse.
-- The likely deliverables are `dot_codex/skills/programming/SKILL.md`, `dot_codex/skills/programming/agents/openai.yaml`, and a mirrored `dot_claude/skills/programming/SKILL.md`; any references should be mirrored as well.
-- v1 should avoid scripts or assets unless we find a repeated deterministic task that truly belongs outside the prompt text.
-- "Most information dense" means high signal per line, not maximal length.
-
-## Steps
-
-- [x] Normalize the raw principles into a small set of sections with a clear precedence order.
-- [x] Choose the skill trigger language and metadata so the skill is pulled in for substantive coding/refactoring tasks.
-- [x] Define the `SKILL.md` outline, including a short "when to use" section and a compact set of non-negotiable rules.
-- [x] Decide which language-specific guidance belongs inline versus in `references/`.
-- [x] Decide whether to include tiny contrastive examples for boundaries, discriminated unions, observability, and tests.
-- [x] Implement the skill in the Codex tree and mirror the relevant files into the Claude tree.
-- [x] Validate the finished skill with `quick_validate.py` and a manual prompt-quality review.
-- [x] Record final review notes here.
-
-## Risks / edge cases
-
-- A bloated skill will be less useful than a strict, compressed one, even if it contains more principles.
-- If the trigger description is too generic, the skill may fire on low-value tasks and consume context unnecessarily.
-- If the skill mixes timeless programming principles with repo-specific workflow rules, it will become harder to reuse and reason about.
-- Too many examples can duplicate model priors instead of adding durable guidance.
-- TypeScript-specific rules may dominate the skill unless they are isolated cleanly from the language-agnostic core.
-
-## Verification plan
-
-- Review the final skill against the local `skill-creator` rules: concise frontmatter, compact body, and progressive disclosure.
-- Run `quick_validate.py` against the new skill directory.
-- Manually inspect whether the trigger description would fire for the intended cases: coding, refactoring, debugging, and design-review tasks.
-- Do a density pass after drafting: remove any line that does not change behavior or sharpen decision-making.
-- Optionally use a subagent for an independent "would this skill improve a real coding task?" validation pass before closing.
-
-## Review
-
-- Added a new mirrored `programming` skill at `dot_codex/skills/programming` and `dot_claude/skills/programming`.
-- Kept the core `SKILL.md` focused on decision order and defaults rather than turning it into a long manifesto:
-  - validate boundaries first
-  - encode invariants and future changes in types
-  - prefer composition and readability over abstraction
-  - keep observability high-signal
-  - keep tests sparse but strict around critical behavior
-- Moved language-specific guidance into progressive-disclosure references:
-  - `references/typescript.md` for `zod`, string literals over enums, exhaustive matching, kebab-case filenames, and class avoidance
-  - `references/python.md` for `pydantic`, tagged unions, `match`, and stateful-class guidance
-- Generated `dot_codex/skills/programming/agents/openai.yaml` with the local skill tooling so the Codex skill has standard UI metadata and a default prompt.
-- Added a short pointer in `dot_codex/AGENTS.md` so always-on instructions can invoke `$programming` without duplicating the philosophy text.
-- Updated the root `README.md` Codex skill list so it reflects the actual managed skill set, including `frontend-design`, `sql-read`, and the new `programming` skill.
-- Did not create a Claude-side `CLAUDE.md` because this repo does not currently manage one; the Claude-side implementation is the mirrored skill itself.
-- Verification:
-  - `uv run --with pyyaml /Users/anthonyaltieri/.codex/skills/.system/skill-creator/scripts/generate_openai_yaml.py dot_codex/skills/programming --interface short_description='Write simpler, safer application code' --interface default_prompt='Use $programming to design or refactor this code for validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.'`
-  - `uv run --with pyyaml /Users/anthonyaltieri/.codex/skills/.system/skill-creator/scripts/quick_validate.py dot_codex/skills/programming`
-  - `uv run --with pyyaml /Users/anthonyaltieri/.codex/skills/.system/skill-creator/scripts/quick_validate.py dot_claude/skills/programming`
-  - manual diff review of `README.md`, `dot_codex/AGENTS.md`, and the new mirrored skill files
-- Notes:
-  - The stock `python3` environment did not have `PyYAML`, so the local skill tooling was run through `uv`.
-  - No repo-level markdown linter or pre-commit config was present at the workspace root for targeted linting of these docs files.
-
-# Bootstrap Dry Run Review
-
-## Goal
-
-Run the non-destructive equivalent of `bootstrap.sh` to verify where this repo would deploy files and identify any conflicts in managed skill files before applying changes to the home directory.
-
-## Success criteria
-
-- The actual bootstrap behavior is mapped to a safe dry-run command.
-- The target locations for the Codex and Claude skill files are confirmed.
-- Existing destination conflicts for managed skill files are identified and summarized.
-- Any conflict analysis is grounded in `chezmoi` output, not inferred from the repo tree alone.
-- Review notes and verification commands are recorded here.
-
-## Assumptions / constraints
-
-- `bootstrap.sh` itself has no dedicated dry-run flag; the relevant non-destructive equivalent is `chezmoi apply --dry-run --verbose --source <repo> --force`.
-- The goal is inspection only; no changes should be written to the home directory.
-- `chezmoi diff --source <repo>` is the right companion command for content-level conflicts.
-- Focus is on managed skill files under `~/.codex` and `~/.claude`, plus any related always-on instructions such as `~/.codex/AGENTS.md`.
-
-## Steps
-
-- [x] Record the exact dry-run commands that safely model bootstrap behavior.
-- [x] Run `chezmoi apply --dry-run --verbose --source "$PWD" --force` and capture the target paths it would touch.
-- [x] Run focused `chezmoi diff --source "$PWD" --no-pager` checks for Codex and Claude skill paths.
-- [x] Summarize conflicts, especially for programming and `gh-address-comments` skill files.
-- [x] Record review notes here.
-
-## Risks / edge cases
-
-- `chezmoi` may report broad home-directory changes, so the analysis needs to stay focused on skill-related paths.
-- Dry-run output may show updates without showing full content conflicts, so `diff` must back it up.
-- Existing unmanaged files in `~/.codex` or `~/.claude` may cause conflict prompts on a real apply even if the source mapping is correct.
-
-## Verification plan
-
-- Use `chezmoi apply --dry-run --verbose --source "$PWD" --force` to model bootstrap's apply step without writing changes.
-- Use `chezmoi diff --source "$PWD" --no-pager` on specific Codex and Claude targets to inspect file-level conflicts.
-- Cross-check reported targets against the repo naming conventions in `README.md`.
-
-## Review
-
-- Safe bootstrap dry-run command for this repo is:
-  - `chezmoi apply --dry-run --verbose --source "$PWD" --force ~/.codex ~/.claude`
-- Focused conflict inspection commands that produced the useful signal were:
-  - `chezmoi diff --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills ~/.claude/skills`
-  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/skills/gh-address-comments ~/.codex/skills/programming ~/.claude/skills/gh-address-comments ~/.claude/skills/programming`
-  - direct source-vs-destination `cmp`/`diff` checks on specific skill files to filter out generated-artifact noise
-- Confirmed target mappings with `chezmoi target-path --source "$PWD"`:
-  - `dot_codex/AGENTS.md` -> `~/.codex/AGENTS.md`
-  - `dot_codex/skills/programming/SKILL.md` -> `~/.codex/skills/programming/SKILL.md`
-  - `dot_codex/skills/gh-address-comments/SKILL.md` -> `~/.codex/skills/gh-address-comments/SKILL.md`
-  - `dot_claude/skills/gh-address-comments/SKILL.md` -> `~/.claude/skills/gh-address-comments/SKILL.md`
-- Human-authored skill conflicts:
-  - `~/.codex/AGENTS.md` differs from source and would be updated with the new `$programming` pointer.
-  - `~/.codex/skills/programming/*` and `~/.claude/skills/programming/*` do not exist and would be created.
-  - `~/.codex/skills/gh-address-comments/SKILL.md` differs from source; the deployed copy is older and does not include the new quick start, reply/resolve helper workflow, or bundled-resource section.
-  - `~/.claude/skills/gh-address-comments/SKILL.md` also differs from source for the same reason.
-  - The new Rust helper files for `gh-address-comments` are missing from both homes:
-    - `scripts/Cargo.toml`
-    - `scripts/src/bin/fetch_comments.rs`
-    - `scripts/src/bin/create_comment.rs`
-    - `scripts/src/bin/create_thread_reply.rs`
-    - `scripts/src/bin/resolve_thread.rs`
-    - `scripts/src/lib.rs`
-  - Existing deployed state is asymmetric:
-    - Codex home currently has the older Python-based helper `~/.codex/skills/gh-address-comments/scripts/fetch_comments.py`
-    - Claude home currently has only `~/.claude/skills/gh-address-comments/SKILL.md`
-- Most important dry-run finding:
-  - `chezmoi apply --dry-run` is currently polluted by local Rust build artifacts under `dot_codex/skills/*/scripts/target` and `dot_claude/skills/*/scripts/target`.
-  - Those directories are present in the source tree and are not excluded by `.chezmoiignore`, so a real apply would try to copy compiled binaries, incremental build output, and dependency metadata into `~/.codex/.../scripts/target` and `~/.claude/.../scripts/target`.
-  - There are no existing deployed `scripts/target` files in the current home skill dirs, so this is a source-tree hygiene issue rather than a destination conflict.
-- Net result:
-  - The intended skill files map to the correct destinations.
-  - The real user-facing conflicts are straightforward skill updates and new files.
-  - The blocking issue before any real bootstrap/apply is excluding or removing `scripts/target/**` from the source tree so chezmoi stops treating build artifacts as managed dotfiles.
-
-# Bootstrap Dry Run Cleanup
-
-## Goal
-
-Fix the source-side bootstrap issues so `chezmoi` dry-runs stay focused on intentional managed-file changes instead of local skill-helper build artifacts.
-
-## Success criteria
-
-- The minimal `chezmoi` ignore rules needed for local skill-helper build outputs are identified and applied.
-- A bootstrap-equivalent dry-run no longer reports `scripts/target` content under `~/.codex` or `~/.claude`.
-- Helper source filenames no longer collide with `chezmoi` source-state attributes during target-path resolution.
-- The remaining skill-related dry-run output is limited to intended managed-file changes.
-- Review notes and verification commands are recorded here.
-
-## Assumptions / constraints
-
-- The primary source-side defect is missing `chezmoi` ignores for local Rust `scripts/target` directories inside managed skill trees.
-- `.gitignore` is not sufficient because `chezmoi` reads the source tree directly.
-- This fix should avoid broad ignores that could hide intentional managed files.
-- `chezmoi` source filenames that start with reserved prefixes such as `create_` can be reinterpreted unless the source file names avoid those prefixes.
-
-## Steps
-
-- [x] Add targeted `.chezmoiignore` entries for `~/.codex/skills/**/scripts/target` and `~/.claude/skills/**/scripts/target`.
-- [x] Rename `gh-address-comments` Rust source files that collide with `chezmoi` `create_` source-state parsing, then update both Cargo manifests.
-- [x] Rerun the bootstrap-equivalent dry-run and confirm build artifacts disappear from the output.
-- [x] Rerun focused skill diffs and target-path checks to verify the remaining differences are the intended skill updates and new files.
-- [x] Record review notes here.
-
-## Risks / edge cases
-
-- If the ignore patterns are too broad, they could hide future intentional files under `scripts/`.
-- If the patterns are too narrow, `chezmoi` may still descend into nested build output.
-- Future source files that start with `create_` can be silently remapped by `chezmoi` unless they are renamed or specially encoded.
-
-## Verification plan
-
-- Use `chezmoi apply --dry-run --verbose --source "$PWD" --force ~/.codex ~/.claude`.
-- Confirm the output no longer contains `/scripts/target/`.
-- Re-run focused `chezmoi diff` checks for `~/.codex/skills` and `~/.claude/skills`.
-- Confirm `chezmoi target-path` preserves the intended helper source filenames.
-- Re-run the helper Cargo test suites after renaming source files.
-
-## Review
-
-- Added targeted `.chezmoiignore` rules for:
-  - `.claude/skills/**/scripts/target`
-  - `.claude/skills/**/scripts/target/**`
-  - `.codex/skills/**/scripts/target`
-  - `.codex/skills/**/scripts/target/**`
-- Discovered a second source-side bootstrap bug while rechecking target paths:
-  - `chezmoi` interpreted `create_comment.rs` and `create_thread_reply.rs` as source-state attribute files and mapped them to `comment.rs` and `thread_reply.rs` in the destination.
-  - Fixed this by renaming the source files to `comment.rs` and `thread_reply.rs` in both mirrored skill trees, then updating both `Cargo.toml` manifests to keep the binary names unchanged.
-- Verification:
-  - `chezmoi apply --dry-run --verbose --source "$PWD" --force ~/.codex ~/.claude > /tmp/chezmoi-bootstrap-dry-run.txt`
-  - `rg -n '/scripts/target/' /tmp/chezmoi-bootstrap-dry-run.txt`
-  - `chezmoi target-path --source "$PWD" dot_codex/skills/gh-address-comments/scripts/src/bin/comment.rs`
-  - `chezmoi target-path --source "$PWD" dot_codex/skills/gh-address-comments/scripts/src/bin/thread_reply.rs`
-  - `rg -n "create_comment\\.rs|create_thread_reply\\.rs" dot_codex dot_claude`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml`
-- Results:
-  - `/scripts/target/` no longer appears anywhere in the bootstrap dry-run output.
-  - The helper source files now map to the correct destination paths:
-    - `dot_codex/.../comment.rs` -> `~/.codex/.../comment.rs`
-    - `dot_codex/.../thread_reply.rs` -> `~/.codex/.../thread_reply.rs`
-  - The helper source trees contain no remaining `create_comment.rs` or `create_thread_reply.rs` references.
-  - Both mirrored helper Cargo test suites still pass after the rename.
-  - Remaining skill-related dry-run diffs are the intended managed updates:
-    - `~/.codex/AGENTS.md`
-    - `~/.codex/skills/gh-address-comments/**`
-    - `~/.codex/skills/programming/**`
-    - `~/.claude/skills/gh-address-comments/**`
-    - `~/.claude/skills/programming/**`
-- Net result:
-  - The bootstrap dry-run is no longer polluted by local build artifacts.
-  - The helper filenames will land in the right place during a real apply.
-  - The remaining differences are ordinary managed-file updates, not source-tree hygiene bugs.
-
-# Bootstrap Apply Verification
-
-## Goal
-
-Run the real bootstrap/apply flow against the home directory and verify the deployed Codex and Claude files match the managed source after the bootstrap fixes.
-
-## Success criteria
-
-- The real bootstrap/apply completes without unexpected errors.
-- The expected managed home files are updated or created under `~/.codex` and `~/.claude`.
-- Post-apply comparisons show the deployed files match the repo source for the targeted skill files and `~/.codex/AGENTS.md`.
-- Any unexpected drift is identified explicitly.
-
-## Assumptions / constraints
-
-- `bootstrap.sh` applies the whole chezmoi source, not just the skill files, so verification should stay focused on the relevant managed targets.
-- Applying to the home directory requires elevated filesystem access outside the workspace sandbox.
-- The source tree has already been cleaned so build artifacts and `create_` filename collisions should no longer interfere with deployment.
-
-## Steps
-
-- [x] Run the real bootstrap/apply flow from the repo root.
-- [x] Compare deployed `~/.codex/AGENTS.md` with the managed source.
-- [x] Compare deployed `~/.codex/skills/gh-address-comments/**` and `~/.codex/skills/programming/**` with the managed source.
-- [x] Compare deployed `~/.claude/skills/gh-address-comments/**` and `~/.claude/skills/programming/**` with the managed source.
-- [x] Record review notes and any unexpected differences here.
-
-## Risks / edge cases
-
-- `chezmoi init --apply --force` may update additional managed files in the home directory outside the skill paths.
-- Existing unmanaged files in the home skill directories may be removed or overwritten during the apply.
-- Verification must account for intentionally absent files, such as the lack of a managed Claude-side `CLAUDE.md`.
-
-## Verification plan
-
-- Run `./bootstrap.sh` from the repo root.
-- Use focused `chezmoi diff --source "$PWD" --no-pager` checks after apply on the targeted home paths.
-- Use direct file comparisons where helpful to confirm the expected content landed exactly.
-
-## Review
-
-- First bootstrap attempt failed before completion in `.chezmoiscripts/darwin/02-install-brews.sh` because `.Brewfile` declared `1password-cli` as a formula:
-  - `brew "1password-cli"`
-  - Homebrew currently exposes `1password-cli` as a cask, so `brew bundle` aborted before the full bootstrap finished.
-- Fixed the bootstrap blocker in `.Brewfile` by changing the entry to:
-  - `cask "1password-cli"`
-- Re-ran `./bootstrap.sh` successfully after the Brewfile fix.
-- Verification:
-  - `./bootstrap.sh`
-  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills/gh-address-comments ~/.codex/skills/programming ~/.claude/skills/gh-address-comments ~/.claude/skills/programming`
-  - `git diff --no-index -- dot_codex/AGENTS.md "$HOME/.codex/AGENTS.md"`
-  - `git diff --no-index -- dot_codex/skills/programming/SKILL.md "$HOME/.codex/skills/programming/SKILL.md"`
-  - `git diff --no-index -- dot_claude/skills/programming/SKILL.md "$HOME/.claude/skills/programming/SKILL.md"`
-  - `git diff --no-index -- dot_codex/skills/gh-address-comments/SKILL.md "$HOME/.codex/skills/gh-address-comments/SKILL.md"`
-  - `git diff --no-index -- dot_codex/skills/gh-address-comments/scripts/src/bin/comment.rs "$HOME/.codex/skills/gh-address-comments/scripts/src/bin/comment.rs"`
-  - `git diff --no-index -- dot_claude/skills/gh-address-comments/SKILL.md "$HOME/.claude/skills/gh-address-comments/SKILL.md"`
-  - `git diff --no-index -- dot_claude/skills/gh-address-comments/scripts/src/bin/thread_reply.rs "$HOME/.claude/skills/gh-address-comments/scripts/src/bin/thread_reply.rs"`
-- Results:
-  - The second bootstrap run completed successfully.
-  - Focused `chezmoi diff` for the targeted home paths returned no differences.
-  - Direct comparisons for `~/.codex/AGENTS.md`, both deployed `programming` skills, and representative `gh-address-comments` files in both homes returned no differences.
-  - The expected managed files are now present in `~/.codex` and `~/.claude` and match the repo source for the targeted paths.
-  - No unexpected drift was found in the Codex/Claude files verified here.
-
-# SQL Read Binary Install
-
-## Goal
-
-Make `sql-read` usable as a normal command on `PATH` so skill usage does not depend on `cargo run`, a writable `target/` directory inside `~/.codex`, or `cargo` being available in the calling shell.
-
-## Success criteria
-
-- Bootstrap installs or refreshes a real `sql-read` binary into a directory already on `PATH`.
-- The `sql-read` skill docs in both Codex and Claude trees use `sql-read ...` directly instead of `cargo run ...`.
-- The installed command works after bootstrap without manually sourcing `~/.cargo/env`.
-- Verification captures both the install path and direct command execution.
-
-## Assumptions / constraints
-
-- `~/.local/bin` is already on the managed shell path and is present in the current Codex shell environment.
-- Rust is installed during bootstrap via the existing `run_once_before_10-install-rust.sh` script.
-- The simplest correct fix is specific to `sql-read`; generalizing to every Rust-backed skill helper can come later if needed.
-
-## Steps
-
-- [x] Add a chezmoi after-script that installs `sql-read` into `~/.local/bin` during bootstrap/apply.
-- [x] Update both `sql-read` skill docs to call `sql-read` directly and note the bootstrap-installed binary.
-- [x] Re-run bootstrap/apply so the binary is installed into the home directory.
-- [x] Verify `command -v sql-read` and `sql-read --help` succeed without sourcing Cargo env.
-- [x] Record review notes here.
-
-## Risks / edge cases
-
-- `cargo install --path` may be slower than a direct `cargo build`, but it avoids writing build artifacts into the deployed skill directory.
-- If the Codex and Claude `sql-read` crates ever diverge, choosing the wrong source path could install an unexpected binary.
-- Existing long-lived shells may need a restart if they do not already have `~/.local/bin` on `PATH`.
-
-## Verification plan
-
-- Re-run `./bootstrap.sh` after adding the install script.
-- Run `command -v sql-read`.
-- Run `sql-read --help`.
-- If needed, compare the installed binary behavior against the bundled Cargo package with a focused test run.
-
-## Review
-
-- Added [`.chezmoiscripts/run_after_11-install-sql-read-bin.sh`](/Users/anthonyaltieri/code/dotfiles/.chezmoiscripts/run_after_11-install-sql-read-bin.sh) to install `sql-read` into `~/.local/bin` after bootstrap/apply.
-  - The script sources `~/.cargo/env` if present, installs from the deployed `sql-read` Cargo package, and keeps build artifacts out of the deployed skill tree by using `~/.local/share/codex-skill-targets/sql-read` as `CARGO_TARGET_DIR`.
-- Updated both mirrored skill docs to call `sql-read` directly instead of `cargo run`:
-  - [dot_codex/skills/sql-read/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/sql-read/SKILL.md)
-  - [dot_claude/skills/sql-read/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/sql-read/SKILL.md)
-- Verification:
-  - `bash -n .chezmoiscripts/run_after_11-install-sql-read-bin.sh`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
-  - `./bootstrap.sh`
-  - `command -v sql-read`
-  - `sql-read --help`
-  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/skills/sql-read ~/.claude/skills/sql-read`
-- Results:
-  - Bootstrap now installs `sql-read` into `~/.local/bin/sql-read`.
-  - `sql-read --help` succeeds in a fresh shell without manually sourcing `~/.cargo/env`.
-  - The deployed Codex and Claude `sql-read` skill docs match the repo source after apply.
-  - `cargo` itself is still not on `PATH` in this noninteractive shell, but `sql-read` no longer depends on that.
-
-# Skill Rust Binary Install
-
-## Goal
-
-Generalize the installed-binary workflow from `sql-read` to every Rust-backed skill helper so bootstrap compiles them once, installs them onto `PATH`, and skill docs call the installed commands directly.
-
-## Success criteria
-
-- Bootstrap installs every Rust-backed skill binary into `~/.local/bin`.
-- Build artifacts stay out of deployed skill directories such as `~/.codex/skills/**/scripts/target`.
-- Skill docs for Rust-backed helpers use installed commands instead of `cargo run` or `target/release/...` paths.
-- Representative binaries can be resolved from `PATH` after bootstrap.
-
-## Assumptions / constraints
-
-- `~/.local/bin` is already on the managed shell path.
-- The Rust-backed skills currently live under:
-  - `dot_codex/skills/atlas`
-  - `dot_codex/skills/gh-address-comments`
-  - `dot_codex/skills/gh-fix-ci`
-  - `dot_codex/skills/sql-read`
-  - mirrored Claude copies for all except `atlas`
-- Mirrored Codex/Claude crates should install from one canonical source path when duplicates exist.
-
-## Steps
-
-- [x] Inventory every Rust-backed skill package, its binaries, and doc references.
-- [x] Replace the one-off `sql-read` installer with a general bootstrap installer for all Rust-backed skills.
-- [x] Update affected skill docs to use installed binaries from `~/.local/bin`.
-- [x] Run focused Cargo tests for the affected packages.
-- [x] Run bootstrap and verify representative installed binaries resolve from `PATH`.
-- [x] Record review notes here.
-
-## Risks / edge cases
-
-- Two packages could install the same binary name and unintentionally overwrite each other.
-- Mirrored Codex/Claude source trees could drift, so canonical-source selection must be deliberate.
-- Some helpers may still require extra runtime permissions or environment variables even after installation.
-
-## Verification plan
-
-- Enumerate binary names from each `scripts/Cargo.toml`.
-- Run focused `cargo test --offline --manifest-path ...` for the affected packages.
-- Run `./bootstrap.sh`.
-- Check `command -v` for representative binaries and update docs via `chezmoi diff`.
-
-## Review
-
-- Inventory found 7 Rust package trees across 4 canonical skills:
-  - `atlas` (`atlas-cli`)
-  - `gh-address-comments` (`fetch-comments`, `summarize-threads`, `create-comment`, `create-thread-reply`, `resolve-thread`)
-  - `gh-fix-ci` (`inspect-pr-checks`, `classify-ci-log`)
-  - `sql-read` (`sql-read`)
-  - Mirrored Claude packages exist for all except `atlas`; bootstrap now prefers the Codex source when both trees exist.
-- Replaced the one-off SQL installer with a general installer at [run_after_11-install-rust-skill-bins.sh](/Users/anthonyaltieri/code/dotfiles/.chezmoiscripts/run_after_11-install-rust-skill-bins.sh).
-  - It discovers `scripts/Cargo.toml` packages under `~/.codex/skills` and `~/.claude/skills`.
-  - It deduplicates mirrored skills by skill name.
-  - It installs binaries into `~/.local/bin`.
-  - It keeps build artifacts out of deployed skill dirs via `~/.local/share/codex-skill-targets/<skill>`.
-- Updated Rust-backed skill docs to use installed commands instead of `cargo run`:
-  - [dot_codex/skills/atlas/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/atlas/SKILL.md)
-  - [dot_codex/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-address-comments/SKILL.md)
-  - [dot_claude/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-address-comments/SKILL.md)
-  - [dot_codex/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-fix-ci/SKILL.md)
-  - [dot_claude/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-fix-ci/SKILL.md)
-  - `sql-read` docs were already moved earlier and remain on the installed-command model.
-- Verification:
-  - `bash -n .chezmoiscripts/run_after_11-install-rust-skill-bins.sh`
-  - `rg -n "cargo run --quiet --release --manifest-path|target/release/" <affected skill docs>`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/atlas/scripts/Cargo.toml`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/gh-fix-ci/scripts/Cargo.toml`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/gh-address-comments/scripts/Cargo.toml`
-  - `source "$HOME/.cargo/env" && cargo test --offline --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
-  - `./bootstrap.sh`
-  - `command -v atlas-cli fetch-comments summarize-threads create-comment create-thread-reply resolve-thread inspect-pr-checks classify-ci-log sql-read`
-  - `classify-ci-log /tmp/classify-ci-log-smoke.txt`
-  - `chezmoi diff -r --source "$PWD" --no-pager ~/.codex/skills/atlas ~/.codex/skills/gh-address-comments ~/.codex/skills/gh-fix-ci ~/.codex/skills/sql-read ~/.claude/skills/gh-address-comments ~/.claude/skills/gh-fix-ci ~/.claude/skills/sql-read`
-- Results:
-  - All installed helper commands resolve from `~/.local/bin`.
-  - `classify-ci-log` ran successfully from `PATH` and produced the expected compact JSON classification.
-  - The deployed Codex and Claude skill docs are in sync with the repo after bootstrap.
-  - No remaining `cargo run` or `target/release` instructions remain in the affected Rust-backed skill docs.
-
-# SQL Read Named Targets
-
-## Goal
-
-Redesign `sql-read` around persisted named targets so `sql-read run --state-dir <dir> --target <name>` is the only blanket-approvable execution path and later queries do not depend on shell env var persistence between tool calls.
-
-## Success criteria
-
-- `sql-read run --state-dir <dir> --target <name> ...` executes read-only queries using a persisted target definition.
-- `sql-read target upsert|list|remove ...` manages targets stored under the skill state dir.
-- No execution path accepts raw DSNs, raw SQLite paths, or env-var target flags anymore.
-- Old `safe-ro` and `query` invocations fail closed with a migration message.
-- State is stored in `targets.json` with restrictive permissions.
-- Both mirrored skill docs are updated to the setup-then-run workflow.
-
-## Assumptions / constraints
-
-- Persisting resolved read-only DSNs and SQLite paths at rest under the skill directory is acceptable on this machine.
-- Target mutation stays explicit and separate from the blanket-approved `run` path.
-- `--state-dir` remains explicit in the CLI to avoid ambiguity when both Codex and Claude homes exist.
-- The Codex and Claude Rust packages should remain identical after the change.
-
-## Steps
-
-- [x] Update the `sql-read` Rust CLI to support `run` and `target {upsert,list,remove}` with persisted target state.
-- [x] Add target-store read/write logic, permission handling, redacted list output, and migration errors for `safe-ro` / `query`.
-- [x] Add or update tests for target persistence, missing targets, read-only execution, migration errors, and permission creation.
-- [x] Mirror the Rust package changes into the Claude skill tree.
-- [x] Update both `sql-read` skill docs to the new target setup and execution workflow.
-- [x] Rebuild via bootstrap and verify the installed `sql-read` binary using a persisted SQLite target across separate commands.
-- [x] Record review notes here.
-
-## Risks / edge cases
-
-- Persisted targets must not leak secrets through CLI output or error text.
-- Existing `safe-ro` / `query` users need a precise migration error so the failure is actionable.
-- State file writes must create the directory and file with restrictive permissions without breaking repeated updates.
-- Query execution still needs to reject writes both statically and at runtime.
-
-## Verification plan
-
-- Run focused `cargo test --offline --manifest-path ...` for both mirrored `sql-read` packages.
-- Re-run `./bootstrap.sh`.
-- Use `sql-read target upsert ...` in one command, then `sql-read run ...` in a separate command against a temporary SQLite database.
-- Confirm `sql-read target list` shows only target names and engines.
-- Confirm `sql-read safe-ro ...` now returns the migration error.
-
-## Review
-
-- Reworked both mirrored `sql-read` crates around persisted named targets in `targets.json`, with `sql-read run` as the only execution path and `target upsert|list|remove` as explicit setup/mutation commands.
-- The target store now writes under an explicit `--state-dir`, stores resolved DSNs or SQLite paths, redacts secrets from `target list`, and creates the state directory/file with `0700` / `0600` permissions on Unix.
-- `safe-ro` and `query` now fail closed with a migration message pointing callers to `target upsert` plus `run`; no run-time path accepts raw DSNs, raw SQLite paths, or env-var target selectors anymore.
-- Verification:
-- `cargo test --offline --manifest-path dot_codex/skills/sql-read/scripts/Cargo.toml`
-- `cargo test --offline --manifest-path dot_claude/skills/sql-read/scripts/Cargo.toml`
-- `./bootstrap.sh`
-- `sql-read target upsert --state-dir /tmp/sql-read-verify.bUZMZD/state --name local-app --engine sqlite --sqlite-db-path /tmp/sql-read-verify.bUZMZD/app.sqlite`
-- `sql-read run --state-dir /tmp/sql-read-verify.bUZMZD/state --target local-app --file /tmp/sql-read-verify.bUZMZD/query.sql --format json`
-- `sql-read target list --state-dir /tmp/sql-read-verify.bUZMZD/state`
-- `sql-read safe-ro --engine sqlite --sqlite-db-path /tmp/sql-read-verify.bUZMZD/app.sqlite --file /tmp/sql-read-verify.bUZMZD/query.sql --format json`
-
-# Read-Only Helper Rules
-
-## Goal
-
-Update the managed Codex rules so read-only helper commands can run without approval while mutating helper commands remain prompt-gated.
-
-## Success criteria
-
-- The managed [dot_codex/rules/default.rules](/Users/anthonyaltieri/code/dotfiles/dot_codex/rules/default.rules) preserves the current deployed allow-list baseline and adds stable read-only helper rules.
-- `sql-read run`, `fetch-comments`, `summarize-threads`, `inspect-pr-checks`, and `classify-ci-log` evaluate to `allow`.
-- `sql-read target`, `create-comment`, `create-thread-reply`, and `resolve-thread` evaluate to `prompt`.
-- Stale exact-match helper rules tied to specific PRs, thread IDs, or shell wrappers are removed from the managed rules file.
-- The `gh-address-comments` and `gh-fix-ci` skill docs prefer direct helper invocation or safe plain-word pipelines that match the new rules.
-
-## Assumptions / constraints
-
-- The repo-managed rules file is the source of truth and should absorb the current deployed baseline before bootstrap overwrites `~/.codex/rules/default.rules`.
-- Atlas remains out of scope because its CLI mixes read-only inspection with state-changing UI actions.
-- Codex must be restarted after bootstrap for the running app session to reload the updated rules.
-
-## Steps
-
-- [x] Diff the managed rules file against `~/.codex/rules/default.rules` and preserve the current non-helper baseline.
-- [x] Replace brittle helper-specific allow rules with stable prefix rules plus prompt guardrails.
-- [x] Normalize the `gh-address-comments` workflow docs to use direct helper pipelines and mirror the change to Claude.
-- [x] Normalize the `gh-fix-ci` workflow docs to prefer direct helper invocation or plain-word pipelines and mirror the change to Claude.
-- [x] Run `codex execpolicy check` against the managed rules file for the allow/prompt cases and shell-shape cases.
-- [x] Re-run `./bootstrap.sh` and verify the deployed rules/skill docs match the repo-managed copies.
-- [x] Record review notes here.
-
-## Risks / edge cases
-
-- Replacing the managed rules file from a stale copy would silently drop existing approvals, so the current deployed baseline must be preserved.
-- Shell wrappers that include redirection or env-var assignments may not be split by Codex, so docs need to prefer direct commands or plain-word pipelines.
-- Broad prefix rules could accidentally allow mutating helper paths unless explicit prompt rules remain in place.
-
-## Verification plan
-
-- Use `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- ...` for each expected allow/prompt command.
-- Check `codex execpolicy check` on a plain pipeline wrapper and on a redirection-heavy wrapper to confirm the documented shape matters.
-- Re-run `./bootstrap.sh`.
-- Run `chezmoi diff --source "$PWD" --no-pager ~/.codex/rules/default.rules ~/.codex/skills/gh-address-comments ~/.codex/skills/gh-fix-ci ~/.claude/skills/gh-address-comments ~/.claude/skills/gh-fix-ci`.
-
-## Review
-
-- Promoted the current deployed `~/.codex/rules/default.rules` baseline into [dot_codex/rules/default.rules](/Users/anthonyaltieri/code/dotfiles/dot_codex/rules/default.rules), removed stale helper-specific exact-match rules, and replaced them with stable helper prefix rules for `sql-read run`, `fetch-comments`, `summarize-threads`, `inspect-pr-checks`, and `classify-ci-log`.
-- Added explicit `prompt` guardrails for `sql-read target`, `create-comment`, `create-thread-reply`, and `resolve-thread` so the read-only helper allow rules cannot silently widen to mutating helper paths.
-- Normalized the `gh-address-comments` skill docs in [dot_codex/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-address-comments/SKILL.md) and [dot_claude/skills/gh-address-comments/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-address-comments/SKILL.md) to prefer `fetch-comments --format compact | summarize-threads` and raw `fetch-comments --format json`.
-- Normalized the `gh-fix-ci` skill docs in [dot_codex/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-fix-ci/SKILL.md) and [dot_claude/skills/gh-fix-ci/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-fix-ci/SKILL.md) to prefer direct `classify-ci-log` invocation or `gh run view <run_id> --log-failed | classify-ci-log`.
-- Found and fixed a bootstrap deployment bug: [/.chezmoiignore](/Users/anthonyaltieri/code/dotfiles/.chezmoiignore) was excluding `.codex/rules/**`, which prevented the managed rules file from ever reaching `~/.codex/rules/default.rules`.
-- Verification:
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- fetch-comments --format compact`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- summarize-threads /tmp/pr-threads.tsv`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- inspect-pr-checks --repo . --json`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- classify-ci-log /tmp/failed.log`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- sql-read target upsert --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- create-thread-reply --thread-id PRRT_example --body 'FROM CODEX: Addressed in abc123 - fixed the issue.'`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- resolve-thread --thread-id PRRT_example`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- /bin/zsh -lc 'fetch-comments --format compact | summarize-threads'`
-- `codex execpolicy check --pretty --rules dot_codex/rules/default.rules -- /bin/zsh -lc 'fetch-comments --format compact > /tmp/pr.tsv && summarize-threads /tmp/pr.tsv'`
-- `./bootstrap.sh`
-- `chezmoi diff --source "$PWD" --no-pager ~/.codex/rules/default.rules ~/.codex/skills/gh-address-comments ~/.codex/skills/gh-fix-ci ~/.claude/skills/gh-address-comments ~/.claude/skills/gh-fix-ci`
-- `codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json`
-- `codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- create-comment --body 'FROM CODEX: ready for another look.'`
-- Results:
-- Direct helper commands now evaluate as intended from the deployed home rules file: `sql-read run` resolves to `allow`, and mutating helpers such as `create-comment` resolve to `prompt`.
-- Wrapper checks using `/bin/zsh -lc '...'` produced no rule match for both the plain pipeline and redirection-heavy forms in `execpolicy check`, so the rules are reliably scoped to direct helper invocations; the doc normalization avoids redirection-heavy examples but shell-wrapper approval still depends on how the caller constructs the command.
-
-# Draft PR Default
-
-## Goal
-
-Make PR creation default to draft status unless the user explicitly asks for an open/non-draft PR.
-
-## Success criteria
-
-- Global Codex guidance states that newly created PRs should default to draft unless the user says otherwise.
-- The mirrored `gh-manage-pr` skill docs instruct PR creation flows to use draft by default.
-- The create examples use `gh pr create --draft ...`.
-
-## Assumptions / constraints
-
-- This applies only when creating a new PR, not when updating an existing one.
-- “Unless otherwise specified” means an explicit user request for a ready-for-review/open PR overrides the default.
-
-## Steps
-
-- [x] Update the global Codex guidance with a default-draft PR policy.
-- [x] Update the mirrored `gh-manage-pr` skill docs so create flows default to `gh pr create --draft ...`.
-- [x] Re-run bootstrap and verify the deployed Codex/Claude copies match the repo-managed files.
-- [x] Record review notes here.
-
-## Verification plan
-
-- Re-read the affected guidance files to confirm the create path is draft-by-default and the override condition is explicit.
-- Run `./bootstrap.sh`.
-- Run `chezmoi diff --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills/gh-manage-pr ~/.claude/skills/gh-manage-pr`.
-
-## Review
-
-- Added a global PR creation default in [dot_codex/AGENTS.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/AGENTS.md): new PRs should default to draft, `gh pr create --draft ...` is the standard create path, and existing PR draft/ready-for-review state should only be changed on explicit user request.
-- Updated the mirrored PR-management skill docs in [dot_codex/skills/gh-manage-pr/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_codex/skills/gh-manage-pr/SKILL.md) and [dot_claude/skills/gh-manage-pr/SKILL.md](/Users/anthonyaltieri/code/dotfiles/dot_claude/skills/gh-manage-pr/SKILL.md) so the create workflow now explicitly defaults to `gh pr create --draft --title ... --body-file ...`, with the override condition documented inline.
-- Verification:
-- `rg -n "draft PR|--draft|ready-for-review|open PR|PR Creation Policy" dot_codex/AGENTS.md dot_codex/skills/gh-manage-pr/SKILL.md dot_claude/skills/gh-manage-pr/SKILL.md`
-- `./bootstrap.sh`
-- `chezmoi diff --source "$PWD" --no-pager ~/.codex/AGENTS.md ~/.codex/skills/gh-manage-pr ~/.claude/skills/gh-manage-pr`
-- Results:
-- The deployed Codex and Claude guidance files match the repo-managed copies.
-- This policy change is now active in the managed dotfiles, but the current git worktree still also contains the earlier uncommitted read-only-helper rules and helper-doc changes from the previous task.
+- [x] Update `bootstrap.sh` so rerunning it is the normal supported apply/update path.
+- [x] Add a dedicated Nix explainer doc under `docs/`.
+- [x] Trim and link the top-level README so the overview stays readable while the detailed explanation lives in the new doc.
+- [x] Run available shell/docs verification and record the follow-up review.
+
+### Risks / edge cases
+
+- Freshly installed Nix or Homebrew may not be on `PATH` in the current shell unless bootstrap reloads their shell environment explicitly.
+- Using a built `result` symlink is convenient but can be brittle if the script does not ensure it points at the newly built system each run.
+- The explainer must match the actual constructor logic in `lib/` and not drift from the implemented merge order.
+
+### Review
+
+- Added `docs/nix/README.md` as the long-form flake explainer. It documents the role/platform model, constructor responsibilities, merge order, directory ownership, managed versus unmanaged state, and the intended validation flows.
+- Updated the top-level `README.md` to stay focused on the repo overview and supported workflows, while linking readers to the deeper Nix architecture guide for the full explanation.
+- Reworked `bootstrap.sh` so the supported macOS path is explicitly rerunnable: it now verifies Darwin up front, reloads Nix and Homebrew when they are already installed, installs them only when missing, builds the selected Darwin closure without leaving a repo-local `result` symlink behind, and reapplies the chosen role on every run.
+- Verification completed locally: `bash -n bootstrap.sh`, `git diff --check -- README.md bootstrap.sh docs/nix/README.md tasks/todo.md`, and a targeted docs/link grep all passed.
+- Full `nix` evaluation remains blocked in this workspace because the Nix toolchain is still unavailable here, so `nix flake check`, `nix build`, and an end-to-end bootstrap run on macOS still need to happen on a machine with Nix installed.
+
+## Follow-up: Mainline parity after Nix migration
+
+### Goal
+
+Carry forward the upstream skill and helper changes that landed on `main` after the Nix migration, and express the required runtime behavior declaratively in the Nix layout so the branch can merge cleanly without reviving the old chezmoi paths.
+
+### Success criteria
+
+- The managed `home/` tree includes the upstream Codex and Claude skill additions that were previously added under `dot_codex/` and `dot_claude/`.
+- `modules/shared/files.nix` deploys the newly added managed skill trees and helper assets.
+- The Nix setup installs the Rust-backed skill helper commands on `PATH` without relying on the old chezmoi bootstrap scripts.
+- Shell/session and Homebrew parity gaps identified during conflict review are carried forward into the Nix config.
+- Available local verification is run and the follow-up review is recorded.
+
+### Assumptions / constraints
+
+- The Nix layout remains the source of truth; old chezmoi-era paths are not restored.
+- Rust helper binaries should be built once from the canonical managed sources, not independently from mirrored Codex and Claude copies.
+- Full Nix evaluation remains blocked here if the local toolchain is unavailable.
+
+### Steps
+
+- [x] Import the missing upstream managed skill files into `home/.codex` and `home/.claude`.
+- [x] Update `modules/shared/files.nix` and related Nix modules for the expanded managed set and shell/Homebrew parity changes.
+- [x] Add declarative Nix packaging for the Rust-backed helper commands so they are on `PATH`.
+- [x] Run available verification and record the follow-up review.
+
+### Risks / edge cases
+
+- The upstream branch added helper source trees under old paths, so the migration needs to preserve content while remapping layout, not just accept Git's default rename guesses.
+- Some helper crates are mirrored between Codex and Claude; packaging the wrong source twice could create duplicate binaries or drift.
+- `atlas-cli` is macOS-only in practice and should stay Darwin-scoped even though the source is now managed by the shared tree.
+
+### Review
+
+- Merged the upstream skill-helper and agent-guidance changes into the Nix layout by moving the new Codex and Claude payloads from the resurrected `dot_codex/` and `dot_claude/` paths into `home/`, while keeping the old chezmoi files deleted.
+- Expanded `modules/shared/files.nix` so the managed profile now deploys the new skill trees (`frontend-design`, `programming`, `sql-read`) and the newly added helper assets and script trees from the moved `home/` layout.
+- Added `modules/shared/skill-helpers.nix` and wired it into `lib/profiles.nix` so the Rust-backed helper commands are built from the canonical `home/.codex/skills/**/scripts` sources and exposed on `PATH` declaratively, with `atlas-cli` gated to Darwin.
+- Carried forward the remaining parity fixes from `main`: `modules/shared/base.nix` now adds `$HOME/.cargo/bin` to the session path, `modules/platforms/darwin/homebrew.nix` now treats `1password-cli` as a cask, the skill docs now describe the Nix-profile helper model instead of `~/.local/bin`, and `scripts/test-skill-helpers.sh` now targets the moved `home/` sources.
+- Verification completed locally: `bash -n bootstrap.sh scripts/test-skill-helpers.sh`, `git diff --check --cached`, `git ls-files -u`, a path-existence sweep for the new managed helper sources, and a stale-reference grep for `dot_codex/`, `dot_claude/`, and `~/.local/bin` assumptions all passed.
+- Full `nix flake check`, `nix build`, helper-package builds, and an end-to-end profile apply are still blocked here because the local Nix toolchain is not installed in this workspace.
+
+## Follow-up: Live ~/.config audit
+
+### Goal
+
+Compare the current machine's `~/.config/*` tree against the Nix-managed `home/.config` layout and `modules/shared/files.nix` mappings to identify configuration that exists locally but is not yet represented in the flake.
+
+### Success criteria
+
+- The repo's managed `~/.config` mappings are enumerated from the Nix modules.
+- The current machine's `~/.config` directories are inventoried.
+- Differences are classified as real Nix coverage gaps versus intentionally unmanaged or tool-generated state.
+- Review findings are recorded with concrete file references.
+
+### Assumptions / constraints
+
+- The audit is read-only unless a follow-up implementation is explicitly requested.
+- Machine-local or ephemeral runtime state should not be treated as a required Nix gap by default.
+- The current repo layout under `home/.config` is the intended source of truth for managed config payloads.
+
+### Steps
+
+- [x] Record the repo-managed `~/.config` mappings from the current Nix modules.
+- [x] Inventory the live `~/.config` tree on this machine.
+- [x] Compare the live tree to the managed tree and separate real coverage gaps from intentional exclusions.
+- [x] Record the audit review.
+
+### Risks / edge cases
+
+- Some `~/.config` entries are created by apps at runtime and should not be managed declaratively.
+- The current machine may include historical config for tools that are no longer in active use.
+- Directory-name matches alone are insufficient; the audit needs to consider whether the repo already manages the relevant files under a different path or mechanism.
+
+### Review
+
+- The flake currently manages `~/.config/nvim`, `~/.config/starship.toml`, and `~/.config/zsh` through `modules/shared/files.nix`, and manages `~/.config/ghostty` separately on Darwin through `modules/platforms/darwin/ghostty.nix`.
+- The live machine has additional top-level `~/.config` entries for `cagent`, `chezmoi`, `configstore`, `gh`, `git`, `github-copilot`, `iterm2`, `karabiner`, `mlflow`, `op`, `pgcli`, `raycast`, `tmux`, `uv`, `yarn`, and `zed` that are not represented in the flake today.
+- Most of those extra entries look intentionally local or tool-generated rather than declarative config targets: auth/state (`gh/hosts.yml`, `op`, `github-copilot`, `configstore`), app-local settings and caches (`raycast`, `iterm2`, `zed`, `pgcli`, `mlflow`, `uv`, `yarn`), and legacy leftovers from the migration (`chezmoi`).
+- The one clear parity gap inside an actively managed area is `~/.config/zsh/functions/load-env-file.zsh`, which is sourced by the live shell pattern but is missing from `home/.config/zsh/functions`.
+- `~/.config/zsh/laurel.zsh` exists locally but is not referenced by the live or managed shell entrypoints, so it currently looks like an orphaned local helper rather than a required managed file.
+- `~/.config/tmux/.tmux.plugins.conf` is also not a required gap: it is the old TPM plugin list, and the flake already replaces that behavior via `programs.tmux.plugins` in `modules/shared/tmux.nix`.
+- `~/.config/git/ignore` is a judgment call rather than a hard gap. It contains a single global ignore for `**/.claude/settings.local.json`; if you want that behavior to follow the repo, it should be added declaratively, otherwise it can stay local.
+
+## Follow-up: Common tool additions
+
+### Goal
+
+Add `gh`, `op`, `raycast`, `uv`, and `pnpm` to the shared `common` tool surface while preserving the repo policy of using Homebrew on macOS and Nix packages on Linux.
+
+### Success criteria
+
+- `personal` and `work` include the requested tools through the existing platform-specific package managers.
+- Darwin installs the requested macOS-native tools through `homebrew`.
+- Linux installs the requested CLI tools through `home.packages`.
+- `sandbox` does not accidentally inherit Linux common-role package additions through the platform layer.
+- Available static verification is run and the review is recorded.
+
+### Assumptions / constraints
+
+- `op` maps to the existing `1password-cli` package choice.
+- `raycast` remains Darwin-only.
+- `pnpm` is already present in the current package sets and should stay there.
+- Full `nix` evaluation is still unavailable in this workspace.
+
+### Steps
+
+- [x] Inspect the current role/platform package split and update the plan if common-role semantics are leaking into sandbox.
+- [x] Update the Darwin and Linux package modules for the requested tool set.
+- [x] Run available static verification and record the review.
+
+### Risks / edge cases
+
+- Linux platform modules currently apply to all Linux roles, so package additions there can accidentally affect `sandbox`.
+- `raycast` is macOS-only and must not leak into Linux evaluation.
+- Package naming differs between Homebrew and nixpkgs, so the mapping needs to stay explicit.
+
+### Review
+
+- Updated `modules/platforms/darwin/homebrew.nix` so the Darwin common-role machines now install `gh` and `uv` as Homebrew formulae and `raycast` as a cask, while preserving the existing `1password-cli` (`op`) and `pnpm` entries.
+- Updated `modules/platforms/linux/packages.nix` so Linux common-role machines now install `gh` and `uv` through nixpkgs, while preserving the existing `_1password-cli` (`op`) and `pnpm` packages.
+- Tightened `lib/profiles.nix` so the Linux platform package module no longer applies to the `sandbox` role. That keeps these common-role additions scoped to `personal` and `work` instead of leaking through the platform layer to all Linux roles.
+- Static verification completed locally: `git diff --check -- lib/profiles.nix modules/platforms/linux/packages.nix modules/platforms/darwin/homebrew.nix tasks/todo.md`, a targeted `git diff` review of the changed package lists, and a grep sweep confirming `raycast` only appears in the Darwin Homebrew module all passed.
+- Full `nix` evaluation and package build validation remain blocked in this workspace because the local Nix toolchain is still unavailable.
+
+## Follow-up: Remove Mcfly and zsh vim mode
+
+### Goal
+
+Stop managing `mcfly` entirely and remove the custom zsh vim-mode command-line behavior from the shared shell configuration.
+
+### Success criteria
+
+- `mcfly` is removed from all managed package lists.
+- The managed zsh `mcfly` hook file is removed.
+- The managed zsh vim-mode feature file is removed.
+- The remaining shell config still loads cleanly without stale references to the deleted features.
+- Available static verification is run and the review is recorded.
+
+### Assumptions / constraints
+
+- The requested removal applies across all managed roles that currently inherit these shared shell behaviors.
+- The feature removal should delete the managed files rather than leave inert stubs behind.
+- Full `nix` evaluation remains unavailable in this workspace.
+
+### Steps
+
+- [x] Inspect the current package and shell feature references for `mcfly` and vim-mode behavior.
+- [x] Remove the packages and managed zsh feature files.
+- [x] Run available static verification, sweep for stale references, and record the review.
+
+### Risks / edge cases
+
+- The managed zsh loader sources every file in `home/.config/zsh/features`, so deleted feature files must be removed cleanly without leaving references elsewhere.
+- `mcfly` is installed in multiple role/platform package lists, so partial removal would leave inconsistent behavior across profiles.
+
+### Review
+
+- Removed `mcfly` from all managed package lists in `modules/platforms/darwin/homebrew.nix`, `modules/platforms/linux/packages.nix`, and `modules/roles/sandbox.nix`, so none of the managed profiles now install it.
+- Deleted the managed zsh feature files `home/.config/zsh/features/00_vim-command-line-navigation.zsh` and `home/.config/zsh/features/01_mcfly.zsh`, which removes both the custom shell vim-mode behavior and the Mcfly initialization hook from the shared zsh config.
+- Static verification completed locally: `git diff --check -- modules/platforms/darwin/homebrew.nix modules/platforms/linux/packages.nix modules/roles/sandbox.nix home/.config/zsh/features tasks/todo.md`, `zsh -n home/.zshrc home/.config/zsh/config.zsh home/.config/zsh/functions/git-current-branch.zsh home/.config/zsh/os/config-osx.zsh`, and a stale-reference grep. The only remaining `mcfly` and vim-mode strings are in this historical task log, not in the managed config.
+- Full `nix` evaluation remains blocked in this workspace because the local Nix toolchain is unavailable.
+
+## Follow-up: Bootstrap preview and diff flags
+
+### Goal
+
+Add `--dry-run` and `--diff` to the macOS bootstrap wrapper so previewing a role change is possible without immediately switching the live system.
+
+### Success criteria
+
+- `bootstrap.sh` accepts `--dry-run` and `--diff` alongside `personal` or `work`.
+- `--dry-run` builds the target Darwin closure but does not switch the system or install missing prerequisites.
+- `--diff` shows a closure diff against the current system when one exists.
+- The bootstrap docs explain the new preview behavior and the existing Home Manager backup behavior for managed file conflicts.
+- Available local verification is run and the review is recorded.
+
+### Assumptions / constraints
+
+- The wrapper remains Darwin-only.
+- A true preview still requires Nix to already be installed, because building the target closure depends on it.
+- `--diff` is closure-level diffing, not a file-by-file preview of Home Manager-managed targets.
+
+### Steps
+
+- [x] Record the current bootstrap/diff behavior and update the plan if the implementation needs to avoid side effects in preview mode.
+- [x] Implement the new bootstrap flags and preview flow.
+- [x] Update docs, run targeted verification, and record the review.
+
+### Risks / edge cases
+
+- A preview path that auto-installs Nix or Homebrew would no longer be meaningfully dry.
+- There may be no current Darwin system symlink to diff against on first install, so `--diff` must degrade gracefully.
+- Closure diffs show package/system changes, but not every possible Home Manager file replacement detail.
+
+### Review
+
+- Updated `bootstrap.sh` to accept `--dry-run`, `--diff`, and `--help` in addition to the existing `personal` and `work` role arguments.
+- `--dry-run` now builds the target Darwin closure and logs the resulting store path, but does not call `darwin-rebuild switch`. To keep the preview path side-effect free, it also refuses to auto-install missing Nix and only warns if Homebrew is missing.
+- `--diff` now runs `nix store diff-closures /run/current-system <new-system-path>` after the target closure is built. If the current system symlink is missing, bootstrap logs that the diff is being skipped and continues gracefully.
+- Updated `README.md` and `docs/nix/README.md` to document the preview flags and to make the existing Home Manager managed-file backup behavior explicit: conflicting targets are backed up with the `.hm-backup` suffix during a real apply.
+- Verification completed locally: `bash -n bootstrap.sh`, `./bootstrap.sh --help`, `git diff --check -- bootstrap.sh README.md docs/nix/README.md tasks/todo.md`, and a targeted `git diff` review of the changed script/docs all passed.
+- Full end-to-end validation of `--dry-run`, `--diff`, and a real bootstrap apply remains blocked here because the local Nix toolchain is still unavailable in this workspace.
+
+## Follow-up: Dry-run missing-Nix UX
+
+### Goal
+
+Make the `--dry-run` failure mode explicit when Nix is not installed yet, so the first-install limitation is obvious instead of looking like a broken preview path.
+
+### Success criteria
+
+- `bootstrap.sh --dry-run` explains that a preview requires an existing Nix installation.
+- The message tells the user the two valid next steps: run a real bootstrap once or install Nix manually first.
+- The docs call out that `--dry-run` is only available after Nix exists on the machine.
+- The follow-up review and lesson are recorded.
+
+### Steps
+
+- [x] Update the dry-run error message and usage/help text.
+- [x] Update the docs to call out the first-install limitation explicitly.
+- [x] Run targeted verification and record the review.
+
+### Review
+
+- Confirmed the reported `--dry-run` output was expected in a no-Nix environment: `command -v nix` returns nothing in this workspace, and neither `/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh` nor `$HOME/.nix-profile/etc/profile.d/nix.sh` exists, so there is no evaluator available for a preview build.
+- Updated `bootstrap.sh` so the `--dry-run` failure message is explicit about the limitation and gives the two valid next steps: run a normal bootstrap once or install Nix manually first.
+- Updated the usage/help text plus `README.md` and `docs/nix/README.md` so the first-install limitation is documented alongside the preview examples instead of being implicit.
+- Recorded the correction in `tasks/lessons.md` so future preview-mode changes call out required installed prerequisites up front.
+- Verification completed locally: `bash -n bootstrap.sh`, `./bootstrap.sh personal --dry-run`, `git diff --check -- bootstrap.sh README.md docs/nix/README.md tasks/todo.md tasks/lessons.md`, and a targeted `git diff` review all passed.
+
+## Follow-up: install-dependencies bootstrap command
+
+### Goal
+
+Add `./bootstrap.sh install-dependencies` as the explicit first-install path for prerequisites, and point missing-Nix preview/diff users to that command.
+
+### Success criteria
+
+- `bootstrap.sh install-dependencies` installs the bootstrap prerequisites without applying a role.
+- `bootstrap.sh personal --dry-run` and `--diff` point to `install-dependencies` when Nix is missing.
+- The usage text and docs document the new command and the first-install flow clearly.
+- The correction is captured in `tasks/lessons.md`.
+- Available static verification is run and the review is recorded.
+
+### Assumptions / constraints
+
+- `install-dependencies` remains Darwin-only, like the rest of the bootstrap wrapper.
+- The subcommand installs both Nix and Homebrew, since both are bootstrap prerequisites on macOS.
+- The existing direct role-apply path remains supported.
+
+### Steps
+
+- [x] Update the bootstrap CLI shape to support `install-dependencies`.
+- [x] Route missing-Nix preview/diff flows to the new command in messaging.
+- [x] Update docs, record the lesson, and run targeted verification.
+
+### Review
+
+- Updated `bootstrap.sh` to support two explicit entrypoints: `./bootstrap.sh install-dependencies` for prerequisite installation, and `./bootstrap.sh <personal|work> [--dry-run] [--diff]` for preview/apply.
+- `install-dependencies` installs Nix and Homebrew on Darwin without applying a role. It rejects preview flags so the command surface stays unambiguous.
+- Missing-Nix preview paths now point users to `./bootstrap.sh install-dependencies` instead of manual-only guidance. The rerun hint now preserves the actual requested preview flags correctly for both `--dry-run` and `--diff`.
+- Updated `README.md` and `docs/nix/README.md` so the first-install flow is explicit: run `install-dependencies`, then preview or apply the chosen role.
+- Recorded the correction in `tasks/lessons.md` so future bootstrap UX changes prefer a repo-supported prerequisite command over manual-only instructions when the workflow needs one.
+- Verification completed locally: `bash -n bootstrap.sh`, `./bootstrap.sh --help`, `./bootstrap.sh personal --dry-run`, `./bootstrap.sh personal --diff`, `./bootstrap.sh install-dependencies --diff`, and `git diff --check -- bootstrap.sh README.md docs/nix/README.md tasks/todo.md tasks/lessons.md` all passed.
+
+## Follow-up: Live dry-run evaluation failure
+
+### Goal
+
+Fix the current `./bootstrap.sh personal --dry-run` evaluation failure against the installed Nix toolchain and keep iterating until the preview path succeeds.
+
+### Success criteria
+
+- The current bootstrap dry-run failure is reproduced locally with the installed Nix toolchain.
+- The pinned `nix-darwin` / Home Manager module interfaces are inspected directly and the repo is updated to use supported options.
+- Follow-on evaluation failures, if any, are addressed in the same loop.
+- `./bootstrap.sh personal --dry-run` completes successfully.
+- The review is recorded with the actual runtime verification that passed.
+
+### Assumptions / constraints
+
+- The local machine now has enough Nix installed to evaluate the flake.
+- `flake.lock` may now be generated as part of the real evaluation path and should be treated as part of the repo state.
+- Fixes should stay aligned to the pinned inputs rather than guessing against older examples.
+
+### Steps
+
+- [x] Reproduce the current dry-run failure with trace output and inspect the pinned module sources.
+- [x] Patch the repo to use supported module options and fix any additional runtime evaluation errors.
+- [x] Re-run bootstrap dry-run until it succeeds, then record the review.
+
+### Review
+
+- Reproduced the live failure from `./bootstrap.sh personal --dry-run` and confirmed the first break was a pinned `nix-darwin` interface mismatch: `homebrew.enableZshIntegration` is not a valid option in the pinned `nix-darwin` revision from `flake.lock`.
+- Removed that unsupported option from `modules/platforms/darwin/homebrew.nix` and moved the required Homebrew shell initialization into `modules/shared/shell.nix`, guarded for Darwin and sourced from the standard `/opt/homebrew` or `/usr/local` locations.
+- Re-ran the dry-run and followed the next real failure to the Rust helper build graph. `atlas-cli` was resolving `time` `0.3.47`, which requires `rustc 1.88.0`, while the pinned Nix toolchain in the current build path provides `rustc 1.86.0`.
+- Fixed the Atlas helper without widening the repo toolchain surface: removed the `time` dependency from `home/.codex/skills/atlas/scripts/Cargo.toml`, trimmed the lockfile, and rewrote the small date-boundary helpers in `home/.codex/skills/atlas/scripts/src/main.rs` to use macOS `/bin/date` at runtime instead of the `time` crate. Atlas is Darwin-only, so that runtime dependency matches the target platform.
+- Runtime verification now passes locally with the installed Nix toolchain: `./bootstrap.sh personal --dry-run` completes successfully and builds the Darwin closure, and `./bootstrap.sh personal --dry-run --diff` also succeeds, skipping the diff cleanly when `/run/current-system` is not present yet.
+- Targeted sanity checks also passed: `git diff --check -- modules/platforms/darwin/homebrew.nix modules/shared/shell.nix home/.codex/skills/atlas/scripts/Cargo.toml home/.codex/skills/atlas/scripts/Cargo.lock home/.codex/skills/atlas/scripts/src/main.rs`.
+
+## Follow-up: First-run diff UX
+
+### Goal
+
+Make the `--diff` no-baseline case explicit so first-run nix-darwin machines explain why there is nothing to compare against and what the user should run next.
+
+### Success criteria
+
+- `bootstrap.sh --diff` explains that `/run/current-system` is missing because there is no active nix-darwin generation yet.
+- The message distinguishes between dry-run preview and a real apply.
+- The next command is explicit in the output.
+- The correction is recorded in `tasks/lessons.md`.
+
+### Steps
+
+- [x] Update the bootstrap diff message for the missing-baseline case.
+- [x] Record the correction in `tasks/lessons.md`.
+- [x] Re-run the diff path and record the review.
+
+### Review
+
+- Updated `bootstrap.sh` so the missing `/run/current-system` case is no longer logged as a generic skip. The script now explains that there is no active nix-darwin generation yet, which is why `nix store diff-closures` has no baseline.
+- The message is now context-sensitive: in `--dry-run` it tells the user to run `./bootstrap.sh <role>` once and then rerun `--dry-run --diff`; in a real apply with `--diff`, it explains that bootstrap will continue without a diff and that future diff runs will work after the activation completes.
+- Recorded the UX correction in `tasks/lessons.md` so future preview/diff work calls out missing active generations explicitly instead of falling back to a vague skip message.
+- Verification completed locally: `bash -n bootstrap.sh`, `git diff --check -- bootstrap.sh tasks/todo.md tasks/lessons.md`, and `./bootstrap.sh personal --dry-run --diff` all passed, and the runtime output now prints the first-run explanation plus the exact next command instead of a generic “Skipping diff.”
