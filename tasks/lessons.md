@@ -6,8 +6,8 @@
 - Why it happened: I anchored on the existing bootstrap/Brewfile pattern before locking the user's toolchain preference.
 - Prevention rule: When a plan involves installing a language toolchain, confirm whether the user wants the ecosystem-default installer or the repo's package manager before finalizing the bootstrap approach.
 - Mistake: I updated the Codex skill tree and initially closed the work without checking whether the mirrored Claude skills needed the same upgrades.
-- Why it happened: I scoped the migration around `dot_codex/skills` and failed to check for parallel skill trees before declaring the task complete.
-- Prevention rule: When a repo contains mirrored skill directories such as `dot_codex/skills` and `dot_claude/skills`, search and update both trees before closing any shared skill change.
+- Why it happened: I scoped the migration around one mirrored skill tree and failed to check the matching Claude tree before declaring the task complete.
+- Prevention rule: When a repo contains mirrored Codex and Claude skill directories, search and update both trees before closing any shared skill change.
 
 ## 2026-03-19
 
@@ -16,7 +16,7 @@
 - Prevention rule: When adding comment-mutation tooling, explicitly inventory all target comment types first (top-level PR comments, thread replies, resolutions) and apply any formatting rules, such as robot prefixes, across every creation path.
 - Mistake: I initially solved the installed-binary problem only for `sql-read` instead of inventorying every Rust-backed skill helper that used the same `cargo run` pattern.
 - Why it happened: I optimized for the immediate failing helper and did not broaden the audit to the shared packaging pattern across mirrored skill trees.
-- Prevention rule: When a bootstrap or packaging fix applies to one Rust-backed skill helper, inventory every `scripts/Cargo.toml` under `dot_codex/skills` and `dot_claude/skills` before closing the change, then install and document the whole set consistently.
+- Prevention rule: When a bootstrap or packaging fix applies to one Rust-backed skill helper, inventory every mirrored skill-helper `scripts/Cargo.toml` tree before closing the change, then install and document the whole set consistently.
 
 ## 2026-03-24
 

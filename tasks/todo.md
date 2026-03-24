@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace the current chezmoi-managed dotfiles repo with a flake-based Nix layout that composes role and platform modules.
+Replace the previous dotfiles layout with a flake-based Nix architecture that composes role and platform modules.
 
 ## Success criteria
 
@@ -10,7 +10,7 @@ Replace the current chezmoi-managed dotfiles repo with a flake-based Nix layout 
 - Existing managed payloads are sourced from `home/` and linked into `$HOME` via Nix modules.
 - Darwin uses `nix-darwin` with declarative Homebrew and macOS defaults.
 - Linux uses Home Manager with Nix packages instead of distro package managers.
-- chezmoi-era scripts, ignore rules, and docs are removed or replaced.
+- Legacy scripts, ignore rules, and docs are removed or replaced.
 
 ## Assumptions / constraints
 
@@ -25,8 +25,8 @@ Replace the current chezmoi-managed dotfiles repo with a flake-based Nix layout 
 - [x] Audit the moved payloads in `home/` and finalize the exact Nix file mappings.
 - [x] Create `flake.nix`, `lib/`, and role/platform/shared modules.
 - [x] Wire Darwin/Homebrew, Linux/Nix packages, and file linking for shared payloads.
-- [x] Replace bootstrap and README workflow from chezmoi to Nix.
-- [x] Remove chezmoi-era files and clean up the repo layout.
+- [x] Replace the bootstrap and README workflow with Nix.
+- [x] Remove legacy files and clean up the repo layout.
 - [x] Run available verification and record the review.
 
 ## Risks / edge cases
@@ -46,7 +46,7 @@ Replace the current chezmoi-managed dotfiles repo with a flake-based Nix layout 
 ## Review
 
 - Implemented a flake-based Nix layout with separate constructor helpers, shared Home Manager modules, Darwin `nix-darwin` system modules, Linux package modules, and role overlays for `common`, `personal`, `work`, and `sandbox`.
-- Moved the managed payloads into `home/` using actual target names, linked the curated `~/.codex` and `~/.claude` subsets without taking over local runtime state, and replaced the old chezmoi bootstrap/docs with Nix workflows.
+- Moved the managed payloads into `home/` using actual target names, linked the curated `~/.codex` and `~/.claude` subsets without taking over local runtime state, and replaced the old bootstrap/docs with Nix workflows.
 - Corrected two Home Manager evaluation hazards during review: `modules/shared/shell.nix` now uses the documented `programs.zsh.enableAutosuggestions`, `programs.zsh.enableSyntaxHighlighting`, and `programs.zsh.initExtra` options, and `modules/shared/tmux.nix` now uses a Homebrew-backed tmux wrapper on Darwin instead of assigning `null` to a package-typed option.
 - Verification completed locally: `bash -n bootstrap.sh home/.claude/statusline-command.sh home/.claude/tmux-notify.sh`, `zsh -n home/.zshrc home/.config/zsh/config.zsh home/.config/zsh/features/00_vim-command-line-navigation.zsh home/.config/zsh/features/01_mcfly.zsh home/.config/zsh/functions/git-current-branch.zsh home/.config/zsh/os/config-osx.zsh`, a stale-reference grep across the migrated repo, and a static path existence sweep across `modules/**/*.nix` and `lib/**/*.nix` all passed.
 - Verification remains blocked for `nix flake check`, `nix build`, and `flake.lock` generation because `nix`, `home-manager`, and `darwin-rebuild` are not installed in this workspace.
@@ -140,19 +140,19 @@ Make the bootstrap path safe to rerun as the normal update entrypoint, and add a
 
 ### Goal
 
-Carry forward the upstream skill and helper changes that landed on `main` after the Nix migration, and express the required runtime behavior declaratively in the Nix layout so the branch can merge cleanly without reviving the old chezmoi paths.
+Carry forward the upstream skill and helper changes that landed on `main` after the Nix migration, and express the required runtime behavior declaratively in the Nix layout so the branch can merge cleanly without reviving the old legacy paths.
 
 ### Success criteria
 
-- The managed `home/` tree includes the upstream Codex and Claude skill additions that were previously added under `dot_codex/` and `dot_claude/`.
+- The managed `home/` tree includes the upstream Codex and Claude skill additions that were previously added under the old legacy skill paths.
 - `modules/shared/files.nix` deploys the newly added managed skill trees and helper assets.
-- The Nix setup installs the Rust-backed skill helper commands on `PATH` without relying on the old chezmoi bootstrap scripts.
+- The Nix setup installs the Rust-backed skill helper commands on `PATH` without relying on the old bootstrap scripts.
 - Shell/session and Homebrew parity gaps identified during conflict review are carried forward into the Nix config.
 - Available local verification is run and the follow-up review is recorded.
 
 ### Assumptions / constraints
 
-- The Nix layout remains the source of truth; old chezmoi-era paths are not restored.
+- The Nix layout remains the source of truth; old legacy paths are not restored.
 - Rust helper binaries should be built once from the canonical managed sources, not independently from mirrored Codex and Claude copies.
 - Full Nix evaluation remains blocked here if the local toolchain is unavailable.
 
@@ -171,11 +171,11 @@ Carry forward the upstream skill and helper changes that landed on `main` after 
 
 ### Review
 
-- Merged the upstream skill-helper and agent-guidance changes into the Nix layout by moving the new Codex and Claude payloads from the resurrected `dot_codex/` and `dot_claude/` paths into `home/`, while keeping the old chezmoi files deleted.
+- Merged the upstream skill-helper and agent-guidance changes into the Nix layout by moving the new Codex and Claude payloads from the resurrected legacy skill paths into `home/`, while keeping the old pre-Nix files deleted.
 - Expanded `modules/shared/files.nix` so the managed profile now deploys the new skill trees (`frontend-design`, `programming`, `sql-read`) and the newly added helper assets and script trees from the moved `home/` layout.
 - Added `modules/shared/skill-helpers.nix` and wired it into `lib/profiles.nix` so the Rust-backed helper commands are built from the canonical `home/.codex/skills/**/scripts` sources and exposed on `PATH` declaratively, with `atlas-cli` gated to Darwin.
 - Carried forward the remaining parity fixes from `main`: `modules/shared/base.nix` now adds `$HOME/.cargo/bin` to the session path, `modules/platforms/darwin/homebrew.nix` now treats `1password-cli` as a cask, the skill docs now describe the Nix-profile helper model instead of `~/.local/bin`, and `scripts/test-skill-helpers.sh` now targets the moved `home/` sources.
-- Verification completed locally: `bash -n bootstrap.sh scripts/test-skill-helpers.sh`, `git diff --check --cached`, `git ls-files -u`, a path-existence sweep for the new managed helper sources, and a stale-reference grep for `dot_codex/`, `dot_claude/`, and `~/.local/bin` assumptions all passed.
+- Verification completed locally: `bash -n bootstrap.sh scripts/test-skill-helpers.sh`, `git diff --check --cached`, `git ls-files -u`, a path-existence sweep for the new managed helper sources, and a stale-reference grep for the old legacy skill paths and `~/.local/bin` assumptions all passed.
 - Full `nix flake check`, `nix build`, helper-package builds, and an end-to-end profile apply are still blocked here because the local Nix toolchain is not installed in this workspace.
 
 ## Follow-up: Live ~/.config audit
@@ -213,8 +213,8 @@ Compare the current machine's `~/.config/*` tree against the Nix-managed `home/.
 ### Review
 
 - The flake currently manages `~/.config/nvim`, `~/.config/starship.toml`, and `~/.config/zsh` through `modules/shared/files.nix`, and manages `~/.config/ghostty` separately on Darwin through `modules/platforms/darwin/ghostty.nix`.
-- The live machine has additional top-level `~/.config` entries for `cagent`, `chezmoi`, `configstore`, `gh`, `git`, `github-copilot`, `iterm2`, `karabiner`, `mlflow`, `op`, `pgcli`, `raycast`, `tmux`, `uv`, `yarn`, and `zed` that are not represented in the flake today.
-- Most of those extra entries look intentionally local or tool-generated rather than declarative config targets: auth/state (`gh/hosts.yml`, `op`, `github-copilot`, `configstore`), app-local settings and caches (`raycast`, `iterm2`, `zed`, `pgcli`, `mlflow`, `uv`, `yarn`), and legacy leftovers from the migration (`chezmoi`).
+- The live machine has additional top-level `~/.config` entries for `cagent`, `configstore`, `gh`, `git`, `github-copilot`, `iterm2`, `karabiner`, `mlflow`, `op`, `pgcli`, `raycast`, `tmux`, `uv`, `yarn`, `zed`, plus one legacy migration leftover, that are not represented in the flake today.
+- Most of those extra entries look intentionally local or tool-generated rather than declarative config targets: auth/state (`gh/hosts.yml`, `op`, `github-copilot`, `configstore`), app-local settings and caches (`raycast`, `iterm2`, `zed`, `pgcli`, `mlflow`, `uv`, `yarn`), and legacy migration leftovers.
 - The one clear parity gap inside an actively managed area is `~/.config/zsh/functions/load-env-file.zsh`, which is sourced by the live shell pattern but is missing from `home/.config/zsh/functions`.
 - `~/.config/zsh/laurel.zsh` exists locally but is not referenced by the live or managed shell entrypoints, so it currently looks like an orphaned local helper rather than a required managed file.
 - `~/.config/tmux/.tmux.plugins.conf` is also not a required gap: it is the old TPM plugin list, and the flake already replaces that behavior via `programs.tmux.plugins` in `modules/shared/tmux.nix`.
@@ -462,3 +462,34 @@ Make the `--diff` no-baseline case explicit so first-run nix-darwin machines exp
 - The message is now context-sensitive: in `--dry-run` it tells the user to run `./bootstrap.sh <role>` once and then rerun `--dry-run --diff`; in a real apply with `--diff`, it explains that bootstrap will continue without a diff and that future diff runs will work after the activation completes.
 - Recorded the UX correction in `tasks/lessons.md` so future preview/diff work calls out missing active generations explicitly instead of falling back to a vague skip message.
 - Verification completed locally: `bash -n bootstrap.sh`, `git diff --check -- bootstrap.sh tasks/todo.md tasks/lessons.md`, and `./bootstrap.sh personal --dry-run --diff` all passed, and the runtime output now prints the first-run explanation plus the exact next command instead of a generic “Skipping diff.”
+
+## Follow-up: Remove remaining legacy repo artifacts
+
+### Goal
+
+Remove the last local repo artifacts from the old pre-Nix layout so the workspace shape matches the Nix-managed structure.
+
+### Success criteria
+
+- Stale local legacy skill directories are removed from the repo workspace.
+- No tracked repo docs, scripts, or modules reference the old legacy directory names.
+- Historical task notes may still mention the migration for context, but live repo content no longer depends on those paths.
+
+### Assumptions / constraints
+
+- The current Nix-managed `home/.codex` and `home/.claude` trees remain the canonical sources.
+- The old `dot_*` directories are untracked local leftovers, not active repo inputs.
+- Verification should focus on targeted path/reference checks rather than broad unrelated test runs.
+
+### Steps
+
+- [x] Record the remaining cleanup plan.
+- [x] Remove the stale legacy skill directories from the workspace.
+- [x] Re-scan the tracked repo for live references to the old layout outside historical task notes.
+- [x] Record the review.
+
+### Review
+
+- Removed the stale untracked legacy skill directories from the workspace. They only contained ignored `target/` build directories from older helper builds and were no longer used by the Nix layout.
+- Re-scanned the tracked repo for the old legacy path names and template conventions outside `tasks/todo.md` and `tasks/lessons.md`. That scan returned no matches, which confirms the live repo content no longer depends on the old layout.
+- Verification completed locally: a path-existence check for the removed directories, a repo scan for the old legacy path names and template conventions outside the task logs, and `git diff --check -- tasks/todo.md` all passed.
