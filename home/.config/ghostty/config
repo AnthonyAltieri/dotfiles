@@ -7,6 +7,7 @@ confirm-close-surface = false
 macos-option-as-alt = true
 macos-titlebar-style = tabs
 window-save-state = always
+custom-shader = shaders/cursor_tail.glsl
 
 #keybinds
 # Explicitly unbind Ghostty's default split navigation so Ctrl+h/j/k/l reach tmux + Neovim.

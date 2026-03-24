@@ -462,3 +462,163 @@ Make the `--diff` no-baseline case explicit so first-run nix-darwin machines exp
 - The message is now context-sensitive: in `--dry-run` it tells the user to run `./bootstrap.sh <role>` once and then rerun `--dry-run --diff`; in a real apply with `--diff`, it explains that bootstrap will continue without a diff and that future diff runs will work after the activation completes.
 - Recorded the UX correction in `tasks/lessons.md` so future preview/diff work calls out missing active generations explicitly instead of falling back to a vague skip message.
 - Verification completed locally: `bash -n bootstrap.sh`, `git diff --check -- bootstrap.sh tasks/todo.md tasks/lessons.md`, and `./bootstrap.sh personal --dry-run --diff` all passed, and the runtime output now prints the first-run explanation plus the exact next command instead of a generic “Skipping diff.”
+
+## Follow-up: First-run /etc takeover UX
+
+### Goal
+
+Investigate the current real `./bootstrap.sh personal` activation failure on macOS and tighten the bootstrap UX around nix-darwin's first takeover of `/etc/bashrc` and `/etc/zshrc`.
+
+### Success criteria
+
+- The live `/etc/bashrc` and `/etc/zshrc` files are compared against the generated nix-darwin files so the current failure is explained from evidence.
+- `bootstrap.sh` detects the known first-run `/etc` conflict before calling `darwin-rebuild switch` and prints exact remediation steps.
+- The apply path matches the documented workflow by using root only for the `darwin-rebuild switch` step instead of requiring `sudo ./bootstrap.sh ...`.
+- The README/docs mention the first-run `/etc` rename case if it remains user-visible.
+- Targeted shell/docs verification is recorded.
+
+### Assumptions / constraints
+
+- The current machine already has Nix and Homebrew installed, so the failure is in activation rather than prerequisite installation.
+- nix-darwin intentionally refuses to overwrite unmanaged `/etc` files whose contents differ from the generated payloads.
+- The fix should improve bootstrap ergonomics without broadening the repo's managed surface or auto-renaming root-owned system files.
+
+### Steps
+
+- [x] Compare the live `/etc` shell files with the generated nix-darwin payloads and confirm the exact mismatch.
+- [x] Patch `bootstrap.sh` and any supporting docs for the first-run `/etc` conflict and apply invocation UX.
+- [x] Run targeted verification and record the review.
+
+### Review
+
+- Compared the live `/etc/bashrc` and `/etc/zshrc` files against the generated files in the already-built Darwin closure from the failing run and confirmed both pairs differ byte-for-byte, which matches nix-darwin's refusal to overwrite unmanaged `/etc` content on activation.
+- The live files currently contain the Nix installer stanza plus the stock macOS shell setup, while the generated nix-darwin files are the managed `DO NOT EDIT` variants that source nix-darwin's environment hooks instead. That makes the current failure a first-takeover safety stop, not a bad build.
+- Updated `bootstrap.sh` to detect that `/etc/bashrc` or `/etc/zshrc` would be replaced before it calls `darwin-rebuild switch`, and to print the exact `sudo mv ... .before-nix-darwin` remediation plus the rerun command.
+- Updated `bootstrap.sh` so a normal apply can be started as the user shown in the docs: the wrapper now uses `sudo` only for the final `darwin-rebuild switch` step, and it normalizes `HOME=~root` when the whole script is invoked as root to avoid the misleading root-home warning during bootstrap's own `nix` calls.
+- Updated `README.md` and `docs/nix/README.md` so the documented macOS workflow now explicitly says to run bootstrap as the normal user and calls out the one-time `/etc/*.before-nix-darwin` rename case.
+- Verification completed locally: `bash -n bootstrap.sh`, `./bootstrap.sh --help`, `git diff --check -- bootstrap.sh README.md docs/nix/README.md tasks/todo.md`, direct `cmp -s` checks showing both live `/etc` shell files differ from the generated closure files, and a targeted `git diff` review all passed. A full live apply remains unverified in this sandbox because Nix daemon access from the sandboxed shell is denied.
+
+## Follow-up: Neovim tmux navigation
+
+### Goal
+
+Fix the managed Neovim/tmux pane navigation so `<C-h/j/k/l>` works again instead of raising `E492: Not an editor command: ^UTmuxNavigateLeft`.
+
+### Success criteria
+
+- The repo-managed Neovim config actually installs the Neovim half of the tmux navigator integration.
+- The fix is minimal and aligned with the existing lazy.nvim plugin layout.
+- Targeted verification covers the touched config and explains any remaining runtime gap.
+
+### Assumptions / constraints
+
+- The tmux side is already configured via Home Manager.
+- The reported `E492` means the `:TmuxNavigate*` commands are being referenced before the relevant Neovim plugin is loaded.
+- Networked plugin installation is not available from this sandbox, so runtime verification is limited to static config checks unless the dependency is already present locally.
+
+### Steps
+
+- [x] Inspect the existing tmux and Neovim config to confirm which side of the integration is missing.
+- [x] Patch the managed Neovim lazy spec with the smallest correct fix.
+- [x] Run targeted verification and record the review.
+
+### Review
+
+- Confirmed the mismatch in the managed config: `modules/shared/tmux.nix` already enables the tmux-side `vim-tmux-navigator` plugin, but the Neovim lazy.nvim spec under `home/.config/nvim/lua/aalt/lazy/` did not include the Neovim plugin at all.
+- That explains the reported error exactly: the `<C-h>` mapping resolved to `<cmd><C-U>TmuxNavigateLeft<CR>`, but without `christoomey/vim-tmux-navigator` loaded Neovim had no `:TmuxNavigateLeft` command to execute.
+- Added a minimal always-loaded lazy spec in `home/.config/nvim/lua/aalt/lazy/tmux_navigator.lua` so the navigation commands and default mappings are defined during startup, and recorded the locally installed plugin revision in `home/.config/nvim/lazy-lock.json` for consistency with the rest of the managed plugin set.
+- Targeted verification passed locally: `nvim --headless '+lua print(vim.fn.exists(\":TmuxNavigateLeft\"))' +qa` now prints `2`, and `nvim --headless '+lua print(vim.inspect(vim.fn.maparg(\"<C-h>\", \"n\", false, true)))' +qa` shows the expected mapping to `<cmd><C-U>TmuxNavigateLeft<CR>`. `git diff --check -- home/.config/nvim/lua/aalt/lazy/tmux_navigator.lua home/.config/nvim/lazy-lock.json tasks/todo.md` also passed. The headless runs emitted sandbox-related log-file warnings for `~/.local/state/nvim`, but they did not affect the command or mapping checks.
+
+## Follow-up: Ghostty Cursor Tail shader
+
+### Goal
+
+Add the upstream Ghostty Cursor Tail shader to the managed Ghostty config so the effect is part of the declarative macOS setup instead of a one-off local clone.
+
+### Success criteria
+
+- The upstream Cursor Tail shader source is vendored into the managed Ghostty config tree.
+- Ghostty config enables that shader via `custom-shader = ...`.
+- The change preserves the existing Ghostty/tmux/neovim keybinding setup.
+- Targeted verification confirms the managed files are syntactically sane and linked correctly.
+
+### Assumptions / constraints
+
+- Ghostty config on Darwin is managed by `modules/platforms/darwin/ghostty.nix` via the `home/.config/ghostty` directory.
+- The upstream repo is `sahaj-b/ghostty-cursor-shaders`, and the desired file is `cursor_tail.glsl`.
+- This sandbox may not support full GUI-side Ghostty runtime validation, so verification may be limited to config inspection and any available CLI validation.
+
+### Steps
+
+- [x] Inspect the current managed Ghostty config and upstream Cursor Tail usage instructions.
+- [x] Vendor the shader file and wire it into the managed Ghostty config.
+- [x] Run targeted verification and record the review.
+
+### Review
+
+- Confirmed the Darwin Ghostty setup is already fully managed by `modules/platforms/darwin/ghostty.nix`, which recursively deploys the repo's `home/.config/ghostty` directory into `~/.config/ghostty`.
+- Reviewed the upstream usage instructions from `sahaj-b/ghostty-cursor-shaders`, which say to place shader files under `~/.config/ghostty/shaders` and reference them with `custom-shader = shaders/<name>.glsl`. The requested file is `cursor_tail.glsl`, described upstream as the kitty-like cursor trail effect.
+- Added `custom-shader = shaders/cursor_tail.glsl` to `home/.config/ghostty/config` without touching the existing Ghostty split-navigation overrides.
+- Vendored the upstream shader into `home/.config/ghostty/shaders/cursor_tail.glsl` and annotated it with the upstream source URL and blob SHA so the managed file has a clear origin for future updates.
+- Targeted verification passed locally for file-level correctness: `git diff --check -- home/.config/ghostty/config home/.config/ghostty/shaders/cursor_tail.glsl tasks/todo.md` passed, the shader file exists under the managed Ghostty tree, and the config references the expected relative shader path. Ghostty's CLI advertises `+validate-config`, but invoking it in this sandbox exits immediately with `SentryInitFailed`, so end-to-end Ghostty validation remains a local runtime follow-up after the next apply.
+- Follow-up debugging showed the live Ghostty version was not the problem: `Ghostty 1.3.1 stable` supports `custom-shader`, and `ghostty +show-config` resolved the shader path to `/Users/anthonyaltieri/.config/ghostty/shaders/cursor_tail.glsl`. The actual failure was deployment: the shader file was still untracked in Git, so it was omitted from the flake source and never appeared in the Home Manager generation under `~/.config/ghostty/shaders`.
+- Verified that mismatch directly: the applied Home Manager store path contained only the top-level Ghostty config files, while `git status` showed `home/.config/ghostty/shaders/cursor_tail.glsl` as untracked. As an immediate local fix, copied the vendored shader into `~/.config/ghostty/shaders/cursor_tail.glsl` so Ghostty now has a file at the configured path. The durable repo fix is to git-track that shader asset before relying on future flake applies to deploy it.
+
+## Follow-up: Faster Cursor Tail tuning
+
+### Goal
+
+Keep the Ghostty Cursor Tail shader tracked in git and reduce the perceived lag so the tail settles more quickly.
+
+### Success criteria
+
+- The vendored shader asset is staged so future flake applies can actually deploy it.
+- The shader constants are tuned for a faster response without removing the effect entirely.
+- Targeted verification covers the edited file and staged Ghostty paths.
+
+### Assumptions / constraints
+
+- The shader already renders on the local system after placing the file in `~/.config/ghostty/shaders`.
+- The visible lag comes primarily from the shader's animation duration and maximum trail length constants.
+- Only the Ghostty repo files should be staged for this follow-up, not unrelated workspace changes.
+
+### Steps
+
+- [x] Tune the Cursor Tail shader constants for faster settling.
+- [x] Stage the Ghostty config and shader asset so the file is git-tracked.
+- [x] Run targeted verification and record the review.
+
+### Review
+
+- Tuned the vendored `cursor_tail.glsl` constants to reduce the lag without removing the effect: `DURATION` dropped from `0.09` to `0.045` seconds and `MAX_TRAIL_LENGTH` dropped from `0.2` to `0.14`.
+- Staged the Ghostty files that matter for this feature so the shader is now actually git-tracked for future flake applies: `home/.config/ghostty/config` is staged as modified and `home/.config/ghostty/shaders/cursor_tail.glsl` is staged as a new tracked file.
+- Targeted verification passed locally: `git diff --check -- home/.config/ghostty/config home/.config/ghostty/shaders/cursor_tail.glsl tasks/todo.md` succeeded, and `git diff --cached --name-status -- home/.config/ghostty/config home/.config/ghostty/shaders/cursor_tail.glsl` confirms the staged `M`/`A` state for the two Ghostty paths.
+
+## Follow-up: Local pnpm relink
+
+### Goal
+
+Modify the local macOS system so `pnpm` is provided by the Homebrew formula, matching the repo's nix-darwin Homebrew declaration, instead of the existing Corepack-owned shim path.
+
+### Success criteria
+
+- `/opt/homebrew/bin/pnpm` is relinked to the Homebrew `pnpm` formula.
+- `pnpm --version` resolves through the Homebrew-managed path.
+- The result is verified and recorded.
+
+### Assumptions / constraints
+
+- The Homebrew `pnpm` formula is already installed locally.
+- The current conflict is that `/opt/homebrew/bin/pnpm` points at Corepack rather than the Homebrew keg.
+- This is a local system change outside the workspace, so it requires elevated privileges.
+
+### Steps
+
+- [x] Relink Homebrew `pnpm` over the current conflicting shim.
+- [x] Verify the resulting symlink and `pnpm` resolution.
+
+### Review
+
+- Ran `brew link --overwrite pnpm` with elevation to hand ownership of `/opt/homebrew/bin/pnpm` back to the Homebrew formula, matching the repo's nix-darwin Homebrew declaration.
+- Homebrew reported the keg as already linked, but the live path is now correct: `/opt/homebrew/bin/pnpm -> ../Cellar/pnpm/8.1.0/bin/pnpm`.
+- Verified the active executable resolution with `which pnpm` and `pnpm --version`, which now return `/opt/homebrew/bin/pnpm` and `8.1.0`.
