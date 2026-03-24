@@ -15,7 +15,6 @@
     };
 
     brews = [
-      "1password-cli"
       "bat"
       "bun"
       "fd"
@@ -33,6 +32,7 @@
     ];
 
     casks = [
+      "1password-cli"
       "ghostty"
     ];
   };

@@ -14,6 +14,8 @@
     ".claude/skills/gh-address-comments" = recursive ../../home/.claude/skills/gh-address-comments;
     ".claude/skills/gh-fix-ci" = recursive ../../home/.claude/skills/gh-fix-ci;
     ".claude/skills/gh-manage-pr" = recursive ../../home/.claude/skills/gh-manage-pr;
+    ".claude/skills/programming" = recursive ../../home/.claude/skills/programming;
+    ".claude/skills/sql-read" = recursive ../../home/.claude/skills/sql-read;
     ".claude/statusline-command.sh" = {
       source = ../../home/.claude/statusline-command.sh;
       executable = true;
@@ -27,10 +29,13 @@
     ".codex/prompts" = recursive ../../home/.codex/prompts;
     ".codex/rules" = recursive ../../home/.codex/rules;
     ".codex/skills/atlas" = recursive ../../home/.codex/skills/atlas;
+    ".codex/skills/frontend-design" = recursive ../../home/.codex/skills/frontend-design;
     ".codex/skills/gh-address-comments" = recursive ../../home/.codex/skills/gh-address-comments;
     ".codex/skills/gh-fix-ci" = recursive ../../home/.codex/skills/gh-fix-ci;
     ".codex/skills/gh-manage-pr" = recursive ../../home/.codex/skills/gh-manage-pr;
     ".codex/skills/notion-knowledge-capture" = recursive ../../home/.codex/skills/notion-knowledge-capture;
+    ".codex/skills/programming" = recursive ../../home/.codex/skills/programming;
+    ".codex/skills/sql-read" = recursive ../../home/.codex/skills/sql-read;
   };
 
   xdg.configFile = {

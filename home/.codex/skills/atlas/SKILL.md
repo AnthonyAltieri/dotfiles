@@ -6,24 +6,17 @@ description: "macOS-only AppleScript control for the ChatGPT Atlas desktop app. 
 
 # Atlas Control (macOS)
 
-Use the bundled CLI to control Atlas and inspect local browser data.
+Use the `atlas-cli` helper from the active Nix profile to control Atlas and inspect local browser data.
 
 ## Quick Start
 
-Set a stable path to the CLI:
-
-```bash
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-export ATLAS_CLI="$CODEX_HOME/skills/atlas/scripts/atlas_cli.py"
-```
-
-User-scoped skills install under `$CODEX_HOME/skills` (default: `~/.codex/skills`).
+The active Nix profile puts `atlas-cli` on `PATH`, so call it directly.
 
 Then run:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" app-name
-uv run --python 3.12 python "$ATLAS_CLI" tabs --json
+atlas-cli app-name
+atlas-cli tabs --json
 ```
 
 The CLI requires the Atlas app bundle in `/Applications` or `~/Applications`:
@@ -37,26 +30,26 @@ If AppleScript fails with a permissions error, grant Automation permission in Sy
 1. List tabs to get `window_id` and `tab_index`:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" tabs
+atlas-cli tabs
 ```
 
 2. Focus a tab using the `window_id` and `tab_index` from the listing:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" focus-tab <window_id> <tab_index>
+atlas-cli focus-tab <window_id> <tab_index>
 ```
 
 3. Open a new tab:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" open-tab "https://chatgpt.com/"
+atlas-cli open-tab "https://chatgpt.com/"
 ```
 
 Optional maintenance commands:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" reload-tab <window_id> <tab_index>
-uv run --python 3.12 python "$ATLAS_CLI" close-tab <window_id> <tab_index>
+atlas-cli reload-tab <window_id> <tab_index>
+atlas-cli close-tab <window_id> <tab_index>
 ```
 
 ## Bookmarks and History
@@ -66,28 +59,30 @@ Atlas stores Chromium-style profile data under `~/Library/Application Support/co
 List bookmarks:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" bookmarks --limit 100
+atlas-cli bookmarks --limit 100
 ```
 
 Search bookmarks:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" bookmarks --search "docs"
+atlas-cli bookmarks --search "docs"
 ```
 
 Search history:
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" history --search "openai docs" --limit 50
+atlas-cli history --search "openai docs" --limit 50
 ```
 
 History for today (local time):
 
 ```bash
-uv run --python 3.12 python "$ATLAS_CLI" history --today --limit 200 --json
+atlas-cli history --today --limit 200 --json
 ```
 
 The history command copies the SQLite database to a temporary location to avoid lock errors.
+
+If `atlas-cli` is missing, reapply the profile so the packaged helper is rebuilt and activated.
 
 If history looks stale or empty, ask the user which Atlas install they are using, then check both Atlas data roots and inspect the one with the most recent `History` file:
 

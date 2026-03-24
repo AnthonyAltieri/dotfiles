@@ -118,6 +118,7 @@ Use these placement rules:
 - `files.nix` links the managed payloads from `home/`.
 - `shell.nix`, `tmux.nix`, `neovim.nix`, `starship.nix`, and `vim.nix` configure the shell and editor stack.
 - `agents-codex.nix` and `agents-claude.nix` manage the curated agent config that should travel between machines.
+- `skill-helpers.nix` builds the Rust-backed helper commands from the managed skill source trees and puts them on `PATH`.
 
 ### Roles
 
@@ -157,6 +158,8 @@ Managed examples:
 - `~/.claude/settings.json`
 - selected Claude commands and skills
 - selected Codex prompts, rules, skills, and `AGENTS.md`
+
+The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read`.
 
 Unmanaged examples:
 

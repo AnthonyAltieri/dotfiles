@@ -9,3 +9,195 @@ prefix_rule(pattern=["tofu", "init"], decision="allow")
 prefix_rule(pattern=["tofu"], decision="allow")
 prefix_rule(pattern=["node", ".output/server/index.mjs"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "cd apps/signal && set -a && source .env.local && export APP_ENV=local APP_REGION=iad BASE_URL=http://localhost:3000 && set +a && yarn build && node .output/server/index.mjs"], decision="allow")
+prefix_rule(pattern=["yarn", "dev"], decision="allow")
+prefix_rule(pattern=["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}\\n", "http://localhost:3003/"], decision="allow")
+prefix_rule(pattern=["tmux"], decision="allow")
+prefix_rule(pattern=["psql"], decision="allow")
+prefix_rule(pattern=["./venv/bin/python", "utils/anon_migration.py"], decision="allow")
+prefix_rule(pattern=["docker", "compose"], decision="allow")
+prefix_rule(pattern=["docker", "port"], decision="allow")
+prefix_rule(pattern=["yarn", "test:e2e"], decision="allow")
+prefix_rule(pattern=["dotenv", "-e", ".test.env", "--", "jest", "--config=jest.config.e2e.ts", "--forceExit", "--runInBand", "test/user/create-user-v1.e2e.spec.ts"], decision="allow")
+prefix_rule(pattern=["./node_modules/.bin/dotenv", "-e", ".test.env", "--", "./node_modules/.bin/jest", "--config=jest.config.e2e.ts", "--coverage=false", "--forceExit", "--runInBand", "test/user/create-user-v1.e2e.spec.ts"], decision="allow")
+prefix_rule(pattern=["./node_modules/.bin/dotenv", "-e", ".test.env", "--", "./node_modules/.bin/jest", "--config=jest.config.e2e.ts", "--coverage=false", "--forceExit", "--runInBand", "test/user/get-user-in-customer.e2e.spec.ts", "--detectOpenHandles"], decision="allow")
+prefix_rule(pattern=["./node_modules/.bin/dotenv", "-e", ".test.env", "--", "./node_modules/.bin/jest", "--config=jest.config.e2e.ts", "--coverage=false", "--forceExit", "--runInBand"], decision="allow")
+prefix_rule(pattern=["./node_modules/.bin/dotenv", "-e", ".test.env", "--", "./node_modules/.bin/jest"], decision="allow")
+prefix_rule(pattern=["./venv/bin/python", "manage.py", "migrate"], decision="allow")
+prefix_rule(pattern=["pre-commit", "run"], decision="allow")
+prefix_rule(pattern=["yarn", "install"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --no-frozen-lockfile --ignore-scripts --ignore-engines"], decision="allow")
+prefix_rule(pattern=["uv", "build"], decision="allow")
+prefix_rule(pattern=["uv", "sync"], decision="allow")
+prefix_rule(pattern=["ruff", "--version"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache make test-no-cov ARGS='tests/test_api_server.py -k healthcheck'"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache make init"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache uv lock --upgrade-package Django"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache uv sync --frozen --group dev --group airflow"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache uv run --group dev python -c 'import django; print(django.get_version())'"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache make test"], decision="allow")
+prefix_rule(pattern=["./venv/bin/pip", "install", "--ignore-requires-python"], decision="allow")
+prefix_rule(pattern=["set", "-a"], decision="allow")
+prefix_rule(pattern=["source", ".env.test"], decision="allow")
+prefix_rule(pattern=["set", "+a"], decision="allow")
+prefix_rule(pattern=["./venv/bin/pytest", "--no-cov", "tests/anon_pipeline/test_api.py", "tests/test_conftest.py"], decision="allow")
+prefix_rule(pattern=["./venv/bin/pytest"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "PATH=\"/Users/anthonyaltieri/.codex/worktrees/62cf/data-service/venv/bin:$PATH\" ./venv/bin/pre-commit run --from-ref origin/main --to-ref HEAD"], decision="allow")
+prefix_rule(pattern=["./venv/bin/python", "manage.py", "lintmigrations"], decision="allow")
+prefix_rule(pattern=["./venv/bin/python", "manage.py", "makemigrations"], decision="allow")
+prefix_rule(pattern=["docker", "build"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache uv lock --upgrade-package apache-airflow"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache uv lock --upgrade-package apache-airflow-providers-http"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache uv run --group dev --group airflow python -c 'import importlib.metadata as m; print(m.version(\"apache-airflow-providers-http\"))'"], decision="allow")
+prefix_rule(pattern=["/Users/anthonyaltieri/code/enrichment-service/venv/bin/pip", "install", "protobuf==5.29.6"], decision="allow")
+prefix_rule(pattern=["/Users/anthonyaltieri/code/enrichment-service/venv/bin/pytest", "tests/orchestration/test_customer_document_models.py", "--config-file=pyproject.toml", "--no-cov", "-n", "0"], decision="allow")
+prefix_rule(pattern=["venv/bin/pip", "install"], decision="allow")
+prefix_rule(pattern=["yarn", "--cwd", "apps/signal", "run", "docker:up"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "gh pr view 5892 --json body --jq .body > /tmp/webapps-pr-body.md && perl -0pi -e 's/\\n## Verification\\n/\\n## Related PRs\\n- webapps-infra: https:\\/\\/github.com\\/pinginc\\/webapps-infra\\/pull\\/391\\n\\n## Verification\\n/s unless /## Related PRs/' /tmp/webapps-pr-body.md && gh pr edit 5892 --body-file /tmp/webapps-pr-body.md"], decision="allow")
+prefix_rule(pattern=["docker", "start"], decision="allow")
+prefix_rule(pattern=["docker", "ps"], decision="allow")
+prefix_rule(pattern=["redis-cli", "-p", "6379"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "UV_CACHE_DIR=.uv-cache uv pip install -r requirements-dev.txt"], decision="allow")
+prefix_rule(pattern=["uvx", "ruff", "check"], decision="allow")
+prefix_rule(pattern=["aws", "sts"], decision="allow")
+prefix_rule(pattern=["aws", "iam"], decision="allow")
+prefix_rule(pattern=["aws", "sso-admin"], decision="allow")
+prefix_rule(pattern=["aws", "identitystore"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "SKIP=pyrefly-typecheck-system git commit -m \"feat: add internal document parsing trigger\""], decision="allow")
+prefix_rule(pattern=["uvx", "ruff", "format"], decision="allow")
+prefix_rule(pattern=[".", "venv/bin/activate"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "git add src/app/document_parsing.py && SKIP=pyrefly-typecheck-system git commit -m \"fix: cast inferred document type for parse trigger\""], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "git add README.md src/app/document_parsing.py tests/app/test_document_parsing.py && SKIP=pyrefly-typecheck-system git commit -m \"refactor: remove parse_run_id from document parse api\""], decision="allow")
+prefix_rule(pattern=["venv312/bin/pip", "install"], decision="allow")
+prefix_rule(pattern=["venv312/bin/python", "-m", "pytest"], decision="allow")
+prefix_rule(pattern=["source", "venv312/bin/activate"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "source venv312/bin/activate && SKIP=pyrefly-typecheck-system git commit -m \"feat: add parse run lifecycle events\""], decision="allow")
+prefix_rule(pattern=["rm", "-f", "/tmp/enrichment-service-link"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "source \"$HOME/.cargo/env\" && cargo build --release --manifest-path dot_codex/skills/atlas/scripts/Cargo.toml"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "\"$HOME/.cargo/bin/cargo\" build --release --manifest-path dot_claude/skills/gh-address-comments/scripts/Cargo.toml"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "\"$HOME/.cargo/bin/cargo\" build --release --manifest-path dot_claude/skills/gh-fix-ci/scripts/Cargo.toml"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "psql 'host=localhost port=51109 user=laurel-reader dbname=postgres connect_timeout=5' -w -P pager=off -F $'\\t' -Atc \"select table_name, status, rows_read, rows_written, error_message from anon_pipeline_run_table where run_id = '125cafe1-a918-4d39-8212-8f4d4b1cbd0a' order by stage, table_name;\""], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "psql 'host=localhost port=51109 user=laurel-reader dbname=postgres connect_timeout=5' -w -P pager=off -F $'\\t' -Atc \"select run_id, migration_type, database_role, status, started_at, finished_at, rows_read_total, rows_written_total, tables_total, tables_succeeded, tables_failed, error_summary from anon_pipeline_run where source_customer_id = '63cae348f5ac4cbf71680a0c' and window_start = '2026-03-17T02:15:00+00:00' and window_end = '2026-03-18T02:15:00+00:00' order by started_at;\""], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "psql 'host=localhost port=51109 user=laurel-reader dbname=postgres connect_timeout=5' -w -P pager=off -F $'\\t' -Atc \"select run_id, migration_type, database_role, status, source_customer_id, target_customer_id, region, environment, window_start, window_end, rows_read_total, rows_written_total, tables_total, tables_succeeded, tables_failed, error_summary from anon_pipeline_run where run_id = '125cafe1-a918-4d39-8212-8f4d4b1cbd0a';\""], decision="allow")
+prefix_rule(pattern=["task", "fmt"], decision="allow")
+prefix_rule(pattern=["dprint", "fmt"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "source venv312/bin/activate && AWS_PROFILE=lrl-dev-oncall MLFLOW_TRACKING_URI='arn:aws:sagemaker:us-east-1:927966219271:mlflow-tracking-server/iad-dev-enrichment' PYTHONPATH=src:dags venv312/bin/python manage.py seed_prompts"], decision="allow")
+prefix_rule(pattern=["./bootstrap.sh"], decision="allow")
+prefix_rule(pattern=["source", "/tmp/sql-read-local-parse-db.sh"], decision="allow")
+prefix_rule(pattern=["ln", "-s"], decision="allow")
+prefix_rule(pattern=["yarn", "--cwd", "apps/admin", "test"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "gh pr view 2667 --json body --jq .body > /tmp/sig-771-enrichment-pr-current.md && perl -0pi -e 's/\\n## Risks\\n/\\n## Related PRs\\n\\n- webapps: https:\\/\\/github.com\\/pinginc\\/webapps\\/pull\\/6091\\n\\n## Risks\\n/' /tmp/sig-771-enrichment-pr-current.md && gh pr edit 2667 --body-file /tmp/sig-771-enrichment-pr-current.md"], decision="allow")
+prefix_rule(pattern=["mkdir", "-p", "apps/admin/src/features/documents/components", "apps/admin/src/features/documents/hooks"], decision="allow")
+prefix_rule(pattern=["sort"], decision="allow")
+prefix_rule(pattern=["./node_modules/.bin/tsc", "-p", "apps/admin/tsconfig.json", "--noEmit", "--incremental", "false"], decision="allow")
+prefix_rule(pattern=["yarn", "--cwd", "apps/admin", "lint"], decision="allow")
+prefix_rule(pattern=["mkdir", "-p", "apps/admin/src/features/statement-of-work/components", "apps/admin/src/features/statement-of-work/hooks", "apps/admin/src/features/statement-of-work/types"], decision="allow")
+
+prefix_rule(
+    pattern=["sql-read", "run"],
+    decision="allow",
+    justification="The persisted-target sql-read run path is read-only by construction.",
+    match=[
+        "sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json",
+    ],
+    not_match=[
+        "sql-read target upsert --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL",
+    ],
+)
+
+prefix_rule(
+    pattern=["fetch-comments"],
+    decision="allow",
+    justification="fetch-comments only reads PR review data from GitHub.",
+    match=[
+        "fetch-comments --format compact",
+        "fetch-comments --format json",
+    ],
+    not_match=[
+        "create-comment --body FROM CODEX: ready for another look.",
+    ],
+)
+
+prefix_rule(
+    pattern=["summarize-threads"],
+    decision="allow",
+    justification="summarize-threads only reads local input and emits a summary.",
+    match=[
+        "summarize-threads /tmp/pr-threads.tsv",
+    ],
+    not_match=[
+        "resolve-thread --thread-id PRRT_example",
+    ],
+)
+
+prefix_rule(
+    pattern=["inspect-pr-checks"],
+    decision="allow",
+    justification="inspect-pr-checks only inspects PR checks and log excerpts.",
+    match=[
+        "inspect-pr-checks --repo . --json",
+        "inspect-pr-checks --repo . --pr 2667 --json",
+    ],
+    not_match=[
+        "classify-ci-log /tmp/failed.log",
+    ],
+)
+
+prefix_rule(
+    pattern=["classify-ci-log"],
+    decision="allow",
+    justification="classify-ci-log only reads local CI log input and emits a local summary.",
+    match=[
+        "classify-ci-log /tmp/failed.log",
+    ],
+    not_match=[
+        "inspect-pr-checks --repo . --json",
+    ],
+)
+
+prefix_rule(
+    pattern=["sql-read", "target"],
+    decision="prompt",
+    justification="Target mutation stores connection details and should stay approval-gated.",
+    match=[
+        "sql-read target upsert --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL",
+    ],
+    not_match=[
+        "sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json",
+    ],
+)
+
+prefix_rule(
+    pattern=["create-comment"],
+    decision="prompt",
+    justification="Posting PR comments mutates GitHub state and should keep prompting.",
+    match=[
+        "create-comment --body FROM CODEX: ready for another look.",
+    ],
+    not_match=[
+        "fetch-comments --format json",
+    ],
+)
+
+prefix_rule(
+    pattern=["create-thread-reply"],
+    decision="prompt",
+    justification="Replying to review threads mutates GitHub state and should keep prompting.",
+    match=[
+        "create-thread-reply --thread-id PRRT_example --body FROM CODEX: Addressed in abc123 - fixed the issue.",
+    ],
+    not_match=[
+        "summarize-threads /tmp/pr-threads.tsv",
+    ],
+)
+
+prefix_rule(
+    pattern=["resolve-thread"],
+    decision="prompt",
+    justification="Resolving review threads mutates GitHub state and should keep prompting.",
+    match=[
+        "resolve-thread --thread-id PRRT_example",
+    ],
+    not_match=[
+        "fetch-comments --format compact",
+    ],
+)

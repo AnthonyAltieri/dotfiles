@@ -135,3 +135,45 @@ Make the bootstrap path safe to rerun as the normal update entrypoint, and add a
 - Reworked `bootstrap.sh` so the supported macOS path is explicitly rerunnable: it now verifies Darwin up front, reloads Nix and Homebrew when they are already installed, installs them only when missing, builds the selected Darwin closure without leaving a repo-local `result` symlink behind, and reapplies the chosen role on every run.
 - Verification completed locally: `bash -n bootstrap.sh`, `git diff --check -- README.md bootstrap.sh docs/nix/README.md tasks/todo.md`, and a targeted docs/link grep all passed.
 - Full `nix` evaluation remains blocked in this workspace because the Nix toolchain is still unavailable here, so `nix flake check`, `nix build`, and an end-to-end bootstrap run on macOS still need to happen on a machine with Nix installed.
+
+## Follow-up: Mainline parity after Nix migration
+
+### Goal
+
+Carry forward the upstream skill and helper changes that landed on `main` after the Nix migration, and express the required runtime behavior declaratively in the Nix layout so the branch can merge cleanly without reviving the old chezmoi paths.
+
+### Success criteria
+
+- The managed `home/` tree includes the upstream Codex and Claude skill additions that were previously added under `dot_codex/` and `dot_claude/`.
+- `modules/shared/files.nix` deploys the newly added managed skill trees and helper assets.
+- The Nix setup installs the Rust-backed skill helper commands on `PATH` without relying on the old chezmoi bootstrap scripts.
+- Shell/session and Homebrew parity gaps identified during conflict review are carried forward into the Nix config.
+- Available local verification is run and the follow-up review is recorded.
+
+### Assumptions / constraints
+
+- The Nix layout remains the source of truth; old chezmoi-era paths are not restored.
+- Rust helper binaries should be built once from the canonical managed sources, not independently from mirrored Codex and Claude copies.
+- Full Nix evaluation remains blocked here if the local toolchain is unavailable.
+
+### Steps
+
+- [x] Import the missing upstream managed skill files into `home/.codex` and `home/.claude`.
+- [x] Update `modules/shared/files.nix` and related Nix modules for the expanded managed set and shell/Homebrew parity changes.
+- [x] Add declarative Nix packaging for the Rust-backed helper commands so they are on `PATH`.
+- [x] Run available verification and record the follow-up review.
+
+### Risks / edge cases
+
+- The upstream branch added helper source trees under old paths, so the migration needs to preserve content while remapping layout, not just accept Git's default rename guesses.
+- Some helper crates are mirrored between Codex and Claude; packaging the wrong source twice could create duplicate binaries or drift.
+- `atlas-cli` is macOS-only in practice and should stay Darwin-scoped even though the source is now managed by the shared tree.
+
+### Review
+
+- Merged the upstream skill-helper and agent-guidance changes into the Nix layout by moving the new Codex and Claude payloads from the resurrected `dot_codex/` and `dot_claude/` paths into `home/`, while keeping the old chezmoi files deleted.
+- Expanded `modules/shared/files.nix` so the managed profile now deploys the new skill trees (`frontend-design`, `programming`, `sql-read`) and the newly added helper assets and script trees from the moved `home/` layout.
+- Added `modules/shared/skill-helpers.nix` and wired it into `lib/profiles.nix` so the Rust-backed helper commands are built from the canonical `home/.codex/skills/**/scripts` sources and exposed on `PATH` declaratively, with `atlas-cli` gated to Darwin.
+- Carried forward the remaining parity fixes from `main`: `modules/shared/base.nix` now adds `$HOME/.cargo/bin` to the session path, `modules/platforms/darwin/homebrew.nix` now treats `1password-cli` as a cask, the skill docs now describe the Nix-profile helper model instead of `~/.local/bin`, and `scripts/test-skill-helpers.sh` now targets the moved `home/` sources.
+- Verification completed locally: `bash -n bootstrap.sh scripts/test-skill-helpers.sh`, `git diff --check --cached`, `git ls-files -u`, a path-existence sweep for the new managed helper sources, and a stale-reference grep for `dot_codex/`, `dot_claude/`, and `~/.local/bin` assumptions all passed.
+- Full `nix flake check`, `nix build`, helper-package builds, and an end-to-end profile apply are still blocked here because the local Nix toolchain is not installed in this workspace.

@@ -114,6 +114,16 @@ Current hidden runtime dependencies are also declared, including `jq`.
 
 This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
+Managed agent files include:
+
+- `~/.codex/AGENTS.md`
+- `~/.codex/prompts/pr.md`
+- `~/.codex/rules/default.rules`
+- `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}`
+- `~/.claude/skills/{frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,programming,sql-read}`
+
+Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
+
 Examples of intentionally unmanaged local state:
 
 - `~/.codex/config.toml`

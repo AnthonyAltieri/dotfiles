@@ -1,0 +1,4 @@
+interface:
+  display_name: "Programming"
+  short_description: "Write simpler, safer application code"
+  default_prompt: "Use $programming to design or refactor this code for validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests."

@@ -9,6 +9,7 @@
     homeDirectory = lib.mkDefault homeDirectory;
     stateVersion = "25.05";
     sessionPath = [
+      "$HOME/.cargo/bin"
       "$HOME/.local/bin"
       "$HOME/.poetry/bin"
       "$HOME/.warpstream"

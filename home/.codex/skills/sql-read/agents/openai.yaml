@@ -1,0 +1,4 @@
+interface:
+  display_name: "SQL Read"
+  short_description: "Inspect Postgres or SQLite safely in read-only mode"
+  default_prompt: "Inspect a Postgres or SQLite target in read-only mode, prefer sql-read safe-ro, summarize the result, and keep the query narrow."
