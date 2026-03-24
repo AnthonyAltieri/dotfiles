@@ -44,9 +44,23 @@
         homeDirectory = "/home/${username}";
       };
 
+      personal-aarch64-linux = mkHome {
+        role = "personal";
+        system = "aarch64-linux";
+        inherit username;
+        homeDirectory = "/home/${username}";
+      };
+
       work-linux = mkHome {
         role = "work";
         system = "x86_64-linux";
+        inherit username;
+        homeDirectory = "/home/${username}";
+      };
+
+      work-aarch64-linux = mkHome {
+        role = "work";
+        system = "aarch64-linux";
         inherit username;
         homeDirectory = "/home/${username}";
       };

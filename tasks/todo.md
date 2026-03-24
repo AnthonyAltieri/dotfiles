@@ -60,3 +60,38 @@ Replace the current chezmoi-managed dotfiles repo with a flake-based Nix layout 
 
 - `modules/shared/shell.nix` now keeps only the generic zsh/Home Manager wiring, while `modules/roles/common.nix` owns the `programs.zsh.oh-my-zsh` block that composes into `personal` and `work`.
 - Static review confirms `sandbox` no longer receives Oh My Zsh through the shared shell module. Full `nix` evaluation remains blocked by the missing local Nix toolchain.
+
+## Docker smoke testing
+
+### Goal
+
+Add a Docker-based smoke test harness that validates the Linux Home Manager profiles in a fresh container and documents the boundary between Docker-testable Linux behavior and Darwin-only behavior.
+
+### Success criteria
+
+- A fresh Docker container can build and activate `personal-linux`, `work-linux`, and `sandbox-x86_64-linux`.
+- A fresh Docker container can evaluate Linux profiles for the host container architecture and optionally attempt full activation when requested.
+- The harness asserts key managed files and commands after activation.
+- The harness proves the profile difference we care about right now, including Oh My Zsh on `personal`/`work` but not `sandbox`.
+- The docs explain that `nix-darwin` and macOS bootstrap validation cannot be covered by Docker.
+
+### Steps
+
+- [x] Add a Linux Dockerfile and runner scripts for per-profile smoke tests.
+- [x] Add assertions for managed files, package availability, and profile-specific behavior.
+- [x] Document how to run the Docker smoke tests and what they do not cover.
+- [x] Run the available local verification on the new scripts and record the outcome.
+
+### Risks / edge cases
+
+- Docker can validate Linux Home Manager activation, but not `nix-darwin` or Homebrew behavior on macOS.
+- Container tests will need network access to install Nix and fetch flake inputs.
+- Home Manager activation can be sensitive to the configured username and home directory inside the container.
+- Full activation of the Linux profiles pulls a large closure and may exceed Docker Desktop disk limits, so the default smoke test should stay evaluation-based.
+
+### Review
+
+- Added an Ubuntu 24.04 Docker harness in `tests/docker/ubuntu-lts/` and a host runner in `tests/run-linux-docker-smoke.sh`. The runner now chooses the matching Linux profile architecture by default, so Apple Silicon hosts exercise the new `personal-aarch64-linux`, `work-aarch64-linux`, and `sandbox-aarch64-linux` outputs.
+- Local verification passed for `bash -n tests/run-linux-docker-smoke.sh tests/docker/ubuntu-lts/run-profile-smoke-test.sh` and `git diff --check` on the touched files.
+- End-to-end Docker runs exposed and drove two real fixes: excluding the git worktree metadata from the Docker build context with `.dockerignore`, and updating `modules/shared/shell.nix` to the current Home Manager 25.05 zsh option names.
+- End-to-end Docker execution is still blocked in this environment by Docker/Nix store space exhaustion while materializing flake inputs inside the container (`No space left on device` under `/nix/store`). The harness is committed as a repo asset, but it still needs to be exercised on a machine with more Docker disk available.

@@ -20,7 +20,9 @@ The resulting outputs are:
 - `darwinConfigurations.personal`
 - `darwinConfigurations.work`
 - `homeConfigurations.personal-linux`
+- `homeConfigurations.personal-aarch64-linux`
 - `homeConfigurations.work-linux`
+- `homeConfigurations.work-aarch64-linux`
 - `homeConfigurations.sandbox-aarch64-darwin`
 - `homeConfigurations.sandbox-aarch64-linux`
 - `homeConfigurations.sandbox-x86_64-linux`
@@ -99,7 +101,9 @@ Apply a Linux profile:
 
 ```bash
 home-manager switch --flake .#personal-linux
+home-manager switch --flake .#personal-aarch64-linux
 home-manager switch --flake .#work-linux
+home-manager switch --flake .#work-aarch64-linux
 ```
 
 Apply a sandbox profile:
@@ -162,3 +166,32 @@ nix build .#homeConfigurations.sandbox-x86_64-linux.activationPackage
 ```
 
 `flake.lock` is not generated in this workspace because `nix` is not installed here. Generate it with `nix flake lock` on a machine with Nix available before relying on reproducible input pinning.
+
+## Docker smoke tests
+
+Ubuntu LTS smoke tests are available through Docker and validate the Linux Home Manager profiles in a fresh `ubuntu:24.04` container:
+
+```bash
+./tests/run-linux-docker-smoke.sh
+```
+
+You can also target a specific profile:
+
+```bash
+./tests/run-linux-docker-smoke.sh personal-linux
+./tests/run-linux-docker-smoke.sh personal-aarch64-linux
+./tests/run-linux-docker-smoke.sh work-linux
+./tests/run-linux-docker-smoke.sh work-aarch64-linux
+./tests/run-linux-docker-smoke.sh sandbox-x86_64-linux
+./tests/run-linux-docker-smoke.sh sandbox-aarch64-linux
+```
+
+The Docker harness installs Nix inside the container, evaluates the Linux Home Manager profiles for the container architecture, and asserts key managed files, package selections, and profile-specific behavior such as Oh My Zsh being present on `personal` and `work` but absent on `sandbox`.
+
+If you want to force full activation as well, set `FULL_ACTIVATE=1`:
+
+```bash
+FULL_ACTIVATE=1 ./tests/run-linux-docker-smoke.sh
+```
+
+Full activation pulls a much larger Nix closure and can exceed typical Docker Desktop disk budgets. Docker does not cover `nix-darwin`, Homebrew integration, or the macOS bootstrap path.
