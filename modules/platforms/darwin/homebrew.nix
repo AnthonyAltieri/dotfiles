@@ -24,7 +24,6 @@
       "neovim"
       "nvm"
       "pnpm"
-      "ripgrep"
       "starship"
       "tmux"
       "uv"

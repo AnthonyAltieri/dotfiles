@@ -11,7 +11,6 @@
     jq
     nodejs
     pnpm
-    ripgrep
     uv
   ];
 }
