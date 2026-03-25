@@ -29,10 +29,8 @@ if [[ "$(uname)" == "Darwin" ]]; then
 else
   export PNPM_HOME="$HOME/.local/share/pnpm"
 fi
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
+path=("$PNPM_HOME" "${(@)path:#$PNPM_HOME}")
+export PATH
 # pnpm end
 
 # bun completions
