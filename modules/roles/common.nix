@@ -2,6 +2,7 @@
 {
   home.packages = with pkgs; [
     ripgrep
+    spaces
   ];
 
   home.sessionVariables = {

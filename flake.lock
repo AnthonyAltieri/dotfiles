@@ -62,7 +62,24 @@
       "inputs": {
         "home-manager": "home-manager",
         "nix-darwin": "nix-darwin",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "spaces-src": "spaces-src"
+      }
+    },
+    "spaces-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1774368384,
+        "narHash": "sha256-0HwXTLSyq/qxPfQPwlj5hWfr9BFMsYey7092eHAmOlc=",
+        "owner": "AnthonyAltieri",
+        "repo": "spaces",
+        "rev": "54044533ce99ab49024e27f0801a37841ee44b24",
+        "type": "github"
+      },
+      "original": {
+        "owner": "AnthonyAltieri",
+        "repo": "spaces",
+        "type": "github"
       }
     }
   },

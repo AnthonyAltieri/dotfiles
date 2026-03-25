@@ -23,6 +23,7 @@ inputs.nix-darwin.lib.darwinSystem {
       {
         nixpkgs.hostPlatform = system;
         nixpkgs.config.allowUnfree = true;
+        nixpkgs.overlays = [ inputs.self.overlays.default ];
 
         nix.settings.experimental-features = [
           "nix-command"

@@ -124,7 +124,7 @@ Use these placement rules:
 
 `modules/roles/` is where profile intent lives:
 
-- `common.nix` carries shared `personal`/`work` behavior, including Oh My Zsh enablement.
+- `common.nix` carries shared `personal`/`work` behavior, including Oh My Zsh enablement and shared CLI packages such as `spaces`.
 - `personal.nix` is the personal overlay.
 - `work.nix` is the work overlay.
 - `sandbox.nix` is intentionally separate and stays lean.
@@ -193,6 +193,7 @@ What it does:
 7. runs `darwin-rebuild switch --flake` for the chosen role
 
 Run bootstrap as your normal user. On a real apply, it uses `sudo` only for the final `darwin-rebuild switch` step.
+That Darwin closure build now includes the locally packaged `spaces` CLI through the shared `common` role. On a real apply, nix-darwin activation also creates `/usr/local/bin/spaces` as a symlink to the Nix-built binary. `install-dependencies` does not build `spaces`, and preview-only `--dry-run` runs do not create the symlink because activation scripts do not execute.
 
 That makes the first-install prerequisite flow:
 
@@ -268,6 +269,7 @@ Prefer the smallest layer that actually owns the behavior. Do not put Linux-only
 The intended validation path is:
 
 ```bash
+nix run .#spaces -- --help
 nix flake check
 nix build .#darwinConfigurations.personal.system
 nix build .#darwinConfigurations.work.system
