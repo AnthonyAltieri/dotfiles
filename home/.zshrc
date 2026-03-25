@@ -31,15 +31,14 @@ else
 fi
 
 # Codex runs in a sandbox that cannot write to home-directory pnpm state.
-# Keep using the existing pnpm binary, but redirect its writable home to TMPDIR.
+# Keep the managed pnpm runtime out of $HOME, but share a stable store cache.
 if [[ -n "${CODEX_SANDBOX:-}" || -n "${CODEX_CI:-}" ]]; then
-  pnpm_tmp_root="${TMPDIR:-/tmp}"
-  pnpm_tmp_root="${pnpm_tmp_root%/}"
-  export PNPM_HOME="$pnpm_tmp_root/pnpm"
+  export PNPM_HOME="/tmp/pnpm-home"
+  export NPM_CONFIG_STORE_DIR="/tmp/pnpm-store"
   path=("$pnpm_home_default" "$PNPM_HOME" "${(@)path:#$pnpm_home_default}" "${(@)path:#$PNPM_HOME}")
-  unset pnpm_tmp_root
 else
   export PNPM_HOME="$pnpm_home_default"
+  unset NPM_CONFIG_STORE_DIR
   path=("$PNPM_HOME" "${(@)path:#$PNPM_HOME}")
 fi
 
