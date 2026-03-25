@@ -2,6 +2,8 @@
 
 If you are moving from `claude --worktree` to Codex and want the same isolated-branch workflow, you can do it with [`spaces`](https://github.com/AnthonyAltieri/spaces) instead of wiring raw `git worktree` commands together by hand.
 
+This guide adapts Alex Fazio's article on X: https://x.com/alxfazio/status/2035093597238784486
+
 That has two practical upsides:
 
 - `spaces` handles naming, branch creation, workspace layout, and discovery for you.
