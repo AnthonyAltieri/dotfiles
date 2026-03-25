@@ -28,14 +28,14 @@
     ".codex/AGENTS.md".source = ../../home/.codex/AGENTS.md;
     ".codex/prompts" = recursive ../../home/.codex/prompts;
     ".codex/rules/base.rules".source = ../../home/.codex/rules/base.rules;
-    ".codex/skills/atlas" = recursive ../../home/.codex/skills/atlas;
-    ".codex/skills/frontend-design" = recursive ../../home/.codex/skills/frontend-design;
-    ".codex/skills/gh-address-comments" = recursive ../../home/.codex/skills/gh-address-comments;
-    ".codex/skills/gh-fix-ci" = recursive ../../home/.codex/skills/gh-fix-ci;
-    ".codex/skills/gh-manage-pr" = recursive ../../home/.codex/skills/gh-manage-pr;
-    ".codex/skills/notion-knowledge-capture" = recursive ../../home/.codex/skills/notion-knowledge-capture;
-    ".codex/skills/programming" = recursive ../../home/.codex/skills/programming;
-    ".codex/skills/sql-read" = recursive ../../home/.codex/skills/sql-read;
+    ".agents/skills/atlas" = recursive ../../home/.codex/skills/atlas;
+    ".agents/skills/frontend-design" = recursive ../../home/.codex/skills/frontend-design;
+    ".agents/skills/gh-address-comments" = recursive ../../home/.codex/skills/gh-address-comments;
+    ".agents/skills/gh-fix-ci" = recursive ../../home/.codex/skills/gh-fix-ci;
+    ".agents/skills/gh-manage-pr" = recursive ../../home/.codex/skills/gh-manage-pr;
+    ".agents/skills/notion-knowledge-capture" = recursive ../../home/.codex/skills/notion-knowledge-capture;
+    ".agents/skills/programming" = recursive ../../home/.codex/skills/programming;
+    ".agents/skills/sql-read" = recursive ../../home/.codex/skills/sql-read;
   };
 
   xdg.configFile = {
