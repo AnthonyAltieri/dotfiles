@@ -3,6 +3,7 @@
 Managed with Nix using `nix-darwin` for macOS and Home Manager for user configuration.
 
 For the full architecture walkthrough, see [`docs/nix/README.md`](docs/nix/README.md).
+For `spaces`-based Codex workspace flows, see [`docs/codex-spaces.md`](docs/codex-spaces.md).
 
 ## Configuration model
 
