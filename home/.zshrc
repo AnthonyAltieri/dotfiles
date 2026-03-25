@@ -25,11 +25,24 @@ fi
 
 # pnpm
 if [[ "$(uname)" == "Darwin" ]]; then
-  export PNPM_HOME="$HOME/Library/pnpm"
+  pnpm_home_default="$HOME/Library/pnpm"
 else
-  export PNPM_HOME="$HOME/.local/share/pnpm"
+  pnpm_home_default="$HOME/.local/share/pnpm"
 fi
-path=("$PNPM_HOME" "${(@)path:#$PNPM_HOME}")
+
+# Codex runs in a sandbox that cannot write to home-directory pnpm state.
+# Keep the managed pnpm runtime out of $HOME, but share a stable store cache.
+if [[ -n "${CODEX_SANDBOX:-}" || -n "${CODEX_CI:-}" ]]; then
+  export PNPM_HOME="/tmp/pnpm-home"
+  export NPM_CONFIG_STORE_DIR="/tmp/pnpm-store"
+  path=("$pnpm_home_default" "$PNPM_HOME" "${(@)path:#$pnpm_home_default}" "${(@)path:#$PNPM_HOME}")
+else
+  export PNPM_HOME="$pnpm_home_default"
+  unset NPM_CONFIG_STORE_DIR
+  path=("$PNPM_HOME" "${(@)path:#$PNPM_HOME}")
+fi
+
+unset pnpm_home_default
 export PATH
 # pnpm end
 
