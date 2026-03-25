@@ -3,6 +3,8 @@
 Managed with Nix using `nix-darwin` for macOS and Home Manager for user configuration.
 
 For the full architecture walkthrough, see [`docs/nix/README.md`](docs/nix/README.md).
+The `spaces`-based Codex workflow in this repo is adapted from Alex Fazio's article: https://x.com/alxfazio/status/2035093597238784486
+For `spaces`-based Codex workspace flows, see [`docs/codex-spaces.md`](docs/codex-spaces.md).
 
 ## Configuration model
 
@@ -159,7 +161,7 @@ This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
 Managed agent files include:
 
-- `~/.agents/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}`
+- `~/.agents/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,spaces,sql-read}`
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`

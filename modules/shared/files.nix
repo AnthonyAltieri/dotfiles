@@ -35,6 +35,7 @@
     ".agents/skills/gh-manage-pr" = recursive ../../home/.codex/skills/gh-manage-pr;
     ".agents/skills/notion-knowledge-capture" = recursive ../../home/.codex/skills/notion-knowledge-capture;
     ".agents/skills/programming" = recursive ../../home/.codex/skills/programming;
+    ".agents/skills/spaces" = recursive ../../home/.codex/skills/spaces;
     ".agents/skills/sql-read" = recursive ../../home/.codex/skills/sql-read;
   };
 
