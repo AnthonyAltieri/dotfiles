@@ -155,7 +155,7 @@ Managed examples:
 - `~/.config/zsh`
 - `~/.config/starship.toml`
 - `~/.vimrc`
-- `~/.agents/skills/*`
+- `~/.codex/skills/*`
 - `~/.claude/settings.json`
 - selected Claude commands and skills, including `atlas`, `notion-knowledge-capture`, and `spaces`
 - selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
