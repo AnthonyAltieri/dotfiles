@@ -23,20 +23,20 @@ Do not use it for:
 
 The active Nix profile puts `sql-read` on `PATH`, so call it directly.
 
-1. Use the default Claude state dir: `"$HOME/.claude/skills/sql-read/state"`.
+1. Use the default Claude state dir: `"$CLAUDE_CONFIG_DIR/skills/sql-read/state"`.
 2. Export the connection input in its own command.
    - `export PROD_READONLY_URL='postgresql://user:pass@host:5432/dbname'`
 3. Persist the named target in a separate command.
-   - `sql-read target upsert --state-dir "$HOME/.claude/skills/sql-read/state" --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL`
+   - `sql-read target upsert --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL`
 4. Run read-only queries against the stored target in a separate command.
-   - `sql-read run --state-dir "$HOME/.claude/skills/sql-read/state" --target prod-readonly --file "$HOME/.claude/skills/sql-read/assets/queries/postgres-schema-overview.sql" --format json`
+   - `sql-read run --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --target prod-readonly --file "$CLAUDE_CONFIG_DIR/skills/sql-read/assets/queries/postgres-schema-overview.sql" --format json`
 5. Use the same split workflow for SQLite targets.
    - `export LOCAL_APP_DB='/absolute/path/to/app.sqlite3'`
-   - `sql-read target upsert --state-dir "$HOME/.claude/skills/sql-read/state" --name local-app --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB`
-   - `sql-read run --state-dir "$HOME/.claude/skills/sql-read/state" --target local-app --file "$HOME/.claude/skills/sql-read/assets/queries/sqlite-schema-overview.sql" --format json`
+   - `sql-read target upsert --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --name local-app --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB`
+   - `sql-read run --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --target local-app --file "$CLAUDE_CONFIG_DIR/skills/sql-read/assets/queries/sqlite-schema-overview.sql" --format json`
 6. Inspect or remove configured targets with explicit target-management commands.
-   - `sql-read target list --state-dir "$HOME/.claude/skills/sql-read/state"`
-   - `sql-read target remove --state-dir "$HOME/.claude/skills/sql-read/state" --name local-app`
+   - `sql-read target list --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state"`
+   - `sql-read target remove --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --name local-app`
 
 ## Workflow
 

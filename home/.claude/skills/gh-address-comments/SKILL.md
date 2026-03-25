@@ -1,6 +1,6 @@
 ---
 name: gh-address-comments
-description: Review and address GitHub PR comments on the current branch; fetch review threads with gh, triage unresolved items, apply focused fixes, then reply to and resolve threads.
+description: Use when a user asks to review and address GitHub PR comments on the current branch; fetch review threads with gh, triage unresolved items, and apply focused fixes.
 metadata:
   short-description: Address GitHub PR review comments
 ---
@@ -27,7 +27,7 @@ If no PR exists for the current branch, report this and stop.
    - `fetch-comments --format compact | summarize-threads`
 2. Fetch raw thread JSON directly when you need the full review payload.
    - `fetch-comments --format json`
-3. Summarize unresolved threads before reading the full comment bodies.
+3. Summarize unresolved threads before reading full comment bodies.
 4. Post a top-level PR comment when you need to leave a general note outside a review thread.
    - `create-comment --body "FROM CLAUDE: Ready for another look."`
 5. Post a thread reply with the bundled helper.
@@ -42,9 +42,10 @@ If no PR exists for the current branch, report this and stop.
    - `gh pr diff`
    - `gh pr checks`
 2. Fetch comments and review threads.
-   - Preferred: run `fetch-comments` for full conversation, review, and thread data.
+   - Preferred: run `fetch-comments` for full conversation/review/thread data.
    - For large review sets, use `fetch-comments --format compact | summarize-threads` first so the model sees grouped metadata before opening individual threads.
-   - Manual fallback: use `gh api graphql` to retrieve `reviewThreads`, `reviews`, and thread comments directly.
+   - Manual fallback via GraphQL:
+     - `gh api graphql` query for `reviewThreads`, `reviews`, and thread comments.
 3. Filter scope.
    - By default, process unresolved threads only.
    - Skip outdated threads unless still relevant.
@@ -103,7 +104,7 @@ If no PR exists for the current branch, report this and stop.
 
 - Do not read every raw thread body first on large PRs; summarize and filter by path, reviewer, and unresolved state before opening details.
 - Resolved and outdated threads are often noise unless the user explicitly asks for a full audit.
-- Keep GraphQL fetching in `gh`; the Rust helpers should only post-process saved thread metadata.
+- Keep GraphQL fetching in `gh`; the Rust helper should only post-process saved thread metadata.
 - When multiple reviewers comment on the same file, address the blocking or request-changes paths first.
 - `create-comment` targets the current branch PR by default and can take `--pr` when you need an explicit PR target.
 - `create-thread-reply` expects a review thread ID, not a comment ID.
@@ -116,14 +117,11 @@ If no PR exists for the current branch, report this and stop.
    - Before/after snippets grouped by file
 2. Summary Table
    - File, line, reviewer, type, comment, resolution, commit (if any)
-3. Thread Actions
-   - Thread ID, file:line, action taken, reply text, resolved status
 
 ## Notes
 
 - If `gh` auth fails, ask user to run `gh auth login`, then retry.
 - Keep responses concise and factual when a comment is a false positive.
-- Both mutations require repo write access (already assumed by existing workflow).
 
 ## Bundled Resources
 

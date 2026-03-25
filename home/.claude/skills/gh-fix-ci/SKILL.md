@@ -1,8 +1,6 @@
 ---
 name: gh-fix-ci
-description: Debug or fix failing GitHub PR checks; inspect checks/logs with gh, classify root causes, and propose focused fixes.
-metadata:
-  short-description: Debug failing PR checks
+description: Use when a user asks to debug or fix failing GitHub PR checks; inspect checks/logs with gh, classify root causes, and propose focused fixes. Prefer GitHub Actions and report external CI URLs when direct tooling is unavailable.
 ---
 
 # PR Checks Review
@@ -21,13 +19,12 @@ If no PR exists for the current branch, report this and stop.
 
 ## Quick start
 
-1. Fetch failing checks with `gh` via the bundled Rust helper.
+1. Fetch failing logs with `gh` or the bundled Rust helper.
    - `inspect-pr-checks --repo "." --json`
-2. Prefer a direct helper pipeline when the raw logs are too large to hand directly to the model.
+2. Prefer a direct helper pipeline when you need a compact failure summary from GitHub Actions logs.
    - `gh run view <run_id> --log-failed | classify-ci-log`
 3. If you already saved a log locally, classify it directly.
    - `classify-ci-log /tmp/failed.log`
-4. Summarize failing logs before reading full job output when the raw logs are large.
 
 ## Workflow
 
@@ -46,10 +43,8 @@ If no PR exists for the current branch, report this and stop.
      - `gh run view <run_id> --job=<job_id> --log`
 3. Handle external CI providers.
    - If a failed check URL is not GitHub Actions, treat it as external.
-   - For CircleCI jobs (identified by `circleci` in the name or details URL), use CircleCI MCP if available:
-     - Prefer the project slug plus branch flow if you have them.
-     - Pull failing job logs and test metadata before classifying the failure.
-   - For other external providers without available tooling, report the details URL for manual investigation.
+   - If CircleCI tooling is available in the environment, use it for deeper details.
+   - Otherwise report the details URL and classify it as out-of-scope for direct retrieval.
 4. Gather additional context for root-cause analysis.
    - `gh pr diff`
    - `git show HEAD --stat`
@@ -101,6 +96,7 @@ Use for fast inspection of failing checks and extraction of actionable log snipp
 Examples:
 - `inspect-pr-checks --repo "."`
 - `inspect-pr-checks --repo "." --pr "123" --json`
+- `inspect-pr-checks --repo "." --pr "123"`
 - `inspect-pr-checks --repo "." --pr "https://github.com/org/repo/pull/123" --json`
 - `inspect-pr-checks --repo "." --max-lines 200 --context 40`
 
@@ -111,12 +107,7 @@ Classifies raw CI log text into `build`, `test`, `lint`, `config`, or `environme
 ## Gotchas
 
 - Do not assume the first error line is the root cause; use the helper output to identify repeated failure markers before deciding.
-- Keep GitHub fetching and auth on `gh`; the Rust helpers should only process saved logs locally.
+- Keep GitHub fetching and auth on `gh`; the Rust helper should only process saved logs locally.
 - When a failure looks environmental, cross-check recent `main` runs before proposing code changes.
 - Large logs should be summarized first; only pull the exact failing job section back into the prompt when needed.
 - If either helper command is missing, reapply the profile so the packaged helpers are rebuilt and activated.
-
-## Notes
-
-- If `gh` auth fails, ask user to run `gh auth login`, then retry.
-- For external CI providers without available tooling, report the URL for manual investigation.
