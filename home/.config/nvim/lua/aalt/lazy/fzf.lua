@@ -10,6 +10,33 @@ local function get_launch_root()
 	return vim.fn.getcwd()
 end
 
+local FILE_IGNORE_GLOBS = {
+	"!**/.git/**",
+	"!**/.gitignore",
+	"!**/.codex/worktrees/**",
+}
+
+local function build_rg_files_command(opts)
+	opts = opts or {}
+
+	local parts = { "rg", "--files", "--hidden" }
+	if opts.no_ignore then
+		table.insert(parts, "--no-ignore")
+	end
+
+	for _, glob in ipairs(FILE_IGNORE_GLOBS) do
+		table.insert(parts, "--glob")
+		table.insert(parts, vim.fn.shellescape(glob))
+	end
+
+	if opts.include_glob then
+		table.insert(parts, "--glob")
+		table.insert(parts, vim.fn.shellescape(opts.include_glob))
+	end
+
+	return table.concat(parts, " ")
+end
+
 return {
 	{
 		"ibhagwan/fzf-lua",
@@ -28,8 +55,11 @@ return {
 
 					vim.cmd("stopinsert")
 
-					local cmd =
-						[[(rg --files --hidden --glob '!**/.git/**' --glob '!**/.gitignore' ; rg --files --hidden --no-ignore --glob '.env*' --glob '!**/.git/**') | awk '!seen[$0]++']]
+					local cmd = string.format(
+						"(%s ; %s) | awk '!seen[$0]++'",
+						build_rg_files_command(),
+						build_rg_files_command({ no_ignore = true, include_glob = ".env*" })
+					)
 
 					require("fzf-lua").files({
 						cmd = cmd,

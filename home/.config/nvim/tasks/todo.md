@@ -97,3 +97,37 @@
 ## Debug Commands
 - [x] Add `:FormatDebug` to inspect formatter routing/candidate availability for current buffer.
 - [x] Add `:LintDebug` to inspect linter routing/command config and current diagnostic sources.
+
+## Ctrl+p ignores `.codex/worktrees`
+
+### Goal
+- Ensure `Ctrl+p` Quick Open excludes `.codex/worktrees/**` while preserving current hidden-file behavior and explicit `.env*` recovery.
+
+### Success criteria
+- `Ctrl+p` no longer shows files from `.codex/worktrees/**`.
+- Hidden files outside `.codex/worktrees/**` still appear.
+- `.env*` files outside `.codex/worktrees/**` still appear even if ignored by Git.
+
+### Assumptions / constraints
+- Scope is limited to the `fzf-lua` `Ctrl+p` picker.
+- The ignore rule should apply only to `.codex/worktrees/**`, not the rest of `.codex`.
+- Verification can rely on headless Neovim and direct `rg` probes in this environment.
+
+### Plan
+- [x] Inspect the existing `Ctrl+p` picker command and confirm where `.codex/worktrees/**` is coming from.
+- [x] Factor the file-search command so both `rg` passes share the same ignore globs.
+- [x] Add `.codex/worktrees/**` exclusion to both the normal hidden-file pass and the `.env*` recovery pass.
+- [x] Run a targeted headless Neovim syntax/load check for the picker module.
+- [x] Probe the assembled `rg` behavior from a directory that contains `.codex/worktrees` and confirm zero matching results under that subtree.
+- [ ] Run an interactive `Ctrl+p` verification inside Neovim from a parent directory containing `.codex/worktrees`.
+
+### Risks / edge cases
+- Shell quoting must stay valid when the ignore globs are assembled dynamically.
+- The `.env*` recovery pass must not reintroduce results from ignored worktrees.
+
+### Review
+- `Ctrl+p` now builds both `rg` commands from one helper and one shared ignore-glob list in `lua/aalt/lazy/fzf.lua`.
+- Added `!**/.codex/worktrees/**` to both the normal hidden-file search and the `.env*` recovery search.
+- Headless Neovim callback verification printed the assembled command with the new `.codex/worktrees` exclusion in both `rg` passes.
+- Direct `rg` probe from `/Users/anthonyaltieri` returned no `.codex/worktrees/**` results once the new glob was applied.
+- Interactive `Ctrl+p` verification is still pending if a manual UI check is required.
