@@ -158,7 +158,7 @@ Managed examples:
 - `~/.agents/skills/*`
 - `~/.claude/settings.json`
 - selected Claude commands and skills
-- selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, `~/.codex/AGENTS.md`, and compatibility copies of Codex skills under `~/.codex/skills/*`
+- selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
 
 The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read`.
 
