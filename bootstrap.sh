@@ -23,7 +23,8 @@ Flags:
   --diff     Show a closure diff against the current system before switching.
   --overwrite
              Overwrite conflicting Home Manager managed files instead of creating
-             `*.hm-backup` backups during activation.
+             `*.hm-backup` backups during activation. If `/etc/bashrc` or
+             `/etc/zshrc` conflict, show a diff and prompt before replacing them.
   --help     Show this help text.
 EOF
   exit "$exit_code"
@@ -34,6 +35,7 @@ ROLE=""
 DRY_RUN=0
 SHOW_DIFF=0
 OVERWRITE=0
+ETC_SHELL_CONFLICTS=()
 
 darwin_config_name() {
   if (( OVERWRITE )); then
@@ -263,23 +265,147 @@ EOF
     store diff-closures "$current_system" "$system_path"
 }
 
-preflight_etc_shell_conflicts() {
+run_as_root() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+  else
+    sudo -- "$@"
+  fi
+}
+
+generated_etc_shell_file() {
+  local system_path="$1"
+  local live_file="$2"
+  printf '%s/etc/%s\n' "$system_path" "${live_file##*/}"
+}
+
+etc_shell_file_is_managed_link() {
+  local live_file="$1"
+  local managed_target="/etc/static/${live_file##*/}"
+
+  [[ -L "$live_file" && "$(readlink -- "$live_file")" == "$managed_target" ]]
+}
+
+detect_etc_shell_conflicts() {
   local system_path="$1"
   local generated_file=""
   local live_file=""
   local etc_name=""
-  local -a conflicting_files=()
+
+  ETC_SHELL_CONFLICTS=()
 
   for etc_name in bashrc zshrc; do
     generated_file="$system_path/etc/$etc_name"
     live_file="/etc/$etc_name"
 
+    if etc_shell_file_is_managed_link "$live_file"; then
+      continue
+    fi
+
     if [[ -e "$generated_file" && -e "$live_file" ]] && ! cmp -s "$live_file" "$generated_file"; then
-      conflicting_files+=("$live_file")
+      ETC_SHELL_CONFLICTS+=("$live_file")
+    fi
+  done
+}
+
+prompt_for_etc_shell_overwrites() {
+  local system_path="$1"
+  local live_file=""
+  local generated_file=""
+  local response=""
+  local diff_status=0
+
+  for live_file in "${ETC_SHELL_CONFLICTS[@]}"; do
+    generated_file="$(generated_etc_shell_file "$system_path" "$live_file")"
+
+    cat >&2 <<EOF
+
+[bootstrap] Diff for $live_file:
+EOF
+    if diff -u "$live_file" "$generated_file"; then
+      :
+    else
+      diff_status=$?
+      if (( diff_status > 1 )); then
+        echo "[bootstrap] Failed to diff $live_file against the generated configuration." >&2
+        exit 1
+      fi
+    fi
+
+    printf '[bootstrap] Overwrite %s during activation? [y/N] ' "$live_file" >&2
+    if ! IFS= read -r response; then
+      echo >&2
+      echo "[bootstrap] No response received. Aborting before changing /etc." >&2
+      exit 1
+    fi
+
+    case "$response" in
+      y|Y|yes|YES)
+        ;;
+      *)
+        echo "[bootstrap] Aborting at user request. No /etc shell files were changed." >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+prepare_etc_shell_backups() {
+  local live_file=""
+  local backup_file=""
+  local -a existing_backups=()
+
+  for live_file in "${ETC_SHELL_CONFLICTS[@]}"; do
+    backup_file="${live_file}.before-nix-darwin"
+    if [[ -e "$backup_file" ]]; then
+      existing_backups+=("$backup_file")
     fi
   done
 
-  if (( ${#conflicting_files[@]} == 0 )); then
+  if (( ${#existing_backups[@]} == 0 )); then
+    return 0
+  fi
+
+  cat >&2 <<EOF
+[bootstrap] Cannot auto-back up /etc shell files because backup targets already exist:
+EOF
+  printf '  %s\n' "${existing_backups[@]}" >&2
+  cat >&2 <<EOF
+
+Move or remove those backups, then rerun bootstrap.
+EOF
+  exit 1
+}
+
+backup_etc_shell_conflicts() {
+  local live_file=""
+  local backup_file=""
+
+  prepare_etc_shell_backups
+
+  for live_file in "${ETC_SHELL_CONFLICTS[@]}"; do
+    backup_file="${live_file}.before-nix-darwin"
+    log "Backing up $live_file to $backup_file before activation."
+    run_as_root mv "$live_file" "$backup_file"
+  done
+}
+
+remove_etc_shell_conflicts_for_overwrite() {
+  local live_file=""
+
+  for live_file in "${ETC_SHELL_CONFLICTS[@]}"; do
+    log "Removing $live_file so nix-darwin can install the generated replacement without creating a .before-nix-darwin backup."
+    run_as_root rm -f "$live_file"
+  done
+}
+
+preflight_etc_shell_conflicts() {
+  local system_path="$1"
+  local generated_dir="$system_path/etc"
+
+  detect_etc_shell_conflicts "$system_path"
+
+  if (( ${#ETC_SHELL_CONFLICTS[@]} == 0 )); then
     return 0
   fi
 
@@ -288,26 +414,30 @@ preflight_etc_shell_conflicts() {
 
 The following files already exist with non-generated content and would be replaced:
 EOF
-  printf '  %s\n' "${conflicting_files[@]}" >&2
-  cat >&2 <<EOF
+  printf '  %s\n' "${ETC_SHELL_CONFLICTS[@]}" >&2
 
-This is usually the first nix-darwin apply on a machine that still has the stock macOS files, often with the Nix installer stanza prepended.
+  if (( OVERWRITE )); then
+    cat >&2 <<EOF
 
-If there is nothing machine-critical in those files, rename them once and rerun bootstrap:
+Overwrite mode is enabled, so bootstrap will show a diff for each conflicting file and ask for confirmation before replacing it.
+If you decline any prompt, bootstrap will abort without changing /etc.
 EOF
-  for live_file in "${conflicting_files[@]}"; do
-    printf '  sudo mv %s %s.before-nix-darwin\n' "$live_file" "$live_file" >&2
-  done
+    prompt_for_etc_shell_overwrites "$system_path"
+    remove_etc_shell_conflicts_for_overwrite
+  else
+    cat >&2 <<EOF
+
+Bootstrap will back up each conflicting file to *.before-nix-darwin and continue automatically.
+EOF
+    backup_etc_shell_conflicts
+  fi
+
   cat >&2 <<EOF
 
-Then rerun:
-  ./bootstrap.sh ${ROLE}$(selected_apply_flags)
-
-Bootstrap will prompt for sudo only for the final darwin-rebuild switch step.
+Bootstrap will prompt for sudo again only for the final darwin-rebuild switch step.
 The generated replacements already exist in:
-  $system_path/etc
+  $generated_dir
 EOF
-  exit 1
 }
 
 switch_darwin_role() {

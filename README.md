@@ -89,7 +89,9 @@ Show a closure diff before a real apply:
 During a real apply, Home Manager backs up conflicting managed files with the `.hm-backup` suffix before replacing them by default.
 If you want a one-off apply to replace those files directly instead, run bootstrap with `--overwrite`.
 
-On the first real nix-darwin apply, bootstrap may also stop before activation if macOS still has unmanaged `/etc/bashrc` or `/etc/zshrc` content. In that case, rename the flagged files to `*.before-nix-darwin` once and rerun bootstrap.
+On the first real nix-darwin apply, bootstrap may also find unmanaged `/etc/bashrc` or `/etc/zshrc` content.
+Without `--overwrite`, bootstrap backs those files up to `*.before-nix-darwin` automatically and continues.
+With `--overwrite`, bootstrap shows a diff for each conflicting file and asks for confirmation before replacing it.
 
 The deeper explanation of what bootstrap does and how the flake composes roles and platforms lives in [`docs/nix/README.md`](docs/nix/README.md).
 
