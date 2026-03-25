@@ -1,5 +1,11 @@
 { inputs }:
-{ role, system, username, homeDirectory }:
+{
+  role,
+  system,
+  username,
+  homeDirectory,
+  overwriteHomeManagerBackups ? false,
+}:
 let
   lib = inputs.nixpkgs.lib;
   profiles = import ./profiles.nix { inherit lib; };
@@ -7,7 +13,7 @@ in
 inputs.nix-darwin.lib.darwinSystem {
   inherit system;
   specialArgs = {
-    inherit inputs role system username homeDirectory;
+    inherit inputs role system username homeDirectory overwriteHomeManagerBackups;
     platform = "darwin";
   };
   modules =
@@ -30,9 +36,10 @@ inputs.nix-darwin.lib.darwinSystem {
 
         home-manager.useGlobalPkgs = true;
         home-manager.useUserPackages = true;
-        home-manager.backupFileExtension = "hm-backup";
+        home-manager.backupFileExtension =
+          if overwriteHomeManagerBackups then null else "hm-backup";
         home-manager.extraSpecialArgs = {
-          inherit inputs role system username homeDirectory;
+          inherit inputs role system username homeDirectory overwriteHomeManagerBackups;
           platform = "darwin";
         };
         home-manager.users.${username}.imports = profiles.mkHomeModules {

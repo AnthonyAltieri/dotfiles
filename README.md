@@ -74,6 +74,7 @@ Preview without switching:
 ```bash
 ./bootstrap.sh personal --dry-run
 ./bootstrap.sh personal --dry-run --diff
+./bootstrap.sh personal --dry-run --overwrite
 ```
 
 `--dry-run` is available only after Nix is already installed on the machine. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
@@ -85,7 +86,8 @@ Show a closure diff before a real apply:
 ./bootstrap.sh work --diff
 ```
 
-During a real apply, Home Manager backs up conflicting managed files with the `.hm-backup` suffix before replacing them.
+During a real apply, Home Manager backs up conflicting managed files with the `.hm-backup` suffix before replacing them by default.
+If you want a one-off apply to replace those files directly instead, run bootstrap with `--overwrite`.
 
 On the first real nix-darwin apply, bootstrap may also stop before activation if macOS still has unmanaged `/etc/bashrc` or `/etc/zshrc` content. In that case, rename the flagged files to `*.before-nix-darwin` once and rerun bootstrap.
 
@@ -98,6 +100,7 @@ On macOS, rerunning bootstrap is the simplest path:
 ```bash
 ./bootstrap.sh personal
 ./bootstrap.sh work
+./bootstrap.sh personal --overwrite
 ```
 
 If you want to preview first:

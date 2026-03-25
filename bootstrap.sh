@@ -10,7 +10,7 @@ usage() {
   cat >&2 <<'EOF'
 Usage:
   ./bootstrap.sh install-dependencies
-  ./bootstrap.sh <personal|work> [--dry-run] [--diff]
+  ./bootstrap.sh <personal|work> [--dry-run] [--diff] [--overwrite]
 
 Bootstrap is the supported macOS apply path for this repo.
 It is safe to rerun after pulling changes or editing the flake.
@@ -21,6 +21,9 @@ Flags:
   --dry-run  Build the target closure but do not switch or install missing prerequisites.
              Requires Nix to already be installed on the machine.
   --diff     Show a closure diff against the current system before switching.
+  --overwrite
+             Overwrite conflicting Home Manager managed files instead of creating
+             `*.hm-backup` backups during activation.
   --help     Show this help text.
 EOF
   exit "$exit_code"
@@ -30,6 +33,49 @@ COMMAND=""
 ROLE=""
 DRY_RUN=0
 SHOW_DIFF=0
+OVERWRITE=0
+
+darwin_config_name() {
+  if (( OVERWRITE )); then
+    printf '%s-overwrite\n' "$ROLE"
+  else
+    printf '%s\n' "$ROLE"
+  fi
+}
+
+selected_apply_flags() {
+  local flags=""
+
+  if (( DRY_RUN )); then
+    flags+=" --dry-run"
+  fi
+  if (( SHOW_DIFF )); then
+    flags+=" --diff"
+  fi
+  if (( OVERWRITE )); then
+    flags+=" --overwrite"
+  fi
+
+  printf '%s\n' "$flags"
+}
+
+selected_non_preview_flags() {
+  local flags=""
+
+  if (( OVERWRITE )); then
+    flags+=" --overwrite"
+  fi
+
+  printf '%s\n' "$flags"
+}
+
+selected_diff_flags() {
+  printf ' --diff%s\n' "$(selected_non_preview_flags)"
+}
+
+selected_dry_run_diff_flags() {
+  printf ' --dry-run --diff%s\n' "$(selected_non_preview_flags)"
+}
 
 parse_args() {
   local arg
@@ -56,6 +102,9 @@ parse_args() {
       --diff)
         SHOW_DIFF=1
         ;;
+      --overwrite)
+        OVERWRITE=1
+        ;;
       -h|--help)
         usage 0
         ;;
@@ -67,8 +116,8 @@ parse_args() {
   done
 
   if [[ "$COMMAND" == "install-dependencies" ]]; then
-    if (( DRY_RUN || SHOW_DIFF )); then
-      echo "install-dependencies does not accept preview flags." >&2
+    if (( DRY_RUN || SHOW_DIFF || OVERWRITE )); then
+      echo "install-dependencies does not accept apply flags." >&2
       usage 1
     fi
     return
@@ -123,12 +172,7 @@ ensure_nix() {
 
   if (( DRY_RUN || SHOW_DIFF )); then
     local rerun_flags=""
-    if (( DRY_RUN )); then
-      rerun_flags+=" --dry-run"
-    fi
-    if (( SHOW_DIFF )); then
-      rerun_flags+=" --diff"
-    fi
+    rerun_flags="$(selected_apply_flags)"
 
     cat >&2 <<EOF
 Preview mode cannot continue until Nix is already installed.
@@ -178,8 +222,11 @@ ensure_homebrew() {
 }
 
 build_system_closure() {
+  local config_name
+  config_name="$(darwin_config_name)"
+
   nix --extra-experimental-features "$EXPERIMENTAL_FEATURES" \
-    build "${FLAKE_REF}#darwinConfigurations.${ROLE}.system" \
+    build "${FLAKE_REF}#darwinConfigurations.${config_name}.system" \
     --no-link \
     --print-out-paths | tail -n 1
 }
@@ -196,8 +243,8 @@ show_closure_diff() {
 This usually means this machine has not completed its first nix-darwin switch yet, so there is no baseline generation to compare against.
 
 Next steps:
-  1. Run ./bootstrap.sh ${ROLE}
-  2. Then rerun ./bootstrap.sh ${ROLE} --dry-run --diff
+  1. Run ./bootstrap.sh ${ROLE}$(selected_non_preview_flags)
+  2. Then rerun ./bootstrap.sh ${ROLE}$(selected_apply_flags)
 EOF
     else
       cat >&2 <<EOF
@@ -205,7 +252,7 @@ EOF
 
 This looks like the first nix-darwin apply on this machine. Bootstrap will continue without a diff and activate the new generation.
 
-After this finishes, rerun ./bootstrap.sh ${ROLE} --diff or ./bootstrap.sh ${ROLE} --dry-run --diff to compare future changes against the active system.
+After this finishes, rerun ./bootstrap.sh ${ROLE}$(selected_diff_flags) or ./bootstrap.sh ${ROLE}$(selected_dry_run_diff_flags) to compare future changes against the active system.
 EOF
     fi
     return
@@ -254,7 +301,7 @@ EOF
   cat >&2 <<EOF
 
 Then rerun:
-  ./bootstrap.sh ${ROLE}
+  ./bootstrap.sh ${ROLE}$(selected_apply_flags)
 
 Bootstrap will prompt for sudo only for the final darwin-rebuild switch step.
 The generated replacements already exist in:
@@ -265,11 +312,14 @@ EOF
 
 switch_darwin_role() {
   local system_path="$1"
+  local config_name
+  config_name="$(darwin_config_name)"
+
   log "Applying Darwin role: $ROLE"
   if [[ "$(id -u)" -eq 0 ]]; then
-    "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${ROLE}"
+    "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}"
   else
-    sudo -- "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${ROLE}"
+    sudo -- "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}"
   fi
 }
 
@@ -295,6 +345,10 @@ if [[ -z "$SYSTEM_PATH" ]]; then
 fi
 
 log "Built Darwin closure for $ROLE: $SYSTEM_PATH"
+
+if (( OVERWRITE )); then
+  log "Overwrite mode enabled. Home Manager will replace conflicting managed files without creating .hm-backup copies."
+fi
 
 if (( SHOW_DIFF )); then
   show_closure_diff "$SYSTEM_PATH"

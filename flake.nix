@@ -28,11 +28,27 @@
         homeDirectory = "/Users/${username}";
       };
 
+      personal-overwrite = mkDarwin {
+        role = "personal";
+        system = "aarch64-darwin";
+        inherit username;
+        homeDirectory = "/Users/${username}";
+        overwriteHomeManagerBackups = true;
+      };
+
       work = mkDarwin {
         role = "work";
         system = "aarch64-darwin";
         inherit username;
         homeDirectory = "/Users/${username}";
+      };
+
+      work-overwrite = mkDarwin {
+        role = "work";
+        system = "aarch64-darwin";
+        inherit username;
+        homeDirectory = "/Users/${username}";
+        overwriteHomeManagerBackups = true;
       };
     };
 
