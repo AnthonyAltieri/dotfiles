@@ -7,6 +7,7 @@ require("aalt.options")
 require("aalt.set")
 require("aalt.autocommands")
 require("aalt.debug_commands").setup()
+require("aalt.path_commands").setup()
 
 -- Bootstrap Lazy plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
