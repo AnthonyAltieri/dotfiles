@@ -55,6 +55,8 @@ fi
 export PATH="$HOME/.warpstream:$PATH"
 
 # Codex + spaces shortcuts
+# Adapted from Alex Fazio's article:
+#   https://x.com/alxfazio/status/2035093597238784486
 # Supported shell-only flags:
 #   --yorkspace / --yorktree
 #   --gorkspace / --gorktree
