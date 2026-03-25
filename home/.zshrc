@@ -25,11 +25,25 @@ fi
 
 # pnpm
 if [[ "$(uname)" == "Darwin" ]]; then
-  export PNPM_HOME="$HOME/Library/pnpm"
+  pnpm_home_default="$HOME/Library/pnpm"
 else
-  export PNPM_HOME="$HOME/.local/share/pnpm"
+  pnpm_home_default="$HOME/.local/share/pnpm"
 fi
-path=("$PNPM_HOME" "${(@)path:#$PNPM_HOME}")
+
+# Codex runs in a sandbox that cannot write to home-directory pnpm state.
+# Keep using the existing pnpm binary, but redirect its writable home to TMPDIR.
+if [[ -n "${CODEX_SANDBOX:-}" || -n "${CODEX_CI:-}" ]]; then
+  pnpm_tmp_root="${TMPDIR:-/tmp}"
+  pnpm_tmp_root="${pnpm_tmp_root%/}"
+  export PNPM_HOME="$pnpm_tmp_root/pnpm"
+  path=("$pnpm_home_default" "$PNPM_HOME" "${(@)path:#$pnpm_home_default}" "${(@)path:#$PNPM_HOME}")
+  unset pnpm_tmp_root
+else
+  export PNPM_HOME="$pnpm_home_default"
+  path=("$PNPM_HOME" "${(@)path:#$PNPM_HOME}")
+fi
+
+unset pnpm_home_default
 export PATH
 # pnpm end
 
