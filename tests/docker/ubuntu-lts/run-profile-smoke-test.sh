@@ -117,11 +117,13 @@ case "$profile" in
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for personal"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for personal"
+    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal"
     ;;
   work)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for work"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for work"
+    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work"
     ;;
   sandbox)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
@@ -133,11 +135,13 @@ case "$profile" in
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for personal-linux"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for personal-linux"
+    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal-linux"
     ;;
   work-linux|work-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for work-linux"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for work-linux"
+    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work-linux"
     ;;
   sandbox-x86_64-linux|sandbox-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"

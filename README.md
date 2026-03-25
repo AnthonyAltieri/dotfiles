@@ -79,6 +79,8 @@ Preview without switching:
 
 `--dry-run` is available only after Nix is already installed on the machine. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
 
+The normal role apply path also builds the shared `spaces` CLI through Nix. On a real Darwin apply, activation then links the built binary to `/usr/local/bin/spaces`. `install-dependencies` does not build `spaces`, and `--dry-run` does not create the `/usr/local/bin` link because activation scripts do not run.
+
 Show a closure diff before a real apply:
 
 ```bash
@@ -147,6 +149,7 @@ nix flake update
 - **Darwin** uses Homebrew through `modules/platforms/darwin/homebrew.nix`.
 - **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
 - **Sandbox** stays lean and avoids desktop-specific settings.
+- Shared role packages that are not present in pinned `nixpkgs`, such as `spaces`, are packaged locally and exposed through flake `packages` and `apps`.
 
 Current hidden runtime dependencies are also declared, including `jq`.
 
@@ -163,6 +166,7 @@ Managed agent files include:
 - `~/.claude/skills/{frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,programming,sql-read}`
 
 Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
+The flake also exposes `spaces` directly for ad hoc use via `nix run .#spaces -- --help`.
 
 Examples of intentionally unmanaged local state:
 
@@ -190,6 +194,7 @@ Examples of intentionally unmanaged local state:
 Once Nix is available on the target machine, run:
 
 ```bash
+nix run .#spaces -- --help
 nix flake check
 nix build .#darwinConfigurations.personal.system
 nix build .#darwinConfigurations.work.system
@@ -200,7 +205,7 @@ nix build .#homeConfigurations.sandbox-aarch64-linux.activationPackage
 nix build .#homeConfigurations.sandbox-x86_64-linux.activationPackage
 ```
 
-`flake.lock` is not generated in this workspace because `nix` is not installed here. Generate it with `nix flake lock` on a machine with Nix available before relying on reproducible input pinning.
+`flake.lock` pins upstream inputs, including the non-flake `spaces` source repo, so update it intentionally when you want to move those revisions.
 
 ## Docker smoke tests
 

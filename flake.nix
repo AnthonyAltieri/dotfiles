@@ -13,13 +13,51 @@
       url = "github:LnL7/nix-darwin/nix-darwin-25.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    spaces-src = {
+      url = "github:AnthonyAltieri/spaces";
+      flake = false;
+    };
   };
 
-  outputs = inputs@{ ... }: let
+  outputs = inputs@{ self, nixpkgs, ... }: let
     mkHome = import ./lib/mkHome.nix { inherit inputs; };
     mkDarwin = import ./lib/mkDarwin.nix { inherit inputs; };
     username = "anthonyaltieri";
+    supportedSystems = [
+      "aarch64-darwin"
+      "aarch64-linux"
+      "x86_64-linux"
+    ];
+    forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
   in {
+    overlays.default = final: prev: {
+      spaces = final.callPackage ./pkgs/spaces.nix {
+        spacesSrc = inputs.spaces-src;
+      };
+    };
+
+    packages = forAllSystems (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+          overlays = [ self.overlays.default ];
+        };
+      in
+      {
+        spaces = pkgs.spaces;
+      }
+    );
+
+    apps = forAllSystems (system: {
+      spaces = {
+        type = "app";
+        program = "${self.packages.${system}.spaces}/bin/spaces";
+      };
+    });
+
     darwinConfigurations = {
       personal = mkDarwin {
         role = "personal";
