@@ -151,10 +151,11 @@ This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
 Managed agent files include:
 
+- `~/.agents/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}`
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
-- `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}`
+- `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,sql-read}` for compatibility with older local setups
 - `~/.claude/skills/{frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,programming,sql-read}`
 
 Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
