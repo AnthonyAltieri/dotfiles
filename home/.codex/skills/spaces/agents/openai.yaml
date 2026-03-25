@@ -1,4 +1,4 @@
 interface:
   display_name: "Spaces"
   short_description: "Manage Codex worktree-style flows with the local spaces workflow."
-  default_prompt: "Use the local spaces workflow for this worktree-style Codex task: prefer `spaces` and the `codex --{york,gork,sork}{space,tree}` shell shortcuts over raw `git worktree` unless the user explicitly asks for direct Git worktrees."
+  default_prompt: "Use the local spaces workflow for this worktree-style Codex task: all worktree-style management in this repo should go through `spaces` and the `codex --{york,gork,sork}{space,tree}` shell shortcuts."

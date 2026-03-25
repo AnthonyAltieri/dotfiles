@@ -88,7 +88,7 @@ When given a bug report, fix it end-to-end.
 ---
 ## Workspace Defaults
 - For worktree-style Codex requests, isolated task branches, or multi-repo workspace setup, use `$spaces`.
-- Unless I explicitly ask for raw `git worktree`, interpret “worktree” requests as the local `spaces` workflow.
+- In this repo, all worktree-style management goes through `spaces`; interpret “worktree” requests as the local `spaces` workflow.
 - `$spaces` owns the default shell and CLI patterns for this repo: `codex --{york,gork,sork}{space,tree}`, `spaces create/show/list/remove`, and the choice between opening a single repo root versus a full multi-repo space root.
 ---
 ## Branch Creation Policy

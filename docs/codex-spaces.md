@@ -4,6 +4,8 @@ If you are moving from `claude --worktree` to Codex and want the same isolated-b
 
 This guide adapts Alex Fazio's article on X: https://x.com/alxfazio/status/2035093597238784486
 
+In this repo, `spaces` is the standard for all worktree-style management. References to raw `git worktree` below are historical comparison only, not an alternate supported path.
+
 That has two practical upsides:
 
 - `spaces` handles naming, branch creation, workspace layout, and discovery for you.

@@ -1,6 +1,6 @@
 ---
 name: spaces
-description: Use when the user asks about Codex worktrees, isolated task branches, opening or forking workspaces, or multi-repo task environments. Prefer the local `spaces` CLI and the `codex --{york,gork,sork}{space,tree}` shell shortcuts over raw `git worktree` unless the user explicitly asks for direct Git worktree commands.
+description: Use when the user asks about Codex worktrees, isolated task branches, opening or forking workspaces, or multi-repo task environments. In this repo, all worktree-style management goes through the local `spaces` CLI and the `codex --{york,gork,sork}{space,tree}` shell shortcuts.
 metadata:
   short-description: Manage Codex worktree-style flows with `spaces`
 ---
@@ -18,8 +18,8 @@ Trigger this skill for:
 
 ## Defaults
 
-- Prefer `spaces` over raw `git worktree`.
-- If the user says "worktree" and does not explicitly require direct Git worktree commands, use the `spaces` workflow.
+- Treat "worktree" as the `spaces` workflow in this repo.
+- Use `spaces` for all worktree-style management.
 - Prefer the shell shortcuts in `home/.zshrc` when the user wants to launch Codex directly.
 
 Available wrapper patterns:
@@ -67,5 +67,4 @@ If the task spans multiple repos, create one space containing all of them and ro
 
 ## When Not To Use This Skill
 
-- The user explicitly asks for raw `git worktree` commands or Git-only plumbing.
 - The request is about ordinary Git branching with no isolated Codex workspace behavior.
