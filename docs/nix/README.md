@@ -224,7 +224,9 @@ Preview modes:
 - `--diff` runs `nix store diff-closures` against `/run/current-system` when that link exists.
 - By default, Home Manager backs up conflicting managed files using the `.hm-backup` suffix before replacing them.
 - `--overwrite` switches bootstrap to an alternate Darwin configuration that sets `home-manager.backupFileExtension = null`, so conflicting managed files are replaced directly with no `*.hm-backup` copies.
-- On the first real nix-darwin apply, bootstrap may stop before activation if `/etc/bashrc` or `/etc/zshrc` still contain unmanaged pre-nix-darwin content. Rename the flagged files to `*.before-nix-darwin` once and rerun bootstrap.
+- If `/etc/bashrc` or `/etc/zshrc` still contain unmanaged pre-nix-darwin content, bootstrap resolves that before activation.
+- Without `--overwrite`, bootstrap renames each conflicting file to `*.before-nix-darwin` and continues automatically.
+- With `--overwrite`, bootstrap shows a unified diff for each conflicting file and asks for confirmation before replacing it. Declining any prompt aborts the apply without changing `/etc`.
 
 ## Daily commands
 
