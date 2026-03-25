@@ -131,3 +131,46 @@
 - Headless Neovim callback verification printed the assembled command with the new `.codex/worktrees` exclusion in both `rg` passes.
 - Direct `rg` probe from `/Users/anthonyaltieri` returned no `.codex/worktrees/**` results once the new glob was applied.
 - Interactive `Ctrl+p` verification is still pending if a manual UI check is required.
+
+## Copy Relative Path Command
+
+### Goal
+- Add an Ex command `:Crp` that copies the active file buffer path relative to Neovim's current working directory.
+
+### Success criteria
+- Running `:Crp` from a file opened under the current cwd copies a relative path like `apps/webapp/path/to/file.ts`.
+- If the current buffer is not a file buffer, `:Crp` falls back to the only file buffer when exactly one file buffer is open.
+- If there is no unambiguous file buffer target, `:Crp` fails with a clear notification instead of copying the wrong path.
+
+### Assumptions / constraints
+- The intended workflow is `cd ~/code/webapps && nvim ...`, so the copied path should be relative to Neovim's effective cwd.
+- Scope is limited to command creation; no new keybinding is required.
+- Verification should rely on targeted headless Neovim commands in this repo.
+
+### Plan
+- [x] Inspect the best command module location and keep the implementation consistent with the current config layout.
+- [x] Implement a small helper that selects the target file buffer and copies its cwd-relative path.
+- [x] Register `:Crp` with a descriptive command description.
+- [x] Run targeted headless checks for startup, command registration, and copied register contents.
+- [x] Record the verification results in the review section.
+
+### Risks / edge cases
+- Non-file buffers like Neo-tree or help buffers should not be mistaken for file targets.
+- Clipboard register support can differ in headless mode, so verification should also allow checking the unnamed register fallback if needed.
+- Paths outside the cwd should still produce a deterministic relative path rather than an absolute path.
+
+### Verification plan
+- [x] Open a temp file under a temp cwd in headless Neovim, run `:Crp`, and assert the copied value matches the expected relative path.
+- [x] Run a headless load check to confirm the new module and command register cleanly on startup.
+
+### Review
+- Added `lua/aalt/path_commands.lua` and registered it from `lua/aalt/init.lua` so `:Crp` is available on startup without mixing it into the debug-only command module.
+- `:Crp` copies the current file buffer path relative to the active Neovim cwd via `fnamemodify(path, ':.')`.
+- If the current buffer is not a file buffer, the command falls back to the only file buffer when exactly one exists; otherwise it warns and leaves the current register contents unchanged.
+- Headless verification used an isolated `/tmp` project and confirmed:
+- command registration succeeds (`exists(':Crp') == 2`)
+- file buffer copy produces `apps/webapp/path/to/file.ts`
+- non-file buffer fallback still copies the sole file buffer path
+- ambiguous non-file buffer state with multiple file buffers leaves the register unchanged
+- Parse/load checks passed with `luajit` for both `lua/aalt/path_commands.lua` and `lua/aalt/init.lua`.
+- Headless Neovim emitted `clipboard: error: 1` while attempting to write the `+` register in the isolated test environment, but the unnamed register assertions and command logic still passed.
