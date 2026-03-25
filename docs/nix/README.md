@@ -214,6 +214,7 @@ Preview modes:
 ```bash
 ./bootstrap.sh personal --dry-run
 ./bootstrap.sh personal --dry-run --diff
+./bootstrap.sh personal --dry-run --overwrite
 ./bootstrap.sh work --diff
 ```
 
@@ -221,7 +222,8 @@ Preview modes:
 - `--dry-run` also refuses to install missing Nix or Homebrew so the preview path stays side-effect free.
 - `--dry-run` only works after Nix is already installed. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
 - `--diff` runs `nix store diff-closures` against `/run/current-system` when that link exists.
-- On a normal apply, Home Manager backs up conflicting managed files using the `.hm-backup` suffix before replacing them.
+- By default, Home Manager backs up conflicting managed files using the `.hm-backup` suffix before replacing them.
+- `--overwrite` switches bootstrap to an alternate Darwin configuration that sets `home-manager.backupFileExtension = null`, so conflicting managed files are replaced directly with no `*.hm-backup` copies.
 - On the first real nix-darwin apply, bootstrap may stop before activation if `/etc/bashrc` or `/etc/zshrc` still contain unmanaged pre-nix-darwin content. Rename the flagged files to `*.before-nix-darwin` once and rerun bootstrap.
 
 ## Daily commands
