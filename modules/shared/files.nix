@@ -27,7 +27,7 @@
 
     ".codex/AGENTS.md".source = ../../home/.codex/AGENTS.md;
     ".codex/prompts" = recursive ../../home/.codex/prompts;
-    ".codex/rules" = recursive ../../home/.codex/rules;
+    ".codex/rules/base.rules".source = ../../home/.codex/rules/base.rules;
     ".codex/skills/atlas" = recursive ../../home/.codex/skills/atlas;
     ".codex/skills/frontend-design" = recursive ../../home/.codex/skills/frontend-design;
     ".codex/skills/gh-address-comments" = recursive ../../home/.codex/skills/gh-address-comments;
