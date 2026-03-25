@@ -49,8 +49,8 @@ in {
   mkHomeModules = { role, platform }:
     let
       platformModules =
-        if platform == "linux" && role != "sandbox"
-        then linuxHomeModules
+        if platform == "linux"
+        then lib.optionals (role != "sandbox") linuxHomeModules
         else if platform == "darwin"
         then [ ]
         else throw "Unsupported platform: ${platform}";

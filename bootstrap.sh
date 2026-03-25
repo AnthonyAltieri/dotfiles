@@ -14,6 +14,8 @@ Usage:
 
 Bootstrap is the supported macOS apply path for this repo.
 It is safe to rerun after pulling changes or editing the flake.
+Run it as your normal user. The script will prompt for sudo only for the
+final darwin-rebuild switch step when a real apply needs root.
 
 Flags:
   --dry-run  Build the target closure but do not switch or install missing prerequisites.
@@ -86,6 +88,12 @@ require_darwin() {
 
 log() {
   printf '[bootstrap] %s\n' "$*"
+}
+
+normalize_root_home() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    export HOME=~root
+  fi
 }
 
 load_nix() {
@@ -208,18 +216,66 @@ EOF
     store diff-closures "$current_system" "$system_path"
 }
 
+preflight_etc_shell_conflicts() {
+  local system_path="$1"
+  local generated_file=""
+  local live_file=""
+  local etc_name=""
+  local -a conflicting_files=()
+
+  for etc_name in bashrc zshrc; do
+    generated_file="$system_path/etc/$etc_name"
+    live_file="/etc/$etc_name"
+
+    if [[ -e "$generated_file" && -e "$live_file" ]] && ! cmp -s "$live_file" "$generated_file"; then
+      conflicting_files+=("$live_file")
+    fi
+  done
+
+  if (( ${#conflicting_files[@]} == 0 )); then
+    return 0
+  fi
+
+  cat >&2 <<EOF
+[bootstrap] nix-darwin will not overwrite existing /etc shell files whose contents differ from the generated configuration.
+
+The following files already exist with non-generated content and would be replaced:
+EOF
+  printf '  %s\n' "${conflicting_files[@]}" >&2
+  cat >&2 <<EOF
+
+This is usually the first nix-darwin apply on a machine that still has the stock macOS files, often with the Nix installer stanza prepended.
+
+If there is nothing machine-critical in those files, rename them once and rerun bootstrap:
+EOF
+  for live_file in "${conflicting_files[@]}"; do
+    printf '  sudo mv %s %s.before-nix-darwin\n' "$live_file" "$live_file" >&2
+  done
+  cat >&2 <<EOF
+
+Then rerun:
+  ./bootstrap.sh ${ROLE}
+
+Bootstrap will prompt for sudo only for the final darwin-rebuild switch step.
+The generated replacements already exist in:
+  $system_path/etc
+EOF
+  exit 1
+}
+
 switch_darwin_role() {
   local system_path="$1"
   log "Applying Darwin role: $ROLE"
   if [[ "$(id -u)" -eq 0 ]]; then
     "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${ROLE}"
   else
-    sudo "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${ROLE}"
+    sudo -- "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${ROLE}"
   fi
 }
 
 parse_args "$@"
 require_darwin
+normalize_root_home
 
 if [[ "$COMMAND" == "install-dependencies" ]]; then
   ensure_nix
@@ -252,5 +308,6 @@ if (( DRY_RUN )); then
   exit 0
 fi
 
+preflight_etc_shell_conflicts "$SYSTEM_PATH"
 switch_darwin_role "$SYSTEM_PATH"
 log "Done."

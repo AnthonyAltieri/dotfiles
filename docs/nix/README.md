@@ -191,6 +191,8 @@ What it does:
 6. builds the selected Darwin system closure from this flake
 7. runs `darwin-rebuild switch --flake` for the chosen role
 
+Run bootstrap as your normal user. On a real apply, it uses `sudo` only for the final `darwin-rebuild switch` step.
+
 That makes the first-install prerequisite flow:
 
 ```bash
@@ -219,6 +221,7 @@ Preview modes:
 - `--dry-run` only works after Nix is already installed. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
 - `--diff` runs `nix store diff-closures` against `/run/current-system` when that link exists.
 - On a normal apply, Home Manager backs up conflicting managed files using the `.hm-backup` suffix before replacing them.
+- On the first real nix-darwin apply, bootstrap may stop before activation if `/etc/bashrc` or `/etc/zshrc` still contain unmanaged pre-nix-darwin content. Rename the flagged files to `*.before-nix-darwin` once and rerun bootstrap.
 
 ## Daily commands
 

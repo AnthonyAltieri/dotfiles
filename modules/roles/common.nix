@@ -1,4 +1,9 @@
+{ pkgs, ... }:
 {
+  home.packages = with pkgs; [
+    ripgrep
+  ];
+
   home.sessionVariables = {
     DOTFILES_COMMON = "1";
   };

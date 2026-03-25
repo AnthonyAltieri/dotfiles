@@ -56,6 +56,8 @@ The resulting outputs are:
 
 `bootstrap.sh` is the supported macOS apply path. It is safe to rerun after pulling changes or editing the flake. It installs missing prerequisites only, reloads Nix and Homebrew when they already exist, then reapplies the selected Darwin role.
 
+Run bootstrap as your normal user. On a real apply, the script uses `sudo` only for the final `darwin-rebuild switch` step.
+
 First-time prerequisite install:
 
 ```bash
@@ -84,6 +86,8 @@ Show a closure diff before a real apply:
 ```
 
 During a real apply, Home Manager backs up conflicting managed files with the `.hm-backup` suffix before replacing them.
+
+On the first real nix-darwin apply, bootstrap may also stop before activation if macOS still has unmanaged `/etc/bashrc` or `/etc/zshrc` content. In that case, rename the flagged files to `*.before-nix-darwin` once and rerun bootstrap.
 
 The deeper explanation of what bootstrap does and how the flake composes roles and platforms lives in [`docs/nix/README.md`](docs/nix/README.md).
 
