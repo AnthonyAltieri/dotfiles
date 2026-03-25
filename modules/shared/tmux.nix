@@ -19,6 +19,6 @@ in {
       sensible
       vim-tmux-navigator
     ];
-    extraConfig = builtins.readFile ../../home/.tmux.conf;
+    extraConfig = builtins.readFile ../../home/.config/tmux/tmux.conf;
   };
 }
