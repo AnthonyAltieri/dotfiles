@@ -1,6 +1,6 @@
 ---
 name: gh-manage-pr
-description: Create or update a GitHub pull request; detect existing PR for the branch, generate a dense structured PR body from branch changes, and apply it via gh.
+description: Use when a user asks to create or update a GitHub pull request; detect existing PR for the branch, generate a dense structured PR body from branch changes, and apply it via gh.
 metadata:
   short-description: Create or update GitHub PRs with structured descriptions
 ---

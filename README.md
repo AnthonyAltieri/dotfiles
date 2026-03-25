@@ -165,7 +165,7 @@ Managed agent files include:
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
-- `~/.claude/skills/{frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,programming,sql-read}`
+- `~/.claude/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,spaces,sql-read}`
 
 Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
 The flake also exposes `spaces` directly for ad hoc use via `nix run .#spaces -- --help`.

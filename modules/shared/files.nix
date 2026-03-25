@@ -10,11 +10,14 @@
     ".claude/README.md".source = ../../home/.claude/README.md;
     ".claude/settings.json".source = ../../home/.claude/settings.json;
     ".claude/commands" = recursive ../../home/.claude/commands;
+    ".claude/skills/atlas" = recursive ../../home/.claude/skills/atlas;
     ".claude/skills/frontend-design" = recursive ../../home/.claude/skills/frontend-design;
     ".claude/skills/gh-address-comments" = recursive ../../home/.claude/skills/gh-address-comments;
     ".claude/skills/gh-fix-ci" = recursive ../../home/.claude/skills/gh-fix-ci;
     ".claude/skills/gh-manage-pr" = recursive ../../home/.claude/skills/gh-manage-pr;
+    ".claude/skills/notion-knowledge-capture" = recursive ../../home/.claude/skills/notion-knowledge-capture;
     ".claude/skills/programming" = recursive ../../home/.claude/skills/programming;
+    ".claude/skills/spaces" = recursive ../../home/.claude/skills/spaces;
     ".claude/skills/sql-read" = recursive ../../home/.claude/skills/sql-read;
     ".claude/statusline-command.sh" = {
       source = ../../home/.claude/statusline-command.sh;

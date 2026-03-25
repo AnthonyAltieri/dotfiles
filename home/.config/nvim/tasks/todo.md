@@ -1,3 +1,50 @@
+# Claude/Codex config parity
+
+## Goal
+- Bring the managed Claude configuration up to date with the recent Codex skill/config changes that are meant to stay portable in this repo.
+
+## Success criteria
+- Claude has the same portable skill coverage as the current Codex-managed source set where that functionality should exist in `.claude`.
+- Shared Claude skill docs reflect the newer Codex guidance without leaking Codex-specific wording or paths into Claude examples.
+- Nix file mappings and repo docs describe the expanded Claude-managed subset accurately.
+
+## Assumptions / constraints
+- Claude-specific runtime files such as `settings.json`, `README.md`, tmux hooks, and command stubs should remain Claude-specific.
+- Codex-only files such as `AGENTS.md`, prompts, rules, and agent metadata directories should not be copied blindly into `.claude`.
+- Shared helper sources can stay sourced from the existing skill trees unless this parity pass requires a Claude-side copy for correctness.
+
+## Plan
+- [x] Compare the managed `.codex` and `.claude` source trees and identify which gaps are real parity misses versus product-specific differences.
+- [x] Update the Claude skill set to add missing portable skills and sync drifted shared skill docs with Claude-appropriate wording and paths.
+- [x] Update the Nix-managed file list and repository docs so the installed Claude subset matches the source tree.
+- [x] Re-run targeted diffs/listings to verify parity and record the outcome in the review section.
+
+## Risks / edge cases
+- Some Codex skill text is intentionally agent-specific (`FROM CODEX`, `$CODEX_HOME`, `codex mcp ...`) and needs Claude-safe adaptation instead of straight copying.
+- The repo intentionally manages only a curated Claude subset, so parity should apply to portable skills rather than every Codex-only file.
+
+## Verification plan
+- [x] Diff `.codex` vs `.claude` skill coverage after edits and confirm only intentional product-specific differences remain.
+- [x] Confirm `modules/shared/files.nix` installs every managed Claude skill now present in the source tree.
+- [x] Update this section with a concise review of what changed and what remains intentionally different.
+
+## Review
+- Claude skill coverage now matches the Codex source set at the top level: `atlas`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-manage-pr`, `notion-knowledge-capture`, `programming`, `spaces`, and `sql-read`.
+- Added new Claude skill directories for `atlas`, `notion-knowledge-capture`, and `spaces`, and synced shared skill payloads from the current Codex source trees.
+- Adapted the Claude-only SKILL docs where straight copying would have been wrong:
+- `gh-address-comments` keeps `FROM CLAUDE:` reply examples.
+- `sql-read` now uses `$CLAUDE_CONFIG_DIR/skills/sql-read/...` paths instead of Codex paths.
+- `atlas` points to `$CLAUDE_CONFIG_DIR` in its reference example.
+- `notion-knowledge-capture` now describes generic Claude-side Notion integration setup instead of Codex-specific `codex mcp ...` commands.
+- `spaces` now describes the repo’s `spaces` workflow in agent-neutral terms instead of Codex wrapper commands.
+- Updated `modules/shared/files.nix` so the new Claude skills are actually installed, and updated the README/docs managed-file descriptions to match.
+- Verification:
+- top-level skill lists for `home/.codex/skills` and `home/.claude/skills` now match exactly
+- `diff -qr home/.codex/skills home/.claude/skills` only reports intentional differences: omitted Claude `agents/` metadata dirs and adapted Claude SKILL docs
+- `nix flake check --no-build` passed after rerunning outside the sandbox because the sandboxed attempt could not write the Nix fetcher cache database
+- Remaining intentional difference:
+- copied helper test fixtures under `home/.claude/skills/gh-address-comments/scripts/` still contain `FROM CODEX` strings because they mirror the shared Rust helper source, but the Claude-facing skill docs no longer expose Codex-specific wording
+
 # Neovim monorepo formatting/linting verification
 
 ## Goal
