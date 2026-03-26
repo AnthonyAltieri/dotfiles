@@ -2,7 +2,7 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-lc"]
 
-ARG USERNAME=anthonyaltieri
+ARG USERNAME=dotfiles
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \

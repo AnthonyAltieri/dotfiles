@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXPERIMENTAL_FEATURES="nix-command flakes"
 FLAKE_REF="path:${SCRIPT_DIR}"
+FLAKE_EVAL_FLAGS=(--impure)
 
 usage() {
   local exit_code="${1:-1}"
@@ -229,6 +230,7 @@ build_system_closure() {
 
   nix --extra-experimental-features "$EXPERIMENTAL_FEATURES" \
     build "${FLAKE_REF}#darwinConfigurations.${config_name}.system" \
+    "${FLAKE_EVAL_FLAGS[@]}" \
     --no-link \
     --print-out-paths | tail -n 1
 }
@@ -447,9 +449,9 @@ switch_darwin_role() {
 
   log "Applying Darwin role: $ROLE"
   if [[ "$(id -u)" -eq 0 ]]; then
-    "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}"
+    "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}" "${FLAKE_EVAL_FLAGS[@]}"
   else
-    sudo -- "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}"
+    sudo -- "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}" "${FLAKE_EVAL_FLAGS[@]}"
   fi
 }
 

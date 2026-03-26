@@ -41,6 +41,8 @@ The flake exposes three categories of outputs:
 
 `personal` and `work` are full macOS system configurations on Darwin. On Linux they are Home Manager profiles.
 
+The user-bound outputs resolve the current login user at evaluation time. `bootstrap.sh` passes the required flags automatically; direct `darwin-rebuild`, `home-manager`, `nix build`, and `nix flake check` commands that touch these outputs should include `--impure`.
+
 ## How the flake composes modules
 
 `flake.nix` is only the entrypoint. The real wiring is in `lib/`.
@@ -234,15 +236,15 @@ Preview modes:
 If you want the explicit native commands instead of the wrapper:
 
 ```bash
-darwin-rebuild switch --flake .#personal
-darwin-rebuild switch --flake .#work
-home-manager switch --flake .#personal-linux
-home-manager switch --flake .#personal-aarch64-linux
-home-manager switch --flake .#work-linux
-home-manager switch --flake .#work-aarch64-linux
-home-manager switch --flake .#sandbox-aarch64-darwin
-home-manager switch --flake .#sandbox-aarch64-linux
-home-manager switch --flake .#sandbox-x86_64-linux
+darwin-rebuild switch --flake .#personal --impure
+darwin-rebuild switch --flake .#work --impure
+home-manager switch --flake .#personal-linux --impure
+home-manager switch --flake .#personal-aarch64-linux --impure
+home-manager switch --flake .#work-linux --impure
+home-manager switch --flake .#work-aarch64-linux --impure
+home-manager switch --flake .#sandbox-aarch64-darwin --impure
+home-manager switch --flake .#sandbox-aarch64-linux --impure
+home-manager switch --flake .#sandbox-x86_64-linux --impure
 ```
 
 Update flake inputs when you want to move the pin:
@@ -270,14 +272,14 @@ The intended validation path is:
 
 ```bash
 nix run .#spaces -- --help
-nix flake check
-nix build .#darwinConfigurations.personal.system
-nix build .#darwinConfigurations.work.system
-nix build .#homeConfigurations.personal-linux.activationPackage
-nix build .#homeConfigurations.work-linux.activationPackage
-nix build .#homeConfigurations.sandbox-aarch64-darwin.activationPackage
-nix build .#homeConfigurations.sandbox-aarch64-linux.activationPackage
-nix build .#homeConfigurations.sandbox-x86_64-linux.activationPackage
+nix flake check --impure
+nix build --impure .#darwinConfigurations.personal.system
+nix build --impure .#darwinConfigurations.work.system
+nix build --impure .#homeConfigurations.personal-linux.activationPackage
+nix build --impure .#homeConfigurations.work-linux.activationPackage
+nix build --impure .#homeConfigurations.sandbox-aarch64-darwin.activationPackage
+nix build --impure .#homeConfigurations.sandbox-aarch64-linux.activationPackage
+nix build --impure .#homeConfigurations.sandbox-x86_64-linux.activationPackage
 ```
 
 For Linux smoke tests in a fresh Ubuntu container:

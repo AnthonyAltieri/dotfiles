@@ -1,5 +1,5 @@
 {
-  description = "Anthony Altieri dotfiles managed with Nix";
+  description = "Dotfiles managed with Nix";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
@@ -21,15 +21,36 @@
   };
 
   outputs = inputs@{ self, nixpkgs, ... }: let
+    lib = nixpkgs.lib;
     mkHome = import ./lib/mkHome.nix { inherit inputs; };
     mkDarwin = import ./lib/mkDarwin.nix { inherit inputs; };
-    username = "anthonyaltieri";
+    env = builtins.getEnv;
+    username =
+      let
+        sudoUser = env "SUDO_USER";
+        user = env "USER";
+        logname = env "LOGNAME";
+      in
+      if sudoUser != "" then
+        sudoUser
+      else if user != "" then
+        user
+      else if logname != "" then
+        logname
+      else
+        throw "Unable to determine the current user. Re-run the flake command with --impure and USER or LOGNAME set.";
+    homeDirectoryFor =
+      system:
+      if lib.hasSuffix "darwin" system then
+        "/Users/${username}"
+      else
+        "/home/${username}";
     supportedSystems = [
       "aarch64-darwin"
       "aarch64-linux"
       "x86_64-linux"
     ];
-    forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+    forAllSystems = lib.genAttrs supportedSystems;
   in {
     overlays.default = final: prev: {
       spaces = final.callPackage ./pkgs/spaces.nix {
@@ -63,14 +84,14 @@
         role = "personal";
         system = "aarch64-darwin";
         inherit username;
-        homeDirectory = "/Users/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-darwin";
       };
 
       personal-overwrite = mkDarwin {
         role = "personal";
         system = "aarch64-darwin";
         inherit username;
-        homeDirectory = "/Users/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-darwin";
         overwriteHomeManagerBackups = true;
       };
 
@@ -78,14 +99,14 @@
         role = "work";
         system = "aarch64-darwin";
         inherit username;
-        homeDirectory = "/Users/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-darwin";
       };
 
       work-overwrite = mkDarwin {
         role = "work";
         system = "aarch64-darwin";
         inherit username;
-        homeDirectory = "/Users/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-darwin";
         overwriteHomeManagerBackups = true;
       };
     };
@@ -95,49 +116,49 @@
         role = "personal";
         system = "x86_64-linux";
         inherit username;
-        homeDirectory = "/home/${username}";
+        homeDirectory = homeDirectoryFor "x86_64-linux";
       };
 
       personal-aarch64-linux = mkHome {
         role = "personal";
         system = "aarch64-linux";
         inherit username;
-        homeDirectory = "/home/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-linux";
       };
 
       work-linux = mkHome {
         role = "work";
         system = "x86_64-linux";
         inherit username;
-        homeDirectory = "/home/${username}";
+        homeDirectory = homeDirectoryFor "x86_64-linux";
       };
 
       work-aarch64-linux = mkHome {
         role = "work";
         system = "aarch64-linux";
         inherit username;
-        homeDirectory = "/home/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-linux";
       };
 
       sandbox-aarch64-darwin = mkHome {
         role = "sandbox";
         system = "aarch64-darwin";
         inherit username;
-        homeDirectory = "/Users/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-darwin";
       };
 
       sandbox-aarch64-linux = mkHome {
         role = "sandbox";
         system = "aarch64-linux";
         inherit username;
-        homeDirectory = "/home/${username}";
+        homeDirectory = homeDirectoryFor "aarch64-linux";
       };
 
       sandbox-x86_64-linux = mkHome {
         role = "sandbox";
         system = "x86_64-linux";
         inherit username;
-        homeDirectory = "/home/${username}";
+        homeDirectory = homeDirectoryFor "x86_64-linux";
       };
     };
   };
