@@ -31,6 +31,8 @@ The resulting outputs are:
 - `homeConfigurations.sandbox-aarch64-linux`
 - `homeConfigurations.sandbox-x86_64-linux`
 
+The user-bound outputs resolve the current login user at evaluation time. `bootstrap.sh` handles that automatically; direct `darwin-rebuild`, `home-manager`, `nix build`, and `nix flake check` commands that touch those outputs should include `--impure`.
+
 ## Repo layout
 
 ```text
@@ -119,25 +121,25 @@ If you want to preview first:
 You can still apply the Darwin role directly if you want the native command:
 
 ```bash
-darwin-rebuild switch --flake .#personal
-darwin-rebuild switch --flake .#work
+darwin-rebuild switch --flake .#personal --impure
+darwin-rebuild switch --flake .#work --impure
 ```
 
 Apply a Linux profile:
 
 ```bash
-home-manager switch --flake .#personal-linux
-home-manager switch --flake .#personal-aarch64-linux
-home-manager switch --flake .#work-linux
-home-manager switch --flake .#work-aarch64-linux
+home-manager switch --flake .#personal-linux --impure
+home-manager switch --flake .#personal-aarch64-linux --impure
+home-manager switch --flake .#work-linux --impure
+home-manager switch --flake .#work-aarch64-linux --impure
 ```
 
 Apply a sandbox profile:
 
 ```bash
-home-manager switch --flake .#sandbox-aarch64-darwin
-home-manager switch --flake .#sandbox-aarch64-linux
-home-manager switch --flake .#sandbox-x86_64-linux
+home-manager switch --flake .#sandbox-aarch64-darwin --impure
+home-manager switch --flake .#sandbox-aarch64-linux --impure
+home-manager switch --flake .#sandbox-x86_64-linux --impure
 ```
 
 Update flake inputs:
@@ -197,14 +199,14 @@ Once Nix is available on the target machine, run:
 
 ```bash
 nix run .#spaces -- --help
-nix flake check
-nix build .#darwinConfigurations.personal.system
-nix build .#darwinConfigurations.work.system
-nix build .#homeConfigurations.personal-linux.activationPackage
-nix build .#homeConfigurations.work-linux.activationPackage
-nix build .#homeConfigurations.sandbox-aarch64-darwin.activationPackage
-nix build .#homeConfigurations.sandbox-aarch64-linux.activationPackage
-nix build .#homeConfigurations.sandbox-x86_64-linux.activationPackage
+nix flake check --impure
+nix build --impure .#darwinConfigurations.personal.system
+nix build --impure .#darwinConfigurations.work.system
+nix build --impure .#homeConfigurations.personal-linux.activationPackage
+nix build --impure .#homeConfigurations.work-linux.activationPackage
+nix build --impure .#homeConfigurations.sandbox-aarch64-darwin.activationPackage
+nix build --impure .#homeConfigurations.sandbox-aarch64-linux.activationPackage
+nix build --impure .#homeConfigurations.sandbox-x86_64-linux.activationPackage
 ```
 
 `flake.lock` pins upstream inputs, including the non-flake `spaces` source repo, so update it intentionally when you want to move those revisions.

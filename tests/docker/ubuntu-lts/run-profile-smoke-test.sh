@@ -153,7 +153,7 @@ esac
 
 if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
   rm -f result
-  nix --extra-experimental-features "nix-command flakes" build --no-write-lock-file ".#homeConfigurations.${profile_output}.activationPackage"
+  nix --extra-experimental-features "nix-command flakes" build --impure --no-write-lock-file ".#homeConfigurations.${profile_output}.activationPackage"
   ./result/activate
 fi
 
