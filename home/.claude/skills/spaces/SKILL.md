@@ -19,6 +19,7 @@ Trigger this skill for:
 
 - Treat "worktree" as the `spaces` workflow in this repo.
 - Use `spaces` for all worktree-style management.
+- If the user wants to launch Codex directly from this repo, the only supported shortcut is `codex --spaces`.
 - When a space contains multiple repos, prefer the space root unless the user explicitly wants one repo inside it.
 
 ## Direct CLI Workflow
