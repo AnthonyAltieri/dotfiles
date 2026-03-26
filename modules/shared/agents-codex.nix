@@ -9,7 +9,7 @@ in {
   };
 
   home.activation.codexLocalDefaultRules =
-    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    lib.hm.dag.entryAfter [ "dotfilesAgentManagedCopies" ] ''
       rules_dir="${rulesDir}"
       default_rules="${defaultRules}"
       backup_rules="${backupRules}"
