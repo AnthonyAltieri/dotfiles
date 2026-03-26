@@ -1,6 +1,6 @@
-{ config, lib, ... }:
+{ config, lib, role, ... }:
 let
-  agentManagedCopies = [
+  sharedAgentManagedCopies = [
     {
       target = ".codex/AGENTS.md";
       source = ../../home/.codex/AGENTS.md;
@@ -158,6 +158,23 @@ let
       executable = true;
     }
   ];
+
+  workOnlyAgentManagedCopies = lib.optionals (role == "work") [
+    {
+      target = ".codex/skills/observe";
+      source = ../../home/.codex/skills/observe;
+      kind = "directory";
+      executable = false;
+    }
+    {
+      target = ".claude/skills/observe";
+      source = ../../home/.claude/skills/observe;
+      kind = "directory";
+      executable = false;
+    }
+  ];
+
+  agentManagedCopies = sharedAgentManagedCopies ++ workOnlyAgentManagedCopies;
 
   manifestType = lib.types.listOf (
     lib.types.submodule {

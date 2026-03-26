@@ -53,6 +53,7 @@
     forAllSystems = lib.genAttrs supportedSystems;
   in {
     overlays.default = final: prev: {
+      observe = final.callPackage ./pkgs/observe.nix { };
       spaces = final.callPackage ./pkgs/spaces.nix {
         spacesSrc = inputs.spaces-src;
       };
@@ -68,6 +69,7 @@
         };
       in
       {
+        observe = pkgs.observe;
         spaces = pkgs.spaces;
       }
     );
