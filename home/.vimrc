@@ -10,6 +10,7 @@ map <C-h> <C-w>h
 map <C-k> <C-w>k
 map <C-j> <C-w>j
 map <C-l> <C-w>l
+nmap <C-q> <C-w>q
 " Switch tab
 nmap <S-Tab> :tabprev<Return>
 nmap <Tab> :tabnext<Return>
@@ -34,4 +35,3 @@ set incsearch
 set scrolloff=8
 
 syntax on
-

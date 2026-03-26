@@ -41,6 +41,7 @@ vim.keymap.set("n", "Q", "<nop>")
 vim.keymap.set("n", "<M-.>", "<cmd>vertical resize +2<CR>", { desc = "Increase window width" })
 vim.keymap.set("n", "<M-,>", "<cmd>vertical resize -2<CR>", { desc = "Decrease window width" })
 vim.keymap.set("n", "<M-=>", "<C-w>=", { desc = "Equalize window sizes" })
+vim.keymap.set("n", "<C-q>", "<C-w>q", { desc = "Close current window" })
 vim.keymap.set("n", "q:", "<nop>")
 vim.keymap.set("n", "<C-f>", "<cmd>silent !tmux neww tmux-sessionizer<CR>")
 
