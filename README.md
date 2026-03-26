@@ -167,7 +167,13 @@ Managed agent files include:
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
+- `~/.claude/README.md`
+- `~/.claude/settings.json`
+- `~/.claude/commands/{handle-pr-checks.md,handle-pr-comments.md,pr.md}`
 - `~/.claude/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,spaces,sql-read}`
+- `~/.claude/{statusline-command.sh,tmux-notify.sh}`
+
+These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
 Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
 The flake also exposes `spaces` directly for ad hoc use via `nix run .#spaces -- --help`.

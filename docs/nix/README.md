@@ -158,11 +158,13 @@ Managed examples:
 - `~/.config/starship.toml`
 - `~/.vimrc`
 - `~/.codex/skills/*`
+- `~/.claude/README.md`
 - `~/.claude/settings.json`
 - selected Claude commands and skills, including `atlas`, `notion-knowledge-capture`, and `spaces`
 - selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
 
 The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read`.
+The managed `.codex` and `.claude` payloads are copied into place as regular files during activation rather than symlinked, which avoids local skill discovery issues in Codex and Claude.
 
 Unmanaged examples:
 

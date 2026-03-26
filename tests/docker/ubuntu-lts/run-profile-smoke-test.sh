@@ -87,6 +87,13 @@ let
 in {
   files = builtins.attrNames cfg.home.file;
   xdgFiles = builtins.attrNames cfg.xdg.configFile;
+  agentManagedCopies = map (entry: {
+    target = entry.target;
+    kind = entry.kind;
+    executable = entry.executable;
+    source = toString entry.source;
+  }) cfg.dotfiles.agentManagedCopies;
+  agentManagedTargets = map (entry: entry.target) cfg.dotfiles.agentManagedCopies;
   ohMyZsh = cfg.programs.zsh."oh-my-zsh".enable or false;
   sessionVariables = cfg.home.sessionVariables;
   packages = map packageName cfg.home.packages;
@@ -99,8 +106,8 @@ assert_jq '.tmuxEnabled == true' "Expected tmux to be enabled"
 assert_jq '.xdgFiles | index("zsh") != null' "Expected ~/.config/zsh to be managed"
 assert_jq '.xdgFiles | index("nvim") != null' "Expected ~/.config/nvim to be managed"
 assert_jq '.xdgFiles | index("starship.toml") != null' "Expected starship config to be managed"
-assert_jq '.files | index(".codex/AGENTS.md") != null' "Expected Codex config to be managed"
-assert_jq '.files | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
+assert_jq '.agentManagedTargets | index(".codex/AGENTS.md") != null' "Expected Codex config to be managed"
+assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
 assert_jq '.files | index(".vimrc") != null' "Expected ~/.vimrc to be managed"
 assert_jq '.packages | index("git") != null' "Expected git in home.packages"
 assert_jq '.packages | index("jq") != null' "Expected jq in home.packages"
@@ -155,6 +162,23 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
   rm -f result
   nix --extra-experimental-features "nix-command flakes" build --impure --no-write-lock-file ".#homeConfigurations.${profile_output}.activationPackage"
   ./result/activate
+
+  for path in \
+    "$HOME/.codex/AGENTS.md" \
+    "$HOME/.codex/skills/programming/SKILL.md" \
+    "$HOME/.claude/settings.json" \
+    "$HOME/.claude/commands/pr.md"
+  do
+    if [[ ! -e "$path" ]]; then
+      echo "Expected copied agent file to exist: ${path}" >&2
+      exit 1
+    fi
+
+    if [[ -L "$path" ]]; then
+      echo "Expected copied agent file to be a real file: ${path}" >&2
+      exit 1
+    fi
+  done
 fi
 
 echo "Smoke test passed for ${profile} (${profile_output})"

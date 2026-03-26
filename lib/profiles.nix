@@ -3,6 +3,7 @@ let
   sharedHomeModules = [
     ../modules/shared/base.nix
     ../modules/shared/files.nix
+    ../modules/shared/agent-managed-copies.nix
     ../modules/shared/skill-helpers.nix
     ../modules/shared/shell.nix
     ../modules/shared/tmux.nix
