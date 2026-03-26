@@ -218,6 +218,7 @@ in
     home.activation.dotfilesAgentManagedCopies = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
       state_dir="${config.xdg.stateHome}/dotfiles"
       previous_paths_file="$state_dir/agent-managed-copy-paths.txt"
+      tmp_previous_paths_file="$state_dir/agent-managed-copy-paths.txt.tmp"
       current_manifest_file="${currentManifestFile}"
       current_paths_file="${currentPathsFile}"
 
@@ -268,7 +269,12 @@ in
         esac
       done < "$current_manifest_file"
 
-      $DRY_RUN_CMD cp "$current_paths_file" "$previous_paths_file"
+      # Copy via a temp file so the persisted state does not inherit the
+      # Nix store's read-only mode and break the next activation.
+      $DRY_RUN_CMD rm -f "$tmp_previous_paths_file"
+      $DRY_RUN_CMD cp "$current_paths_file" "$tmp_previous_paths_file"
+      $DRY_RUN_CMD chmod 600 "$tmp_previous_paths_file"
+      $DRY_RUN_CMD mv -f "$tmp_previous_paths_file" "$previous_paths_file"
     '';
   };
 }
