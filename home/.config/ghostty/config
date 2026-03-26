@@ -42,3 +42,9 @@ keybind = ctrl+6=text:\x00\x36
 keybind = ctrl+7=text:\x00\x37
 keybind = ctrl+8=text:\x00\x38
 keybind = ctrl+9=text:\x00\x39
+
+# Send a dedicated CSI-u sequence for tmux to close the current window.
+keybind = ctrl+shift+q=text:\x1b[81;6u
+
+# Send a dedicated CSI-u sequence for tmux to rename the current window.
+keybind = ctrl+shift+,=text:\x1b[60;6u
