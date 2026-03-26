@@ -1,6 +1,6 @@
 ---
 name: spaces
-description: Use when the user asks about Codex worktrees, isolated task branches, opening or forking workspaces, or multi-repo task environments. In this repo, all worktree-style management goes through the local `spaces` CLI and the `codex --{york,gork,sork}{space,tree}` shell shortcuts.
+description: Use when the user asks about Codex worktrees, isolated task branches, or multi-repo task environments. In this repo, all worktree-style management goes through the local `spaces` CLI and the `codex --spaces` shell shortcut.
 metadata:
   short-description: Manage Codex worktree-style flows with `spaces`
 ---
@@ -12,25 +12,30 @@ Use this skill for Codex workspace management in this dotfiles setup.
 Trigger this skill for:
 - requests that say "worktree" but really mean isolated Codex branch or workspace flows
 - creating a fresh Codex workspace for a task
-- opening, reusing, or cleaning up existing `spaces` workspaces
-- forking an existing Codex conversation into a new isolated workspace
+- inspecting, reusing, or cleaning up existing `spaces` workspaces
 - multi-repo tasks that should share one workspace root
 
 ## Defaults
 
 - Treat "worktree" as the `spaces` workflow in this repo.
 - Use `spaces` for all worktree-style management.
-- Prefer the shell shortcuts in `home/.zshrc` when the user wants to launch Codex directly.
+- Prefer `codex --spaces` when the user wants to create and launch a fresh Codex workspace directly.
+- Use the `spaces` CLI directly for discovery and cleanup.
 
-Available wrapper patterns:
+Supported wrapper patterns:
 
-- `codex --gorktree` or `codex --gorkspace`
-- `codex --sorktree` or `codex --sorkspace`
-- `codex --*-fork <session-id|--last> [repos...]`
-- `codex --*-open <space|space:repo|path>`
-- `codex --*-refork <session-id|--last> <space|space:repo|path>`
+- `codex --spaces [repo-path ...]`
+- `codex --spaces [repo-path ...] --name <workspace-name>`
+- `codex --name <workspace-name> --spaces [repo-path ...]`
+- `codex --spaces [repo-path ...] -- --model gpt-5.4`
 
-Anything after `--` is forwarded to the real Codex CLI.
+Wrapper rules:
+
+- `--spaces` and `--name` are the only wrapper-owned flags before `--`.
+- Anything after `--` is forwarded to the real Codex CLI unchanged.
+- If no repo paths are passed, the wrapper uses the current Git repo root.
+- `--name` sets both the workspace name and branch name.
+- The wrapper rejects `--name` if that branch already exists locally or as a remote-tracking branch in any provided repo.
 
 ## Target Selection
 
@@ -38,8 +43,6 @@ The wrapper resolves targets like this:
 
 - single-repo space: open the repo worktree path
 - multi-repo space: open the space root
-- `space:repo`: open a specific repo inside an existing space
-- absolute or relative directory path: use it directly
 
 That means the default behaves like the old single-repo worktree flow when a space contains one repo, but still supports multi-repo task spaces cleanly.
 
