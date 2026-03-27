@@ -6,6 +6,7 @@ vim.g.maplocalleader = " "
 require("aalt.options")
 require("aalt.set")
 require("aalt.autocommands")
+require("aalt.ui_cleanup").setup()
 require("aalt.debug_commands").setup()
 require("aalt.path_commands").setup()
 
