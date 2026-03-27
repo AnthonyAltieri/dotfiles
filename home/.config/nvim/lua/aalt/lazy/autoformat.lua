@@ -1,14 +1,34 @@
 local monorepo = require("aalt.monorepo")
+local js_filetypes = {
+	javascript = true,
+	javascriptreact = true,
+	["javascript.jsx"] = true,
+	typescript = true,
+	typescriptreact = true,
+	["typescript.tsx"] = true,
+}
+
+local function format_opts_for_buf(bufnr)
+	if js_filetypes[vim.bo[bufnr].filetype] then
+		return {
+			timeout_ms = 500,
+			lsp_format = "never",
+		}
+	end
+
+	return {
+		timeout_ms = 500,
+		lsp_format = "fallback",
+	}
+end
 
 return {
 	"stevearc/conform.nvim",
 	event = { "BufReadPre", "BufNewFile" },
+	format_opts_for_buf = format_opts_for_buf,
 	opts = {
 		notify_on_error = false,
-		format_on_save = {
-			timeout_ms = 500,
-			lsp_fallback = true,
-		},
+		format_on_save = format_opts_for_buf,
 		formatters = {
 			biome = {
 				command = function(_, ctx)
@@ -29,6 +49,17 @@ return {
 				stdin = true,
 				cwd = function(_, ctx)
 					return monorepo.find_oxc_root(ctx.filename)
+				end,
+				require_cwd = true,
+			},
+			eslint_d_monorepo = {
+				command = function(_, ctx)
+					return monorepo.eslint_format_cmd(ctx.filename)
+				end,
+				args = { "--fix-to-stdout", "--stdin", "--stdin-filename", "$FILENAME" },
+				stdin = true,
+				cwd = function(_, ctx)
+					return monorepo.find_eslint_root(ctx.filename)
 				end,
 				require_cwd = true,
 			},

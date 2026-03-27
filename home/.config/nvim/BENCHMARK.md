@@ -2,6 +2,29 @@
 
 Date: 2026-02-06
 
+## Update 2026-03-27
+
+Routing policy changed after this benchmark:
+
+- `apps/signal` is now treated as an OXC subtree, not a Biome subtree.
+- OXC routing no longer falls back to Prettier.
+- ESLint routing now performs a cached formatting-ownership probe and can fall back to a config-text scan when `eslint --print-config` cannot execute cleanly.
+
+Focused post-change spot checks on this machine:
+
+- `apps/signal/src/routes/api.ts`
+  - first `formatter_state_for_buf(0)`: `219.8µs`
+  - cached average over 5000 calls: `6.527µs`
+- `apps/webapp/middleware.ts`
+  - first `formatter_state_for_buf(0)`: `378792.8µs`
+  - cached average over 5000 calls: `15.633µs`
+
+Interpretation:
+
+- The OXC hot path remains in the same low-microsecond range as the prior optimized routing.
+- The ESLint hot path remains cheap once cached.
+- The one-time ESLint probe is expensive when the workspace install state causes `eslint --print-config` to fail and the router falls back to config scanning. That cost is paid once per ESLint root and filetype family cache key.
+
 ## Scope
 
 Benchmarked the routing hot paths used by save-time formatting/linting:
