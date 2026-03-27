@@ -17,10 +17,11 @@ keybind = ctrl+k=unbind
 keybind = ctrl+l=unbind
 
 # Keep terminal-level split navigation available on a shifted variant.
-keybind = ctrl+shift+h=goto_split:left
-keybind = ctrl+shift+j=goto_split:bottom
-keybind = ctrl+shift+k=goto_split:top
-keybind = ctrl+shift+l=goto_split:right
+# Use physical key names so Ghostty matches the chord before layout translation.
+keybind = ctrl+shift+KeyH=goto_split:left
+keybind = ctrl+shift+KeyJ=goto_split:bottom
+keybind = ctrl+shift+KeyK=goto_split:top
+keybind = ctrl+shift+KeyL=goto_split:right
 
 keybind = cmd+h=previous_tab
 keybind = cmd+l=next_tab
@@ -45,7 +46,7 @@ keybind = ctrl+9=text:\x00\x39
 
 # Send a dedicated CSI-u sequence for tmux to close the current pane when the
 # window is split, or close the window when only one pane remains.
-keybind = ctrl+shift+q=text:\x1b[81;6u
+keybind = ctrl+shift+KeyQ=csi:81;6u
 
 # Send a dedicated CSI-u sequence for tmux to rename the current window.
 keybind = ctrl+shift+,=text:\x1b[60;6u
