@@ -16,7 +16,7 @@ return {
 
 		lint.linters.eslint_d_monorepo = vim.tbl_deep_extend("force", require("lint.linters.eslint_d"), {
 			cmd = function()
-				return monorepo.eslint_d_cmd(monorepo.buf_path(0))
+				return monorepo.eslint_lint_cmd(monorepo.buf_path(0))
 			end,
 		})
 
@@ -120,7 +120,7 @@ return {
 					return
 				end
 
-				if monorepo.is_toolchain_marker_file(vim.api.nvim_buf_get_name(args.buf)) then
+				if monorepo.is_cache_invalidator_file(vim.api.nvim_buf_get_name(args.buf)) then
 					monorepo.clear_caches()
 				end
 
