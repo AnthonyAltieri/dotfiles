@@ -118,7 +118,7 @@ return {
                     --  For example, in C this would take you to the header
                     vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts("[G]oto [D]eclaration"))
 
-                    vim.keymap.set("n", "<leader>fb", vim.lsp.buf.format, opts("[F]ormat [B]uffer"))
+                    vim.keymap.set("n", "<leader>fb", "<cmd>Format<CR>", opts("[F]ormat [B]uffer"))
 
                     -- The following two autocommands are used to highlight references of the
                     -- word under your cursor when your cursor rests there for a little while.

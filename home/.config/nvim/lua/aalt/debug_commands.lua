@@ -242,7 +242,31 @@ local function lint_debug()
 	open_report("lint-debug", lines)
 end
 
+local function format_current_buffer()
+	local ok_conform, conform = pcall(require, "conform")
+	if not ok_conform then
+		vim.notify("Conform not available.", vim.log.levels.ERROR, { title = "Format" })
+		return
+	end
+
+	local bufnr = vim.api.nvim_get_current_buf()
+	local format_config = require("aalt.lazy.autoformat")
+	local monorepo = require("aalt.monorepo")
+	local format_opts = format_config.format_opts_for_buf(bufnr)
+	local formatter_state = monorepo.formatter_state_for_buf(bufnr)
+
+	conform.format(vim.tbl_extend("force", format_opts, {
+		async = false,
+		bufnr = bufnr,
+		formatters = formatter_state.formatters,
+		stop_after_first = true,
+	}))
+end
+
 function M.setup()
+	vim.api.nvim_create_user_command("Format", format_current_buffer, {
+		desc = "Format current buffer using routed formatter selection",
+	})
 	vim.api.nvim_create_user_command("FormatDebug", format_debug, {
 		desc = "Show formatter routing/debug details for current buffer",
 	})
