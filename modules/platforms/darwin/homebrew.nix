@@ -19,7 +19,7 @@
 
     brews = [
       "bat"
-      "bun"
+      "oven-sh/bun/bun"
       "fd"
       "fzf"
       "gh"
