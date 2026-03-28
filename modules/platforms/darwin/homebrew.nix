@@ -2,6 +2,10 @@
   homebrew = {
     enable = true;
 
+    taps = [
+      "oven-sh/bun"
+    ];
+
     onActivation = {
       autoUpdate = false;
       cleanup = "none";
