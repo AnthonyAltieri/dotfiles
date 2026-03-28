@@ -1,4 +1,12 @@
 { lib, username, homeDirectory, role, platform, ... }:
+let
+  homebrewSessionPath = lib.optionals (platform == "darwin") [
+    "/opt/homebrew/bin"
+    "/opt/homebrew/sbin"
+    "/usr/local/bin"
+    "/usr/local/sbin"
+  ];
+in
 {
   programs.home-manager.enable = true;
 
@@ -8,7 +16,7 @@
     username = lib.mkDefault username;
     homeDirectory = lib.mkDefault homeDirectory;
     stateVersion = "25.05";
-    sessionPath = [
+    sessionPath = homebrewSessionPath ++ [
       "$HOME/.cargo/bin"
       "$HOME/.local/bin"
       "$HOME/.poetry/bin"
