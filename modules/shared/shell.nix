@@ -1,4 +1,4 @@
-{ lib, platform, ... }:
+{ lib, overwriteHomeManagerBackups ? false, platform, ... }:
 let
   brewShellInit = lib.optionalString (platform == "darwin") ''
     if [[ -x /opt/homebrew/bin/brew ]]; then
@@ -8,6 +8,11 @@ let
     fi
   '';
 in {
+  home.file = {
+    ".zshenv".force = overwriteHomeManagerBackups;
+    ".zshrc".force = overwriteHomeManagerBackups;
+  };
+
   programs.zsh = {
     enable = true;
     enableCompletion = true;

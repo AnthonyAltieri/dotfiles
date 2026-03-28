@@ -1,17 +1,24 @@
+{ overwriteHomeManagerBackups ? false, ... }:
+let
+  managedFile = source: {
+    inherit source;
+    force = overwriteHomeManagerBackups;
+  };
+
+  managedTree = source: {
+    inherit source;
+    recursive = true;
+    force = overwriteHomeManagerBackups;
+  };
+in
 {
   home.file = {
-    ".vimrc".source = ../../home/.vimrc;
+    ".vimrc" = managedFile ../../home/.vimrc;
   };
 
   xdg.configFile = {
-    "nvim" = {
-      source = ../../home/.config/nvim;
-      recursive = true;
-    };
-    "starship.toml".source = ../../home/.config/starship.toml;
-    "zsh" = {
-      source = ../../home/.config/zsh;
-      recursive = true;
-    };
+    "nvim" = managedTree ../../home/.config/nvim;
+    "starship.toml" = managedFile ../../home/.config/starship.toml;
+    "zsh" = managedTree ../../home/.config/zsh;
   };
 }
