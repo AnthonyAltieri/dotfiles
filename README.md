@@ -93,7 +93,7 @@ Show a closure diff before a real apply:
 ```
 
 During a real apply, Home Manager backs up conflicting managed files with the `.hm-backup` suffix before replacing them by default.
-If you want a one-off apply to replace those files directly instead, run bootstrap with `--overwrite`.
+If you want a one-off apply to force-replace those managed files directly instead, run bootstrap with `--overwrite`.
 
 On the first real nix-darwin apply, bootstrap may also find unmanaged `/etc/bashrc` or `/etc/zshrc` content.
 Without `--overwrite`, bootstrap backs those files up to `*.before-nix-darwin` automatically and continues.

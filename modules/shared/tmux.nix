@@ -1,4 +1,4 @@
-{ pkgs, platform, role, ... }:
+{ overwriteHomeManagerBackups ? false, pkgs, platform, role, ... }:
 let
   tmuxPackage =
     if platform == "darwin" && role != "sandbox"
@@ -12,6 +12,8 @@ let
     ''
     else pkgs.tmux;
 in {
+  xdg.configFile."tmux/tmux.conf".force = overwriteHomeManagerBackups;
+
   programs.tmux = {
     enable = true;
     package = tmuxPackage;

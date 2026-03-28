@@ -1,6 +1,9 @@
-{ pkgs, ... }:
+{ overwriteHomeManagerBackups ? false, pkgs, ... }:
 {
-  home.file."go/bin/observe".source = "${pkgs.observe}/bin/observe";
+  home.file."go/bin/observe" = {
+    source = "${pkgs.observe}/bin/observe";
+    force = overwriteHomeManagerBackups;
+  };
 
   home.packages = with pkgs; [
     observe
