@@ -20,6 +20,7 @@ vim.opt.inccommand = 'nosplit'
 
 -- Allow unsaved buffers to be hidden (needed for LSP go-to-definition, etc.)
 vim.opt.hidden = true
+vim.opt.autoread = true
 
 -- Don't use swapfiles, use an undofile instead
 vim.opt.swapfile = false
