@@ -348,7 +348,16 @@ function M.eslint_format_cmd(path)
 		return mason_eslint_d
 	end
 
-	return "eslint_d"
+	local local_eslint = M.find_local_bin(path, "eslint")
+	if local_eslint then
+		return local_eslint
+	end
+
+	if command_exists("eslint") then
+		return "eslint"
+	end
+
+	return nil
 end
 
 function M.eslint_format_policy(path, family)
