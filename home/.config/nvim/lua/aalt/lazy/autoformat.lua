@@ -43,14 +43,15 @@ end
 local function eslint_fix_with_fallback(ctx, lines, callback)
 	local filename = ctx.filename
 	local cwd = monorepo.find_eslint_root(filename)
-	local command = monorepo.eslint_format_cmd(filename)
-	if not cwd or not command then
+	local runtime = monorepo.eslint_format_runtime(filename)
+	local command = runtime and runtime.command or nil
+	if not cwd or not runtime or not command then
 		callback("Could not resolve an ESLint formatter command.")
 		return
 	end
 
 	local input = table.concat(lines, "\n")
-	if vim.fs.basename(command) == "eslint_d" then
+	if runtime.mode == "eslint_d" then
 		local completed = vim.system({ command, "--fix-to-stdout", "--stdin", "--stdin-filename", filename }, {
 			cwd = cwd,
 			text = true,
