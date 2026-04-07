@@ -70,6 +70,21 @@ local function resolve_linter_entries(lint, selected_linters)
 	return entries
 end
 
+local function formatter_runtime_for_name(name, formatter_state)
+	if name == "eslint_d_monorepo" then
+		return formatter_state.formatter_runtime
+	end
+	return nil
+end
+
+local function formatter_command_for_display(name, default_command, formatter_state)
+	local runtime = formatter_runtime_for_name(name, formatter_state)
+	if runtime and runtime.command then
+		return runtime.command
+	end
+	return default_command or "-"
+end
+
 local function append_formatter_candidates(lines, conform, bufnr, formatter_state)
 	append(lines, "## Formatter Candidates")
 	if #formatter_state.formatters == 0 then
@@ -80,10 +95,15 @@ local function append_formatter_candidates(lines, conform, bufnr, formatter_stat
 	local available = conform.resolve_formatters(formatter_state.formatters, bufnr, false, true)
 	for _, name in ipairs(formatter_state.formatters) do
 		local info = conform.get_formatter_info(name, bufnr)
+		local runtime = formatter_runtime_for_name(name, formatter_state)
 		append(lines, string.format("- %s", name))
 		append_kv(lines, "  available", info.available)
-		append_kv(lines, "  command", info.command or "-")
+		append_kv(lines, "  command", formatter_command_for_display(name, info.command, formatter_state))
 		append_kv(lines, "  cwd", info.cwd or "-")
+		if runtime then
+			append_kv(lines, "  runtime mode", runtime.mode or "-")
+			append_kv(lines, "  runtime source", runtime.source or "-")
+		end
 		append_kv(lines, "  reason", info.available_msg or "-")
 	end
 
@@ -128,6 +148,18 @@ local function append_policy_details(lines, formatter_state)
 	append(lines, "")
 end
 
+local function append_formatter_warnings(lines, formatter_state)
+	local runtime = formatter_state.formatter_runtime
+	if not runtime or not runtime.warning_headline then
+		return
+	end
+
+	append(lines, "## Warnings")
+	append(lines, string.format("- %s", runtime.warning_headline))
+	append(lines, string.format("- %s", runtime.warning_detail or "No additional detail."))
+	append(lines, "")
+end
+
 local function append_diagnostic_counts(lines, bufnr)
 	append(lines, "## Current Diagnostics By Source")
 	local counts = {}
@@ -160,7 +192,13 @@ local function build_summary(lines, path, ft, formatter_state, active_formatter,
 	append_kv(lines, "autoformat should work", autoformat_should_work and "yes" or "no")
 	append_kv(lines, "autoformat reason", autoformat_reason)
 	append_kv(lines, "active formatter", active_formatter and active_formatter.name or "none")
-	append_kv(lines, "active formatter cmd", active_formatter and active_formatter.command or "none")
+	append_kv(
+		lines,
+		"active formatter cmd",
+		active_formatter
+				and formatter_command_for_display(active_formatter.name, active_formatter.command, formatter_state)
+			or "none"
+	)
 	append_kv(lines, "active linter", active_linter and active_linter.name or "none")
 	append_kv(lines, "active linter cmd", active_linter and active_linter.cmd or "none")
 	append_kv(lines, "lint routing", linter_state.reason or "-")
@@ -195,6 +233,7 @@ local function format_debug()
 	local active_formatter = conform.resolve_formatters(formatter_state.formatters, bufnr, false, true)[1]
 
 	build_summary(lines, path, ft, formatter_state, active_formatter, linter_state, active_linter)
+	append_formatter_warnings(lines, formatter_state)
 	append_policy_details(lines, formatter_state)
 	append_formatter_candidates(lines, conform, bufnr, formatter_state)
 	append(lines, "")
@@ -230,6 +269,7 @@ local function lint_debug()
 	local active_linter = lint_entries[1]
 
 	build_summary(lines, path, ft, formatter_state, active_formatter, linter_state, active_linter)
+	append_formatter_warnings(lines, formatter_state)
 	append_policy_details(lines, formatter_state)
 	if ok_conform then
 		append_formatter_candidates(lines, conform, bufnr, formatter_state)

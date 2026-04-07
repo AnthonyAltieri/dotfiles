@@ -337,18 +337,58 @@ function M.eslint_lint_cmd(path)
 	return "eslint_d"
 end
 
-function M.eslint_format_cmd(path)
+function M.eslint_format_runtime(path)
 	local local_eslint_d = M.find_local_bin(path, "eslint_d")
 	if local_eslint_d then
-		return local_eslint_d
+		return {
+			command = local_eslint_d,
+			mode = "eslint_d",
+			source = "local",
+		}
 	end
 
 	local mason_eslint_d = normalize(vim.fn.stdpath("data") .. "/mason/bin/eslint_d")
 	if mason_eslint_d and command_exists(mason_eslint_d) then
-		return mason_eslint_d
+		return {
+			command = mason_eslint_d,
+			mode = "eslint_d",
+			source = "mason",
+		}
 	end
 
-	return "eslint_d"
+	local local_eslint = M.find_local_bin(path, "eslint")
+	if local_eslint then
+		return {
+			command = local_eslint,
+			mode = "eslint",
+			source = "local",
+			warning_detail = string.format("Using local `eslint` fallback: %s", local_eslint),
+			warning_headline = "`eslint_d` formatter binary is unavailable for this buffer.",
+		}
+	end
+
+	if command_exists("eslint") then
+		return {
+			command = "eslint",
+			mode = "eslint",
+			source = "global",
+			warning_detail = "Using `eslint` from $PATH as the formatter fallback.",
+			warning_headline = "`eslint_d` formatter binary is unavailable for this buffer.",
+		}
+	end
+
+	return {
+		command = nil,
+		mode = "unavailable",
+		source = "none",
+		warning_detail = "No fallback `eslint` binary was found.",
+		warning_headline = "`eslint_d` formatter binary is unavailable for this buffer.",
+	}
+end
+
+function M.eslint_format_cmd(path)
+	local runtime = M.eslint_format_runtime(path)
+	return runtime and runtime.command or nil
 end
 
 function M.eslint_format_policy(path, family)
@@ -490,12 +530,14 @@ function M.formatter_state_for_buf(bufnr)
 
 	if kind == "eslint" then
 		local policy = M.eslint_format_policy(path, family)
+		local formatter_runtime = M.eslint_format_runtime(path)
 		if policy and (policy.status == "enabled" or policy.status == "fallback_enabled") then
 			return {
 				detected_toolchain = "eslint",
 				detected_root = root,
 				detected_policy = "eslint-only",
 				formatters = { "eslint_d_monorepo" },
+				formatter_runtime = formatter_runtime,
 				policy_details = policy,
 				reason = "Resolved ESLint config enables prettier/prettier, so ESLint owns formatting here.",
 			}
