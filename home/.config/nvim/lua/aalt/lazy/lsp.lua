@@ -151,6 +151,12 @@ return {
             --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
             local capabilities = vim.lsp.protocol.make_client_capabilities()
             capabilities = vim.tbl_deep_extend("force", capabilities, require("blink.cmp").get_lsp_capabilities())
+            local rustup_rust_analyzer = vim.fn.expand("$HOME/.cargo/bin/rust-analyzer")
+            local rustup_rust_analyzer_ready = false
+            if vim.fn.executable(rustup_rust_analyzer) == 1 then
+                vim.fn.system({ rustup_rust_analyzer, "--version" })
+                rustup_rust_analyzer_ready = vim.v.shell_error == 0
+            end
 
             -- Enable the following language servers
             --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -220,7 +226,7 @@ return {
             require("mason-lspconfig").setup({
                 ensure_installed = vim.tbl_keys(servers or {}),
                 automatic_enable = {
-                    exclude = { "ts_ls" },
+                    exclude = { "rust_analyzer", "ts_ls" },
                 },
             })
 
@@ -235,6 +241,15 @@ return {
                 capabilities = capabilities,
             })
             vim.lsp.enable("tsgo")
+
+            -- Use the rustup-managed rust-analyzer so it stays aligned with the toolchain's proc-macro server.
+            vim.lsp.config("rust_analyzer", {
+                capabilities = capabilities,
+                cmd = { rustup_rust_analyzer },
+            })
+            if rustup_rust_analyzer_ready then
+                vim.lsp.enable("rust_analyzer")
+            end
 
             vim.api.nvim_create_user_command("LspInfo", function()
                 local clients = vim.lsp.get_clients({ bufnr = 0 })

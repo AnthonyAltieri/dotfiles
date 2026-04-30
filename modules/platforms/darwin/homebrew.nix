@@ -29,6 +29,7 @@
       "nvm"
       "ripgrep"
       "starship"
+      "tree-sitter-cli"
       "tmux"
       "uv"
       "vim"

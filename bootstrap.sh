@@ -455,6 +455,18 @@ switch_darwin_role() {
   fi
 }
 
+sync_neovim_treesitter_parsers() {
+  if ! command -v nvim >/dev/null 2>&1; then
+    log "Skipping nvim-treesitter parser sync because nvim is not on PATH."
+    return
+  fi
+
+  log "Syncing nvim-treesitter parsers..."
+  if ! nvim --headless "+TSUpdateSync" +qall; then
+    log "nvim-treesitter parser sync failed. Run :TSUpdateSync manually in Neovim."
+  fi
+}
+
 parse_args "$@"
 require_darwin
 normalize_root_home
@@ -496,4 +508,5 @@ fi
 
 preflight_etc_shell_conflicts "$SYSTEM_PATH"
 switch_darwin_role "$SYSTEM_PATH"
+sync_neovim_treesitter_parsers
 log "Done."

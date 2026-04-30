@@ -11,6 +11,7 @@
     jq
     nodejs
     pnpm
+    tree-sitter
     uv
   ];
 }

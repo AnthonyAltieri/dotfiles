@@ -1,5 +1,5 @@
 theme = Catppuccin Macchiato
-font-family = "BerkeleyMono"
+font-family = "TX-02"
 window-title-font-family = "BerkeleyMono"
 font-size = 14
 shell-integration = zsh
