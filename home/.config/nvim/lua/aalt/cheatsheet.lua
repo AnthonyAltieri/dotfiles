@@ -16,11 +16,12 @@ return {
 	-- Go To
 	{ cat = "Go To", key = "gd", desc = "Go to definition" },
 	{ cat = "Go To", key = "gr", desc = "Go to references" },
-	{ cat = "Go To", key = "gI", desc = "Go to implementation" },
-	{ cat = "Go To", key = "gD", desc = "Go to declaration" },
+	{ cat = "Go To", key = "gi", desc = "Go to implementation" },
+	{ cat = "Go To", key = "gD", desc = "Go to type definition" },
 
 	-- Hover & Documentation
 	{ cat = "Hover/Docs", key = "<M-v>", desc = "Hover documentation (normal mode)" },
+	{ cat = "Hover/Docs", key = "<M-V>", desc = "Hover documentation split" },
 	{ cat = "Hover/Docs", key = "<M-v>", desc = "Signature help (insert mode)" },
 	{ cat = "Hover/Docs", key = "<leader>D", desc = "Type definition" },
 	{ cat = "Hover/Docs", key = "<leader>ds", desc = "Document symbols" },

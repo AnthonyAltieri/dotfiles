@@ -16,6 +16,9 @@ return {
             { "j-hui/fidget.nvim", opts = {} },
         },
         config = function()
+            local lsp_navigation = require("aalt.lsp_navigation")
+            lsp_navigation.setup()
+
             local function organize_typescript_imports()
                 vim.lsp.buf.code_action({
                     apply = true,
@@ -43,17 +46,8 @@ return {
                     --  Jumps directly when there is a single result, opens telescope when multiple.
                     --  To jump back, press <C-T>.
                     vim.keymap.set("n", "gd", function()
-                        vim.lsp.buf.definition({
-                            on_list = function(options)
-                                if #options.items == 1 then
-                                    local item = options.items[1]
-                                    vim.cmd("edit " .. vim.fn.fnameescape(item.filename))
-                                    vim.api.nvim_win_set_cursor(0, { item.lnum, item.col - 1 })
-                                else
-                                    vim.api.nvim_feedkeys("", "n", true)
-                                    require("telescope.builtin").lsp_definitions(telescope_vertical)
-                                end
-                            end,
+                        lsp_navigation.go_to_definition({
+                            telescope = telescope_vertical,
                         })
                     end, opts("[G]oto [D]efinition"))
 
@@ -70,13 +64,22 @@ return {
 
                     -- Jump to the implementation of the word under your cursor.
                     --  Useful when your language has ways of declaring types without an actual implementation.
-                    vim.keymap.set("n", "gI", function()
-                        require("telescope.builtin").lsp_implementations(telescope_vertical)
-                    end, opts("[G]oto [I]mplementation"))
+                    local go_to_implementation = function()
+                        lsp_navigation.go_to_implementation({
+                            telescope = telescope_vertical,
+                        })
+                    end
+                    vim.keymap.set("n", "gi", go_to_implementation, opts("[G]oto [I]mplementation"))
+                    vim.keymap.set("n", "gI", go_to_implementation, opts("[G]oto [I]mplementation"))
 
                     -- Jump to the type of the word under your cursor.
                     --  Useful when you're not sure what type a variable is and you want to see
                     --  the definition of its *type*, not where it was *defined*.
+                    vim.keymap.set("n", "gD", function()
+                        lsp_navigation.go_to_type_definition({
+                            telescope = telescope_vertical,
+                        })
+                    end, opts("[G]oto Type [D]efinition"))
                     vim.keymap.set("n", "<leader>D", function()
                         require("telescope.builtin").lsp_type_definitions(telescope_vertical)
                     end, opts("Type [D]efinition"))
@@ -106,17 +109,12 @@ return {
 
                     -- Opens a popup that displays documentation about the word under your cursor
                     --  See `:help K` for why this keymap
-                    vim.keymap.set("n", "<m-v>", function()
-                        vim.lsp.buf.hover({ max_width = 80, max_height = 30 })
-                    end, opts("Hover Documentation (lsp)"))
+                    vim.keymap.set("n", "<m-v>", require("aalt.hover").show_float, opts("Hover Documentation (lsp)"))
+                    vim.keymap.set("n", "<m-V>", require("aalt.hover").show_split, opts("Hover Documentation Split (lsp)"))
                     vim.keymap.set("i", "<m-v>", vim.lsp.buf.signature_help, opts("Signature Help (lsp)"))
 
                     vim.keymap.set("n", "<m-d>", vim.diagnostic.open_float, opts("Diagnostics (lsp)"))
                     vim.keymap.set("i", "<m-d>", vim.diagnostic.open_float, opts("Diagnostics (lsp)"))
-
-                    -- WARN: This is not Goto Definition, this is Goto Declaration.
-                    --  For example, in C this would take you to the header
-                    vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts("[G]oto [D]eclaration"))
 
                     vim.keymap.set("n", "<leader>fb", "<cmd>Format<CR>", opts("[F]ormat [B]uffer"))
 
