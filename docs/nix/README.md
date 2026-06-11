@@ -157,11 +157,13 @@ Managed examples:
 - `~/.config/zsh`
 - `~/.config/starship.toml`
 - `~/.vimrc`
-- `~/.codex/skills/*`
+- shared `~/.codex/skills/*`, excluding work-only skills
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- selected Claude commands and skills, including `atlas`, `notion-knowledge-capture`, and `spaces`
+- selected Claude commands and shared skills, including `atlas`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, and `spaces`
 - selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
+
+The work profile also manages the `observe` skill for both Codex and Claude.
 
 The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read`.
 The managed `.codex` and `.claude` payloads are copied into place as regular files during activation rather than symlinked, which avoids local skill discovery issues in Codex and Claude.
@@ -270,13 +272,26 @@ Prefer the smallest layer that actually owns the behavior. Do not put Linux-only
 
 ## Verification
 
+Fast local checks:
+
+```bash
+bash tests/zsh/codex-spaces-wrapper-smoke.sh
+bash tests/nvim-external-write-merge-smoke.sh
+bash tests/nvim-monorepo-routing-smoke.sh
+bash scripts/test-skill-helpers.sh
+```
+
+The Neovim checks expect the relevant lazy.nvim plugin checkouts to already exist under `~/.local/share/nvim/lazy`. `scripts/test-skill-helpers.sh` expects Rust and the helper crates' offline dependencies to be available.
+
 The intended validation path is:
 
 ```bash
 nix run .#spaces -- --help
 nix flake check --impure
 nix build --impure .#darwinConfigurations.personal.system
+nix build --impure .#darwinConfigurations.personal-overwrite.system
 nix build --impure .#darwinConfigurations.work.system
+nix build --impure .#darwinConfigurations.work-overwrite.system
 nix build --impure .#homeConfigurations.personal-linux.activationPackage
 nix build --impure .#homeConfigurations.work-linux.activationPackage
 nix build --impure .#homeConfigurations.sandbox-aarch64-darwin.activationPackage

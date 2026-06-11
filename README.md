@@ -163,15 +163,17 @@ This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
 Managed agent files include:
 
-- `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,spaces,sql-read}`
+- `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,programming,spaces,sql-read}`
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
 - `~/.claude/commands/{handle-pr-checks.md,handle-pr-comments.md,pr.md}`
-- `~/.claude/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,notion-knowledge-capture,programming,spaces,sql-read}`
+- `~/.claude/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,programming,spaces,sql-read}`
 - `~/.claude/{statusline-command.sh,tmux-notify.sh}`
+
+The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
 
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
@@ -201,13 +203,26 @@ Examples of intentionally unmanaged local state:
 
 ## Verification
 
+Fast local checks:
+
+```bash
+bash tests/zsh/codex-spaces-wrapper-smoke.sh
+bash tests/nvim-external-write-merge-smoke.sh
+bash tests/nvim-monorepo-routing-smoke.sh
+bash scripts/test-skill-helpers.sh
+```
+
+The Neovim checks expect the relevant lazy.nvim plugin checkouts to already exist under `~/.local/share/nvim/lazy`. `scripts/test-skill-helpers.sh` expects Rust and the helper crates' offline dependencies to be available.
+
 Once Nix is available on the target machine, run:
 
 ```bash
 nix run .#spaces -- --help
 nix flake check --impure
 nix build --impure .#darwinConfigurations.personal.system
+nix build --impure .#darwinConfigurations.personal-overwrite.system
 nix build --impure .#darwinConfigurations.work.system
+nix build --impure .#darwinConfigurations.work-overwrite.system
 nix build --impure .#homeConfigurations.personal-linux.activationPackage
 nix build --impure .#homeConfigurations.work-linux.activationPackage
 nix build --impure .#homeConfigurations.sandbox-aarch64-darwin.activationPackage

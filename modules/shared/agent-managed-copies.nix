@@ -1,180 +1,103 @@
 { config, lib, role, ... }:
 let
-  sharedAgentManagedCopies = [
-    {
-      target = ".codex/AGENTS.md";
-      source = ../../home/.codex/AGENTS.md;
+  managedCopy = {
+    target,
+    source,
+    kind,
+    executable ? false,
+  }: {
+    inherit target source kind executable;
+  };
+
+  managedFile = target: source:
+    managedCopy {
+      inherit target source;
       kind = "file";
-      executable = false;
-    }
-    {
-      target = ".codex/prompts";
-      source = ../../home/.codex/prompts;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/rules/base.rules";
-      source = ../../home/.codex/rules/base.rules;
-      kind = "file";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/atlas";
-      source = ../../home/.codex/skills/atlas;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/frontend-design";
-      source = ../../home/.codex/skills/frontend-design;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/gh-address-comments";
-      source = ../../home/.codex/skills/gh-address-comments;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/gh-fix-ci";
-      source = ../../home/.codex/skills/gh-fix-ci;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/gh-manage-pr";
-      source = ../../home/.codex/skills/gh-manage-pr;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/notion-knowledge-capture";
-      source = ../../home/.codex/skills/notion-knowledge-capture;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/programming";
-      source = ../../home/.codex/skills/programming;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/spaces";
-      source = ../../home/.codex/skills/spaces;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".codex/skills/sql-read";
-      source = ../../home/.codex/skills/sql-read;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/README.md";
-      source = ../../home/.claude/README.md;
-      kind = "file";
-      executable = false;
-    }
-    {
-      target = ".claude/settings.json";
-      source = ../../home/.claude/settings.json;
-      kind = "file";
-      executable = false;
-    }
-    {
-      target = ".claude/commands";
-      source = ../../home/.claude/commands;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/atlas";
-      source = ../../home/.claude/skills/atlas;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/frontend-design";
-      source = ../../home/.claude/skills/frontend-design;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/gh-address-comments";
-      source = ../../home/.claude/skills/gh-address-comments;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/gh-fix-ci";
-      source = ../../home/.claude/skills/gh-fix-ci;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/gh-manage-pr";
-      source = ../../home/.claude/skills/gh-manage-pr;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/notion-knowledge-capture";
-      source = ../../home/.claude/skills/notion-knowledge-capture;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/programming";
-      source = ../../home/.claude/skills/programming;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/spaces";
-      source = ../../home/.claude/skills/spaces;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/sql-read";
-      source = ../../home/.claude/skills/sql-read;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/statusline-command.sh";
-      source = ../../home/.claude/statusline-command.sh;
+    };
+
+  managedExecutableFile = target: source:
+    managedCopy {
+      inherit target source;
       kind = "file";
       executable = true;
-    }
-    {
-      target = ".claude/tmux-notify.sh";
-      source = ../../home/.claude/tmux-notify.sh;
-      kind = "file";
-      executable = true;
-    }
+    };
+
+  managedDirectory = target: source:
+    managedCopy {
+      inherit target source;
+      kind = "directory";
+    };
+
+  sharedSkillNames = [
+    "atlas"
+    "frontend-design"
+    "gh-address-comments"
+    "gh-fix-ci"
+    "gh-manage-pr"
+    "handoff"
+    "improve-codebase-architecture"
+    "notion-knowledge-capture"
+    "programming"
+    "spaces"
+    "sql-read"
   ];
 
-  workOnlyAgentManagedCopies = lib.optionals (role == "work") [
-    {
-      target = ".codex/skills/observe";
-      source = ../../home/.codex/skills/observe;
-      kind = "directory";
-      executable = false;
-    }
-    {
-      target = ".claude/skills/observe";
-      source = ../../home/.claude/skills/observe;
-      kind = "directory";
-      executable = false;
-    }
+  workOnlySkillNames = [
+    "observe"
   ];
 
-  agentManagedCopies = sharedAgentManagedCopies ++ workOnlyAgentManagedCopies;
+  agentSkillCopies = agentName: sourceRoot: skillNames:
+    map (
+      skillName:
+      managedDirectory ".${agentName}/skills/${skillName}" (sourceRoot + "/${skillName}")
+    ) skillNames;
+
+  codexSkillCopies = agentSkillCopies "codex" ../../home/.codex/skills;
+  claudeSkillCopies = agentSkillCopies "claude" ../../home/.claude/skills;
+
+  sharedAgentManagedCopies =
+    [
+      (managedFile ".codex/AGENTS.md" ../../home/.codex/AGENTS.md)
+      (managedDirectory ".codex/prompts" ../../home/.codex/prompts)
+      (managedFile ".codex/rules/base.rules" ../../home/.codex/rules/base.rules)
+    ]
+    ++ codexSkillCopies sharedSkillNames
+    ++ [
+      (managedFile ".claude/README.md" ../../home/.claude/README.md)
+      (managedFile ".claude/settings.json" ../../home/.claude/settings.json)
+      (managedDirectory ".claude/commands" ../../home/.claude/commands)
+    ]
+    ++ claudeSkillCopies sharedSkillNames
+    ++ [
+      (managedExecutableFile ".claude/statusline-command.sh" ../../home/.claude/statusline-command.sh)
+      (managedExecutableFile ".claude/tmux-notify.sh" ../../home/.claude/tmux-notify.sh)
+    ];
+
+  workOnlyAgentManagedCopies = lib.optionals (role == "work") (
+    codexSkillCopies workOnlySkillNames
+    ++ claudeSkillCopies workOnlySkillNames
+  );
+
+  targetIsSafe = target:
+    let
+      segments = lib.splitString "/" target;
+    in
+      target != ""
+      && !(lib.hasPrefix "/" target)
+      && !(lib.hasInfix "\n" target)
+      && !(lib.hasInfix "\t" target)
+      && !(lib.elem "" segments)
+      && !(lib.elem "." segments)
+      && !(lib.elem ".." segments);
+
+  rawAgentManagedCopies = sharedAgentManagedCopies ++ workOnlyAgentManagedCopies;
+
+  unsafeTargets = lib.filter (entry: !(targetIsSafe entry.target)) rawAgentManagedCopies;
+
+  agentManagedCopies =
+    assert lib.assertMsg (unsafeTargets == [])
+      "Unsafe dotfiles.agentManagedCopies targets: ${lib.concatStringsSep ", " (map (entry: entry.target) unsafeTargets)}";
+    rawAgentManagedCopies;
 
   manifestType = lib.types.listOf (
     lib.types.submodule {
@@ -239,6 +162,43 @@ in
       current_manifest_file="${currentManifestFile}"
       current_paths_file="${currentPathsFile}"
 
+      dotfiles_safe_managed_target() {
+        local target="$1"
+        local part=""
+        local -a parts=()
+
+        case "$target" in
+          ""|/*|*'//'*)
+            return 1
+            ;;
+        esac
+        if [[ "$target" == *$'\t'* || "$target" == *$'\n'* ]]; then
+          return 1
+        fi
+
+        IFS='/' read -r -a parts <<< "$target"
+        for part in "''${parts[@]}"; do
+          case "$part" in
+            ""|"."|"..")
+              return 1
+              ;;
+          esac
+        done
+
+        return 0
+      }
+
+      dotfiles_managed_target_path() {
+        local target="$1"
+
+        if ! dotfiles_safe_managed_target "$target"; then
+          echo "Refusing unsafe managed copy target: $target" >&2
+          return 1
+        fi
+
+        printf '%s/%s\n' "$HOME" "$target"
+      }
+
       $DRY_RUN_CMD mkdir -p "$state_dir"
 
       if [ -f "$previous_paths_file" ]; then
@@ -246,7 +206,7 @@ in
           [ -n "$old_target" ] || continue
 
           if ! grep -Fqx "$old_target" "$current_paths_file"; then
-            target_path="$HOME/$old_target"
+            target_path="$(dotfiles_managed_target_path "$old_target")" || exit 1
 
             if [ -e "$target_path" ] || [ -L "$target_path" ]; then
               $DRY_RUN_CMD rm -rf "$target_path"
@@ -258,7 +218,7 @@ in
       while IFS=$'\t' read -r target kind executable source; do
         [ -n "$target" ] || continue
 
-        target_path="$HOME/$target"
+        target_path="$(dotfiles_managed_target_path "$target")" || exit 1
         parent_dir="$(dirname "$target_path")"
 
         $DRY_RUN_CMD mkdir -p "$parent_dir"

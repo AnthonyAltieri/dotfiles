@@ -16,12 +16,13 @@ REPO_C="$TMPDIR/repo-collision"
 REPO_D="$TMPDIR/repo-remote-collision"
 SINGLE_TARGET="$TMPDIR/single-target"
 MULTI_TARGET="$TMPDIR/multi-target"
+SPACES_BASE_DIR="$TMPDIR/spaces-base"
 FAKE_CODEX_LOG="$TMPDIR/fake-codex.log"
 FAKE_SPACES_LOG="$TMPDIR/fake-spaces.log"
 STDOUT_LOG="$TMPDIR/stdout.log"
 STDERR_LOG="$TMPDIR/stderr.log"
 
-mkdir -p "$BIN_DIR" "$CURRENT_REPO" "$REPO_A" "$REPO_B" "$REPO_C" "$REPO_D" "$SINGLE_TARGET" "$MULTI_TARGET"
+mkdir -p "$BIN_DIR" "$CURRENT_REPO" "$REPO_A" "$REPO_B" "$REPO_C" "$REPO_D" "$SINGLE_TARGET" "$MULTI_TARGET" "$SPACES_BASE_DIR"
 
 cat >"$BIN_DIR/codex" <<'EOF'
 #!/usr/bin/env bash
@@ -125,6 +126,7 @@ run_wrapper() {
   FAKE_SPACES_LOG="$FAKE_SPACES_LOG" \
   SINGLE_TARGET="$SINGLE_TARGET" \
   MULTI_TARGET="$MULTI_TARGET" \
+  CODEX_SPACES_BASE_DIR="${CODEX_SPACES_BASE_DIR:-}" \
   TMPDIR="$TMPDIR" \
   PATH="$BIN_DIR:$PATH" \
   zsh -fc 'source "$1"; shift; codex "$@"' _ "$WRAPPER" "$@" >"$STDOUT_LOG" 2>"$STDERR_LOG"
@@ -175,6 +177,10 @@ assert_lines "$FAKE_CODEX_LOG" -C "$SINGLE_TARGET"
 run_wrapper --spaces "$REPO_A" "$REPO_B"
 assert_lines "$FAKE_SPACES_LOG" create --json "$REPO_A" "$REPO_B"
 assert_lines "$FAKE_CODEX_LOG" -C "$MULTI_TARGET"
+
+CODEX_SPACES_BASE_DIR="$SPACES_BASE_DIR" run_wrapper --spaces "$REPO_A"
+assert_lines "$FAKE_SPACES_LOG" create --base-dir "$SPACES_BASE_DIR" --json "$REPO_A"
+assert_lines "$FAKE_CODEX_LOG" -C "$SINGLE_TARGET"
 
 run_wrapper --spaces "$REPO_A" --name api-cleanup
 assert_lines "$FAKE_SPACES_LOG" create --json --name api-cleanup --branch api-cleanup "$REPO_A"

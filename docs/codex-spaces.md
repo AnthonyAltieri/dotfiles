@@ -99,7 +99,7 @@ Key details:
 
 - `spaces create` requires the source repo to have an `origin` remote.
 - In local testing, `spaces create` based new workspaces on the source repo's upstream default branch rather than the currently checked out feature branch.
-- `CODEX_SPACES_BASE_DIR` overrides the default base directory for both the wrapper and direct CLI usage when you pass `--base-dir` consistently.
+- `CODEX_SPACES_BASE_DIR` overrides the default base directory for the wrapper. The wrapper passes it through to `spaces create --base-dir`; `--base-dir` is not a wrapper-owned flag before `--`.
 
 ## Multi-Repo Rule
 

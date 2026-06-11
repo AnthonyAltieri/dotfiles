@@ -107,7 +107,11 @@ assert_jq '.xdgFiles | index("zsh") != null' "Expected ~/.config/zsh to be manag
 assert_jq '.xdgFiles | index("nvim") != null' "Expected ~/.config/nvim to be managed"
 assert_jq '.xdgFiles | index("starship.toml") != null' "Expected starship config to be managed"
 assert_jq '.agentManagedTargets | index(".codex/AGENTS.md") != null' "Expected Codex config to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expected Codex handoff skill to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/handoff") != null' "Expected Claude handoff skill to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/improve-codebase-architecture") != null' "Expected Claude improve-codebase-architecture skill to be managed"
 assert_jq '.files | index(".vimrc") != null' "Expected ~/.vimrc to be managed"
 assert_jq '.packages | index("git") != null' "Expected git in home.packages"
 assert_jq '.packages | index("jq") != null' "Expected jq in home.packages"
@@ -125,36 +129,48 @@ case "$profile" in
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for personal"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for personal"
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal"
+    assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal"
+    assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal"
     ;;
   work)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for work"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for work"
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work"
+    assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work"
+    assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work"
     ;;
   sandbox)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
     assert_jq '.sessionVariables.CODEX_SANDBOX == "1"' "Expected CODEX_SANDBOX=1 for sandbox"
     assert_jq '(.sessionVariables | has("DOTFILES_COMMON")) | not' "Did not expect DOTFILES_COMMON for sandbox"
     assert_jq '.ohMyZsh == false' "Did not expect Oh My Zsh for sandbox"
+    assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox"
+    assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox"
     ;;
   personal-linux|personal-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for personal-linux"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for personal-linux"
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal-linux"
+    assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal-linux"
+    assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal-linux"
     ;;
   work-linux|work-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
     assert_jq '.sessionVariables.DOTFILES_COMMON == "1"' "Expected DOTFILES_COMMON=1 for work-linux"
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for work-linux"
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work-linux"
+    assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work-linux"
+    assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work-linux"
     ;;
   sandbox-x86_64-linux|sandbox-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
     assert_jq '.sessionVariables.CODEX_SANDBOX == "1"' "Expected CODEX_SANDBOX=1 for sandbox Linux"
     assert_jq '(.sessionVariables | has("DOTFILES_COMMON")) | not' "Did not expect DOTFILES_COMMON for sandbox Linux"
     assert_jq '.ohMyZsh == false' "Did not expect Oh My Zsh for sandbox Linux"
+    assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox Linux"
+    assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox Linux"
     ;;
 esac
 
