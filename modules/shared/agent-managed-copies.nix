@@ -29,6 +29,7 @@ let
     };
 
   sharedSkillNames = [
+    "agent-code-review-loop"
     "atlas"
     "frontend-design"
     "gh-address-comments"
@@ -40,6 +41,10 @@ let
     "programming"
     "spaces"
     "sql-read"
+  ];
+
+  codexOnlySkillNames = [
+    "ultragoal"
   ];
 
   workOnlySkillNames = [
@@ -62,6 +67,7 @@ let
       (managedFile ".codex/rules/base.rules" ../../home/.codex/rules/base.rules)
     ]
     ++ codexSkillCopies sharedSkillNames
+    ++ codexSkillCopies codexOnlySkillNames
     ++ [
       (managedFile ".claude/README.md" ../../home/.claude/README.md)
       (managedFile ".claude/settings.json" ../../home/.claude/settings.json)
