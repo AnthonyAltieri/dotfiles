@@ -163,14 +163,14 @@ This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
 Managed agent files include:
 
-- `~/.codex/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,programming,spaces,sql-read}`
+- `~/.codex/skills/{agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,programming,spaces,sql-read,ultragoal}`
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
 - `~/.claude/commands/{handle-pr-checks.md,handle-pr-comments.md,pr.md}`
-- `~/.claude/skills/{atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,programming,spaces,sql-read}`
+- `~/.claude/skills/{agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,programming,spaces,sql-read}`
 - `~/.claude/{statusline-command.sh,tmux-notify.sh}`
 
 The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
