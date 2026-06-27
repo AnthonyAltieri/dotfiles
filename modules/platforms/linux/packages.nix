@@ -4,6 +4,7 @@
     _1password-cli
     bat
     bun
+    cargo
     fd
     fzf
     gh
@@ -11,6 +12,7 @@
     jq
     nodejs
     pnpm
+    rustc
     uv
   ];
 }

@@ -149,6 +149,8 @@ case "$profile" in
     assert_jq '.sessionVariables.CODEX_SANDBOX == "1"' "Expected CODEX_SANDBOX=1 for sandbox"
     assert_jq '(.sessionVariables | has("DOTFILES_COMMON")) | not' "Did not expect DOTFILES_COMMON for sandbox"
     assert_jq '.ohMyZsh == false' "Did not expect Oh My Zsh for sandbox"
+    assert_jq '.packages | index("cargo") == null' "Did not expect cargo in home.packages for sandbox"
+    assert_jq '.packages | index("rustc") == null' "Did not expect rustc in home.packages for sandbox"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox"
     ;;
@@ -177,6 +179,8 @@ case "$profile" in
     assert_jq '.sessionVariables.CODEX_SANDBOX == "1"' "Expected CODEX_SANDBOX=1 for sandbox Linux"
     assert_jq '(.sessionVariables | has("DOTFILES_COMMON")) | not' "Did not expect DOTFILES_COMMON for sandbox Linux"
     assert_jq '.ohMyZsh == false' "Did not expect Oh My Zsh for sandbox Linux"
+    assert_jq '.packages | index("cargo") == null' "Did not expect cargo in home.packages for sandbox Linux"
+    assert_jq '.packages | index("rustc") == null' "Did not expect rustc in home.packages for sandbox Linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox Linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox Linux"
     ;;

@@ -28,6 +28,7 @@
       "neovim"
       "nvm"
       "ripgrep"
+      "rust"
       "starship"
       "tmux"
       "uv"
