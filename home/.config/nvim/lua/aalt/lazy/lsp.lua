@@ -19,7 +19,12 @@ return {
             local lsp_navigation = require("aalt.lsp_navigation")
             lsp_navigation.setup()
 
-            local function organize_typescript_imports()
+            local organize_import_clients = {
+                rust_analyzer = true,
+                tsgo = true,
+            }
+
+            local function organize_imports()
                 vim.lsp.buf.code_action({
                     apply = true,
                     context = {
@@ -99,6 +104,7 @@ return {
                     -- Rename the variable under your cursor
                     --  Most Language Servers support renaming across files, etc.
                     vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts("[R]e[n]ame"))
+                    vim.keymap.set("n", "<F2>", vim.lsp.buf.rename, opts("[R]ename Symbol"))
 
                     -- Execute a code action, usually your cursor needs to be on top of an error
                     -- or a suggestion from your LSP for this to activate.
@@ -124,9 +130,8 @@ return {
                     --
                     -- When you move your cursor, the highlights will be cleared (the second autocommand).
                     local client = vim.lsp.get_client_by_id(event.data.client_id)
-                    if client and client.name == "tsgo" then
-                        vim.keymap.set("n", "<C-M-o>", organize_typescript_imports, opts("[O]rganize Imports"))
-                        vim.keymap.set("n", "<F2>", vim.lsp.buf.rename, opts("[R]ename Symbol"))
+                    if client and organize_import_clients[client.name] then
+                        vim.keymap.set("n", "<C-M-o>", organize_imports, opts("[O]rganize Imports"))
                     end
 
                     if client and client.server_capabilities.documentHighlightProvider then
@@ -167,6 +172,7 @@ return {
                 --
                 pyright = {},
                 ruff = {},
+                rust_analyzer = {},
                 lua_ls = {
                     -- cmd = {...},
                     -- filetypes { ...},
@@ -246,7 +252,7 @@ return {
             end, { desc = "Show LSP clients attached to current buffer" })
 
             -- Bind any language specific commands
-            vim.keymap.set("n", "<leader>fi", organize_typescript_imports, { desc = "LSP: [F]ormat [I]mports" })
+            vim.keymap.set("n", "<leader>fi", organize_imports, { desc = "LSP: Organize Imports" })
         end,
     },
 }
