@@ -68,7 +68,9 @@ local function normalize_path(path)
 	if not path or path == "" then
 		return nil
 	end
-	return vim.fs.normalize(path)
+
+	local normalized = vim.fs.normalize(path)
+	return (vim.uv or vim.loop).fs_realpath(normalized) or normalized
 end
 
 local function source_context()
@@ -231,6 +233,22 @@ local function target_from_item(action, item)
 	}
 end
 
+local function target_key(target)
+	return table.concat({
+		normalize_path(target.filename) or "",
+		tostring(target.lnum),
+		tostring(target.col),
+	}, ":")
+end
+
+local function same_target(left, right)
+	if not left or not right then
+		return false
+	end
+
+	return target_key(left) == target_key(right)
+end
+
 local function loaded_buffer_for_path(path)
 	local normalized = normalize_path(path)
 	if not normalized then
@@ -244,6 +262,28 @@ local function loaded_buffer_for_path(path)
 	end
 
 	return nil
+end
+
+local function ensure_loaded_buffer_for_path(path)
+	local loaded = loaded_buffer_for_path(path)
+	if loaded then
+		return loaded
+	end
+
+	local bufnr = vim.fn.bufadd(path)
+	vim.fn.bufload(bufnr)
+	return bufnr
+end
+
+local function target_buffer(target)
+	if target.bufnr and vim.api.nvim_buf_is_valid(target.bufnr) then
+		if not vim.api.nvim_buf_is_loaded(target.bufnr) then
+			vim.fn.bufload(target.bufnr)
+		end
+		return target.bufnr
+	end
+
+	return ensure_loaded_buffer_for_path(target.filename)
 end
 
 local function open_target_buffer(target)
@@ -308,6 +348,110 @@ local function jump_to_item(action, item, context)
 	return true
 end
 
+local function rust_use_start(line)
+	return line:match("^%s*use%s+") ~= nil or line:match("^%s*pub[%w_%(%):]*%s+use%s+") ~= nil
+end
+
+local function rust_use_end(line)
+	return line:find(";", 1, true) ~= nil
+end
+
+local function is_rust_context(context, target)
+	return context.filetype == "rust" or target.filename:match("%.rs$") ~= nil
+end
+
+local function is_inside_rust_use_item(target)
+	local bufnr = target_buffer(target)
+	if not bufnr or not vim.api.nvim_buf_is_loaded(bufnr) then
+		return false
+	end
+
+	local line_count = vim.api.nvim_buf_line_count(bufnr)
+	local lnum = math.min(math.max(target.lnum, 1), line_count)
+	local search_start = math.max(1, lnum - 80)
+	local use_lnum = nil
+
+	for current = lnum, search_start, -1 do
+		local line = vim.api.nvim_buf_get_lines(bufnr, current - 1, current, false)[1] or ""
+		if rust_use_start(line) then
+			use_lnum = current
+			break
+		end
+
+		if current < lnum and rust_use_end(line) then
+			return false
+		end
+	end
+
+	if not use_lnum then
+		return false
+	end
+
+	local search_end = math.min(line_count, use_lnum + 80)
+	for current = use_lnum, search_end do
+		local line = vim.api.nvim_buf_get_lines(bufnr, current - 1, current, false)[1] or ""
+		if rust_use_end(line) then
+			return lnum <= current
+		end
+	end
+
+	return false
+end
+
+local function position_params_for_target(target, position_encoding)
+	local bufnr = target_buffer(target)
+	local line = vim.api.nvim_buf_get_lines(bufnr, target.lnum - 1, target.lnum, false)[1] or ""
+	local character = vim.str_utfindex(line, position_encoding, target.col - 1, false)
+
+	return {
+		textDocument = {
+			uri = vim.uri_from_fname(target.filename),
+		},
+		position = {
+			line = target.lnum - 1,
+			character = character,
+		},
+	}
+end
+
+local function locations_from_lsp_results(results)
+	local items = {}
+
+	for client_id, response in pairs(results or {}) do
+		if response.result then
+			local result = response.result
+			if result.uri or result.targetUri then
+				result = { result }
+			end
+
+			local client = vim.lsp.get_client_by_id(tonumber(client_id))
+			local position_encoding = (client and client.offset_encoding) or "utf-16"
+			vim.list_extend(items, vim.lsp.util.locations_to_items(result, position_encoding))
+		end
+	end
+
+	return items
+end
+
+local function should_follow_rust_import_definition(action, target, context, opts)
+	if action ~= ACTIONS.definition then
+		return false
+	end
+
+	if opts.follow_imports == false then
+		return false
+	end
+
+	if (opts.import_follow_depth or 0) >= 3 then
+		return false
+	end
+
+	return is_rust_context(context, target) and is_inside_rust_use_item(target)
+end
+
+local handle_location_list
+local request_definition_at_target
+
 function M.jump_to_definition_item(item, context)
 	return jump_to_item(ACTIONS.definition, item, context)
 end
@@ -348,7 +492,51 @@ local function open_multiple_locations(action, telescope_opts, context, options)
 	return true
 end
 
-local function handle_location_list(action, options, opts)
+request_definition_at_target = function(action, original_item, target, context, opts)
+	local bufnr = target_buffer(target)
+	local clients = vim.lsp.get_clients({ bufnr = bufnr })
+	local position_encoding = (clients[1] and clients[1].offset_encoding) or "utf-16"
+
+	if #clients == 0 then
+		jump_to_item(action, original_item, context)
+		return true
+	end
+
+	vim.lsp.buf_request_all(bufnr, "textDocument/definition", position_params_for_target(target, position_encoding), function(results)
+		vim.schedule(function()
+			local items = locations_from_lsp_results(results)
+			if #items == 0 then
+				jump_to_item(action, original_item, context)
+				return
+			end
+
+			local next_target = target_from_item(action, items[1])
+			if #items == 1 and same_target(target, next_target) then
+				jump_to_item(action, original_item, context)
+				return
+			end
+
+			handle_location_list(action, { items = items }, {
+				context = context,
+				import_follow_depth = (opts.import_follow_depth or 0) + 1,
+				telescope = opts.telescope,
+			})
+		end)
+	end)
+
+	return true
+end
+
+local function follow_rust_import_definition(action, item, context, opts)
+	local target = target_from_item(action, item)
+	if not target or not should_follow_rust_import_definition(action, target, context, opts) then
+		return false
+	end
+
+	return request_definition_at_target(action, item, target, context, opts)
+end
+
+handle_location_list = function(action, options, opts)
 	opts = opts or {}
 	local context = opts.context or source_context()
 
@@ -372,6 +560,9 @@ local function handle_location_list(action, options, opts)
 	end
 
 	if #options.items == 1 then
+		if follow_rust_import_definition(action, options.items[1], context, opts) then
+			return true
+		end
 		return jump_to_item(action, options.items[1], context)
 	end
 
