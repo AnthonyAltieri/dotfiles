@@ -104,12 +104,6 @@ git switch -c <branch-name> origin/main
 
 - If branch creation fails due to uncommitted changes or conflicts, stop and report the blocker.
 ---
-## Commit And PR Title Policy
-
-- Use Conventional Commits for commit messages: `<type>(optional scope): <description>`.
-- Use Conventional Commit format for PR titles as well, matching the primary user-facing change in the branch.
-- Prefer common types such as `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, and `ci`.
----
 ## PR Creation Policy
 
 - When creating a new PR, default to a draft PR unless I explicitly ask for a ready-for-review/open PR.
