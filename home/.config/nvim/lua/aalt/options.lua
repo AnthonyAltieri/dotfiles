@@ -34,6 +34,7 @@ vim.opt.timeoutlen = 300
 
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
+vim.opt.mousescroll = "ver:1,hor:6"
 
 -- Colors
 vim.opt.termguicolors = true
