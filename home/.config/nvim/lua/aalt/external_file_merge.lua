@@ -3,6 +3,7 @@ local M = {}
 local MERGE_GROUP = vim.api.nvim_create_augroup("aalt-external-file-merge", { clear = true })
 local CONFLICT_MARKER_STYLE = "zdiff3"
 local MERGE_LABELS = { "LOCAL", "BASE", "DISK" }
+local NOTIFY_TITLE = "External file sync"
 local buffer_states = {}
 
 local function is_normal_file_buffer(bufnr)
@@ -51,6 +52,15 @@ end
 
 local function is_binary_data(data)
 	return data:find("\0", 1, true) ~= nil
+end
+
+local function display_path(path)
+	return vim.fn.fnamemodify(path, ":~:.")
+end
+
+local function notify(message, level, path)
+	local suffix = path and (": " .. display_path(path)) or ""
+	vim.notify(message .. suffix, level, { title = NOTIFY_TITLE })
 end
 
 local function buffer_text(bufnr)
@@ -226,11 +236,12 @@ function M.handle_buffer(bufnr)
 		state.in_progress = false
 
 		if not ok then
-			vim.notify("External file reload failed: " .. err, vim.log.levels.WARN)
+			notify("External file reload failed: " .. err, vim.log.levels.WARN, path)
 			return
 		end
 
 		update_disk_state(bufnr, read_file(path))
+		notify("Reloaded external changes", vim.log.levels.INFO, path)
 		return
 	end
 
@@ -245,7 +256,7 @@ function M.handle_buffer(bufnr)
 	state.in_progress = false
 
 	if not merged then
-		vim.notify("External file merge failed: " .. merge_err, vim.log.levels.WARN)
+		notify("External file merge failed: " .. merge_err, vim.log.levels.WARN, path)
 		return
 	end
 
@@ -254,7 +265,9 @@ function M.handle_buffer(bufnr)
 	state.last_disk_text = disk_text
 
 	if merged.conflicted then
-		vim.notify("External changes merged into buffer with conflicts", vim.log.levels.WARN)
+		notify("External changes merged with conflicts", vim.log.levels.WARN, path)
+	else
+		notify("Merged external changes into buffer", vim.log.levels.INFO, path)
 	end
 end
 

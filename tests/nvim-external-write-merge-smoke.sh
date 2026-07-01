@@ -30,6 +30,11 @@ run_case() {
 run_case "clean_reload" <<'EOF'
 local merge = require("aalt.external_file_merge")
 local path = vim.fn.getenv("TMP_DIR") .. "/clean-reload.txt"
+local notifications = {}
+
+vim.notify = function(message, level, opts)
+	table.insert(notifications, { message = message, level = level, opts = opts or {} })
+end
 
 vim.fn.writefile({ "alpha", "beta" }, path)
 vim.cmd.edit(path)
@@ -41,11 +46,21 @@ merge.handle_buffer(0)
 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 assert(table.concat(lines, "\n") == "alpha\ndisk", "clean reload should read the disk contents")
 assert(vim.bo.modified == false, "clean reload should leave the buffer unmodified")
+assert(#notifications == 1, "clean reload should notify once")
+assert(notifications[1].message:find("Reloaded external changes", 1, true), notifications[1].message)
+assert(notifications[1].message:find("clean%-reload%.txt"), notifications[1].message)
+assert(notifications[1].level == vim.log.levels.INFO, "clean reload should notify at info level")
+assert(notifications[1].opts.title == "External file sync", "clean reload should use the sync notification title")
 EOF
 
 run_case "clean_merge" <<'EOF'
 local merge = require("aalt.external_file_merge")
 local path = vim.fn.getenv("TMP_DIR") .. "/clean-merge.txt"
+local notifications = {}
+
+vim.notify = function(message, level, opts)
+	table.insert(notifications, { message = message, level = level, opts = opts or {} })
+end
 
 vim.fn.writefile({ "one", "two" }, path)
 vim.cmd.edit(path)
@@ -58,11 +73,21 @@ merge.handle_buffer(0)
 local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 assert(table.concat(lines, "\n") == "zero\none\ntwo\nthree", "non-overlapping edits should merge cleanly")
 assert(vim.bo.modified == true, "merged buffer should remain modified")
+assert(#notifications == 1, "clean merge should notify once")
+assert(notifications[1].message:find("Merged external changes into buffer", 1, true), notifications[1].message)
+assert(notifications[1].message:find("clean%-merge%.txt"), notifications[1].message)
+assert(notifications[1].level == vim.log.levels.INFO, "clean merge should notify at info level")
+assert(notifications[1].opts.title == "External file sync", "clean merge should use the sync notification title")
 EOF
 
 run_case "conflict_merge" <<'EOF'
 local merge = require("aalt.external_file_merge")
 local path = vim.fn.getenv("TMP_DIR") .. "/conflict-merge.txt"
+local notifications = {}
+
+vim.notify = function(message, level, opts)
+	table.insert(notifications, { message = message, level = level, opts = opts or {} })
+end
 
 vim.fn.writefile({ "alpha", "beta", "gamma" }, path)
 vim.cmd.edit(path)
@@ -80,4 +105,9 @@ assert(text:find("||||||| BASE", 1, true), "zdiff3 conflict markers should inclu
 assert(text:find("=======", 1, true), "conflict markers should include the separator")
 assert(text:find(">>>>>>> DISK", 1, true), "conflict markers should include the disk label")
 assert(vim.bo.modified == true, "conflicted buffer should remain modified")
+assert(#notifications == 1, "conflict merge should notify once")
+assert(notifications[1].message:find("External changes merged with conflicts", 1, true), notifications[1].message)
+assert(notifications[1].message:find("conflict%-merge%.txt"), notifications[1].message)
+assert(notifications[1].level == vim.log.levels.WARN, "conflict merge should notify at warn level")
+assert(notifications[1].opts.title == "External file sync", "conflict merge should use the sync notification title")
 EOF
