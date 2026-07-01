@@ -1,5 +1,41 @@
 # Claude/Codex config parity
 
+## Native Mouse Wheel Scroll
+
+### Goal
+- Make mouse wheel scrolling in Neovim feel less jumpy using only native Neovim options.
+
+### Success criteria
+- Neovim uses one vertical line per mouse wheel tick.
+- No new scroll animation plugin is introduced.
+- The config loads cleanly in headless Neovim.
+
+### Assumptions / constraints
+- Start with the native option before evaluating `neoscroll.nvim` or other plugins.
+- Keep horizontal wheel scrolling at the Neovim default unless there is a reason to change it.
+- Scope is limited to the existing Neovim config.
+
+### Plan
+- [x] Add `vim.opt.mousescroll = "ver:1,hor:6"` near the existing scroll options.
+- [x] Run targeted formatting/checks for the edited Lua config.
+- [x] Verify the option value through headless Neovim.
+
+### Risks / edge cases
+- Some terminals or GUIs may still apply their own wheel acceleration before Neovim receives events.
+- One-line ticks can feel too slow on notched wheels; if so, `ver:2` is the next native fallback.
+
+### Verification plan
+- [x] Run a headless Neovim startup check.
+- [x] Query `mousescroll` in headless Neovim and confirm `ver:1,hor:6`.
+
+### Review
+- Added native `vim.opt.mousescroll = "ver:1,hor:6"` in `lua/aalt/options.lua`.
+- No smooth-scroll plugin was added.
+- Targeted headless Neovim load of `options.lua` reported `mousescroll=ver:1,hor:6`.
+- Full repo-config headless Neovim check reported `mousescroll=ver:1,hor:6` and exited successfully.
+- `stylua` is not installed in this environment, so no Lua formatter was available.
+- The full config check emitted an existing sandbox-only Neo-tree log warning because it could not write under `~/.local/share/nvim`.
+
 ## Goal
 - Bring the managed Claude configuration up to date with the recent Codex skill/config changes that are meant to stay portable in this repo.
 
