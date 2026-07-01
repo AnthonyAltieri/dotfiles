@@ -78,18 +78,38 @@ EOF
   write_bin "$dir/node_modules/.bin/prettier" 'cat'
 }
 
+setup_eslint_fallback_fixture() {
+  local dir="$TMP_DIR/eslint-fallback"
+  mkdir -p "$dir/src"
+  make_bin_dir "$dir"
+  cat >"$dir/eslint.config.mjs" <<'EOF'
+export default [];
+EOF
+  cat >"$dir/src/example.ts" <<'EOF'
+export const value = 1
+EOF
+  write_bin "$dir/node_modules/.bin/eslint" \
+    'if [ "${1:-}" = "--print-config" ]; then' \
+    '  printf "{\"rules\":{\"prettier/prettier\":[\"error\",{\"endOfLine\":\"auto\"}]}}"' \
+    'else' \
+    '  printf "[{\"output\":\"export const value = 1;\\n\",\"messages\":[]}]"' \
+    'fi'
+}
+
 run_case() {
   local file_path="$1"
   local expected_policy="$2"
   local expected_formatter="$3"
   local expected_linter="$4"
   local expected_autoformat="$5"
+  local expected_first_line="${6:-}"
 
   FILE_PATH="$file_path" \
   EXPECTED_POLICY="$expected_policy" \
   EXPECTED_FORMATTER="$expected_formatter" \
   EXPECTED_LINTER="$expected_linter" \
   EXPECTED_AUTOFORMAT="$expected_autoformat" \
+  EXPECTED_FIRST_LINE="$expected_first_line" \
   REPO_LUA="$REPO_LUA" \
   CONFORM_RTP="$CONFORM_RTP" \
   LINT_RTP="$LINT_RTP" \
@@ -105,14 +125,48 @@ run_case() {
     --cmd 'lua require("aalt.lazy.lint").config()' \
     --cmd 'lua require("aalt.debug_commands").setup()' \
     +"edit ${file_path}" \
-    +"lua local monorepo = require('aalt.monorepo'); local formatter_state = monorepo.formatter_state_for_buf(0); local linter_state = monorepo.linter_state_for_buf(0); local conform = require('conform'); local active_formatter = conform.resolve_formatters(formatter_state.formatters, 0, false, true)[1]; local lint = require('lint'); local active_linter = linter_state.linters[1]; local autoformat_should_work = active_formatter ~= nil; assert(formatter_state.detected_policy == vim.fn.getenv('EXPECTED_POLICY'), string.format('expected policy %s, got %s', vim.fn.getenv('EXPECTED_POLICY'), formatter_state.detected_policy)); assert((active_formatter and active_formatter.name or 'none') == vim.fn.getenv('EXPECTED_FORMATTER'), string.format('expected formatter %s, got %s', vim.fn.getenv('EXPECTED_FORMATTER'), active_formatter and active_formatter.name or 'none')); assert((active_linter or 'none') == vim.fn.getenv('EXPECTED_LINTER'), string.format('expected linter %s, got %s', vim.fn.getenv('EXPECTED_LINTER'), active_linter or 'none')); assert((autoformat_should_work and 'yes' or 'no') == vim.fn.getenv('EXPECTED_AUTOFORMAT'), string.format('expected autoformat %s, got %s', vim.fn.getenv('EXPECTED_AUTOFORMAT'), autoformat_should_work and 'yes' or 'no')); vim.cmd('Format'); print(string.format('ok %s', vim.fn.fnamemodify(vim.fn.getenv('FILE_PATH'), ':t')))" \
-    +qa
+    +"lua local monorepo = require('aalt.monorepo'); local formatter_state = monorepo.formatter_state_for_buf(0); local linter_state = monorepo.linter_state_for_buf(0); local conform = require('conform'); local active_formatter = conform.resolve_formatters(formatter_state.formatters, 0, false, true)[1]; local lint = require('lint'); local active_linter = linter_state.linters[1]; local autoformat_should_work = active_formatter ~= nil; assert(formatter_state.detected_policy == vim.fn.getenv('EXPECTED_POLICY'), string.format('expected policy %s, got %s', vim.fn.getenv('EXPECTED_POLICY'), formatter_state.detected_policy)); assert((active_formatter and active_formatter.name or 'none') == vim.fn.getenv('EXPECTED_FORMATTER'), string.format('expected formatter %s, got %s', vim.fn.getenv('EXPECTED_FORMATTER'), active_formatter and active_formatter.name or 'none')); assert((active_linter or 'none') == vim.fn.getenv('EXPECTED_LINTER'), string.format('expected linter %s, got %s', vim.fn.getenv('EXPECTED_LINTER'), active_linter or 'none')); assert((autoformat_should_work and 'yes' or 'no') == vim.fn.getenv('EXPECTED_AUTOFORMAT'), string.format('expected autoformat %s, got %s', vim.fn.getenv('EXPECTED_AUTOFORMAT'), autoformat_should_work and 'yes' or 'no')); vim.cmd('Format'); local expected_first_line = vim.fn.getenv('EXPECTED_FIRST_LINE'); if expected_first_line ~= vim.NIL and expected_first_line ~= '' then local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ''; assert(first_line == expected_first_line, string.format('expected first line %s, got %s', expected_first_line, first_line)); end; print(string.format('ok %s', vim.fn.fnamemodify(vim.fn.getenv('FILE_PATH'), ':t')))" \
+    +qa!
+}
+
+run_format_debug_case() {
+  local file_path="$1"
+  local expected_warning="$2"
+  local expected_command="$3"
+
+  FILE_PATH="$file_path" \
+  EXPECTED_DEBUG_WARNING="$expected_warning" \
+  EXPECTED_DEBUG_COMMAND="$expected_command" \
+  REPO_LUA="$REPO_LUA" \
+  CONFORM_RTP="$CONFORM_RTP" \
+  LINT_RTP="$LINT_RTP" \
+  XDG_CACHE_HOME=/tmp \
+  XDG_STATE_HOME=/tmp \
+  XDG_DATA_HOME=/tmp \
+  nvim --clean --headless \
+    --cmd 'lua vim.loader.enable(false)' \
+    --cmd 'lua package.path = vim.fn.getenv("REPO_LUA") .. "/?.lua;" .. vim.fn.getenv("REPO_LUA") .. "/?/init.lua;" .. package.path' \
+    --cmd 'lua vim.opt.runtimepath:append(vim.fn.getenv("CONFORM_RTP"))' \
+    --cmd 'lua vim.opt.runtimepath:append(vim.fn.getenv("LINT_RTP"))' \
+    --cmd 'lua require("conform").setup(require("aalt.lazy.autoformat").opts)' \
+    --cmd 'lua require("aalt.lazy.lint").config()' \
+    --cmd 'lua require("aalt.debug_commands").setup()' \
+    +"edit ${file_path}" \
+    +"FormatDebug" \
+    +"lua local report = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n'); assert(report:find(vim.fn.getenv('EXPECTED_DEBUG_WARNING'), 1, true), 'expected FormatDebug warning'); assert(report:find(vim.fn.getenv('EXPECTED_DEBUG_COMMAND'), 1, true), 'expected FormatDebug command path'); print(string.format('ok formatdebug %s', vim.fn.fnamemodify(vim.fn.getenv('FILE_PATH'), ':t')))" \
+    +qa!
 }
 
 setup_oxc_fixture
 setup_eslint_owned_fixture
 setup_eslint_plain_fixture
+setup_eslint_fallback_fixture
 
 run_case "$TMP_DIR/oxc-app/src/example.ts" "oxc-only" "oxfmt" "oxlint_monorepo" "yes"
 run_case "$TMP_DIR/eslint-owned/src/example.ts" "eslint-only" "eslint_d_monorepo" "eslint_d_monorepo" "yes"
 run_case "$TMP_DIR/eslint-plain/src/example.ts" "eslint+prettier" "prettierd" "eslint_d_monorepo" "yes"
+run_case "$TMP_DIR/eslint-fallback/src/example.ts" "eslint-only" "eslint_d_monorepo" "eslint_d_monorepo" "yes" "export const value = 1;"
+run_format_debug_case \
+  "$TMP_DIR/eslint-fallback/src/example.ts" \
+  '`eslint_d` formatter binary is unavailable for this buffer.' \
+  "$TMP_DIR/eslint-fallback/node_modules/.bin/eslint"
