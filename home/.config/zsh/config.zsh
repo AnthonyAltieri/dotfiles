@@ -3,12 +3,12 @@ if [[ "$(uname)" == "Darwin" ]]; then
 fi
 
 # load other .zsh files
-for f in ~/.config/zsh/features/*.zsh; do
+for f in ~/.config/zsh/features/*.zsh(N); do
   if [[ -r ${f} ]] ; then
     source "${f}"
   fi
 done
-for f in ~/.config/zsh/functions/*.zsh; do
+for f in ~/.config/zsh/functions/*.zsh(N); do
   if [[ -r ${f} ]] ; then
     source "${f}"
   fi
@@ -19,7 +19,7 @@ if [[ "$(uname)" == "Darwin" ]] && [[ -r ~/.config/zsh/os/config-osx.zsh ]]; the
 fi
 
 # aliases
-if (( $+commands[nvim] )) then
+if (( $+commands[nvim] )); then
   alias vim=nvim
   alias vi=nvim
 fi
