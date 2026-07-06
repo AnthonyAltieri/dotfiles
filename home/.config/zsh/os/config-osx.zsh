@@ -1,4 +1,4 @@
-if (( $+commands[exa] )) then
+if (( $+commands[exa] )); then
   alias ll="exa -l -g --icons"
-  alias lla "ll -a"
+  alias lla="ll -a"
 fi

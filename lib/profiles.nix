@@ -40,6 +40,7 @@ let
 
   darwinRoleHomeModules = role:
     lib.optionals (role != "sandbox") [
+      ../modules/platforms/darwin/packages.nix
       ../modules/platforms/darwin/ghostty.nix
       ../modules/platforms/darwin/pnpm.nix
     ];

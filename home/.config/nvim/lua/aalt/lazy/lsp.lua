@@ -17,6 +17,7 @@ return {
         },
         config = function()
             local lsp_navigation = require("aalt.lsp_navigation")
+            local mason_packages = require("aalt.mason_packages")
             lsp_navigation.setup()
 
             local organize_import_clients = {
@@ -173,6 +174,7 @@ return {
                 pyright = {},
                 ruff = {},
                 rust_analyzer = {},
+                tsgo = {},
                 lua_ls = {
                     -- cmd = {...},
                     -- filetypes { ...},
@@ -212,13 +214,7 @@ return {
             -- You can add other tools here that you want Mason to install
             -- for you, so that they are available from within Neovim.
             require("mason-tool-installer").setup({
-                ensure_installed = {
-                    "stylua", -- Used to format lua code
-                    "eslint_d",
-                    "oxfmt",
-                    "oxlint",
-                    "prettierd",
-                },
+                ensure_installed = mason_packages.ensure_installed(),
             })
 
             require("mason-lspconfig").setup({
@@ -233,12 +229,6 @@ return {
                 server_config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server_config.capabilities or {})
                 vim.lsp.config(server_name, server_config)
             end
-
-            -- tsgo: fast native TypeScript LSP (installed globally via npm, not Mason-managed)
-            vim.lsp.config("tsgo", {
-                capabilities = capabilities,
-            })
-            vim.lsp.enable("tsgo")
 
             vim.api.nvim_create_user_command("LspInfo", function()
                 local clients = vim.lsp.get_clients({ bufnr = 0 })
