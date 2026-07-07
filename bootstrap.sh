@@ -290,45 +290,51 @@ trust_private_homebrew_taps() {
   fi
 
   local brew_bin=""
+  local clone_target_specs="${DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS:-}"
+  local private_tap_specs="${DOTFILES_WORK_HOMEBREW_TAPS:-}"
   local tap=""
+  local taps_to_trust="|"
+  local trust_queue=""
   local spec=""
-  local -a private_taps=()
-  local -a clone_target_specs=()
 
   brew_bin="$(command -v brew)"
 
-  IFS=":" read -r -a private_taps <<<"${DOTFILES_WORK_HOMEBREW_TAPS:-}"
+  while [[ -n "$private_tap_specs" ]]; do
+    tap="${private_tap_specs%%:*}"
+    if [[ "$private_tap_specs" == *:* ]]; then
+      private_tap_specs="${private_tap_specs#*:}"
+    else
+      private_tap_specs=""
+    fi
 
-  IFS=";" read -r -a clone_target_specs <<<"${DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS:-}"
-  for spec in "${clone_target_specs[@]}"; do
+    if [[ -n "$tap" && "$taps_to_trust" != *"|$tap|"* ]]; then
+      taps_to_trust+="$tap|"
+    fi
+  done
+
+  while [[ -n "$clone_target_specs" ]]; do
+    spec="${clone_target_specs%%;*}"
+    if [[ "$clone_target_specs" == *";"* ]]; then
+      clone_target_specs="${clone_target_specs#*;}"
+    else
+      clone_target_specs=""
+    fi
+
     tap="${spec%%=*}"
-    if [[ -n "$tap" ]]; then
-      private_taps+=("$tap")
+    if [[ -n "$tap" && "$taps_to_trust" != *"|$tap|"* ]]; then
+      taps_to_trust+="$tap|"
     fi
   done
 
-  local -a trusted_taps=()
-  local trusted_tap=""
-  for tap in "${private_taps[@]}"; do
-    if [[ -z "$tap" ]]; then
-      continue
-    fi
-
-    for trusted_tap in "${trusted_taps[@]}"; do
-      if [[ "$trusted_tap" == "$tap" ]]; then
-        continue 2
-      fi
-    done
-
-    trusted_taps+=("$tap")
-  done
-
-  if (( ${#trusted_taps[@]} == 0 )); then
+  if [[ "$taps_to_trust" == "|" ]]; then
     return 0
   fi
 
   log "Trusting work-private Homebrew taps for $(homebrew_activation_user)."
-  for tap in "${trusted_taps[@]}"; do
+  trust_queue="${taps_to_trust#|}"
+  while [[ -n "$trust_queue" ]]; do
+    tap="${trust_queue%%|*}"
+    trust_queue="${trust_queue#*|}"
     run_as_homebrew_activation_user "$brew_bin" trust --tap "$tap"
   done
 }
