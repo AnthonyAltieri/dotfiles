@@ -154,21 +154,22 @@ nix flake update
 - **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
 - **Sandbox** stays lean and avoids desktop-specific settings.
 - Shared role packages that are not present in pinned `nixpkgs`, such as `spaces`, are packaged locally and exposed through flake `packages` and `apps`.
-- Work-only private Homebrew taps are supplied through local env state, not tracked files.
+- Work-only private Homebrew taps and casks are supplied through local env state, not tracked files.
 
 Current hidden runtime dependencies are also declared, including `jq`.
 
-### Private work Homebrew taps
+### Private work Homebrew
 
-The public flake intentionally does not name private Homebrew taps. For work-only taps, set `DOTFILES_WORK_HOMEBREW_TAPS` to a colon-separated list of tap names.
+The public flake intentionally does not name private Homebrew taps or casks. For work-only taps, set `DOTFILES_WORK_HOMEBREW_TAPS` to a colon-separated list of tap names. For work-only casks, set `DOTFILES_WORK_HOMEBREW_CASKS` to a colon-separated list of cask tokens.
 
 When using bootstrap, put the value in the ignored repo-local file `.dotfiles-private.env`:
 
 ```bash
 DOTFILES_WORK_HOMEBREW_TAPS=owner/tap
+DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 ```
 
-`./bootstrap.sh work` loads that file and forwards the variable across the final `sudo` apply. If you run `darwin-rebuild` directly, set the variable in the shell for that command. The personal role ignores this variable.
+`./bootstrap.sh work` loads that file and forwards the variables across the final `sudo` apply. If you run `darwin-rebuild` directly, set the variables in the shell for that command. The personal role ignores these variables.
 
 ## Managed vs unmanaged files
 

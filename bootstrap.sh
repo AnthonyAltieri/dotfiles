@@ -164,9 +164,13 @@ load_private_env() {
         value="${line#DOTFILES_WORK_HOMEBREW_TAPS=}"
         export DOTFILES_WORK_HOMEBREW_TAPS="$value"
         ;;
+      DOTFILES_WORK_HOMEBREW_CASKS=*)
+        value="${line#DOTFILES_WORK_HOMEBREW_CASKS=}"
+        export DOTFILES_WORK_HOMEBREW_CASKS="$value"
+        ;;
       *)
         echo "Unsupported entry in $PRIVATE_ENV_FILE: $line" >&2
-        echo "Only DOTFILES_WORK_HOMEBREW_TAPS=... is supported." >&2
+        echo "Only DOTFILES_WORK_HOMEBREW_TAPS=... and DOTFILES_WORK_HOMEBREW_CASKS=... are supported." >&2
         exit 1
         ;;
     esac
@@ -485,6 +489,7 @@ switch_darwin_role() {
     "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}" "${FLAKE_EVAL_FLAGS[@]}"
   else
     sudo -- env "DOTFILES_WORK_HOMEBREW_TAPS=${DOTFILES_WORK_HOMEBREW_TAPS:-}" \
+      "DOTFILES_WORK_HOMEBREW_CASKS=${DOTFILES_WORK_HOMEBREW_CASKS:-}" \
       "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}" "${FLAKE_EVAL_FLAGS[@]}"
   fi
 }
