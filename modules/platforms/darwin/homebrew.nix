@@ -30,6 +30,7 @@
       "ripgrep"
       "rust"
       "starship"
+      "tree-sitter"
       "tmux"
       "uv"
       "vim"
