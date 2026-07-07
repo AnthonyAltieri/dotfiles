@@ -154,8 +154,21 @@ nix flake update
 - **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
 - **Sandbox** stays lean and avoids desktop-specific settings.
 - Shared role packages that are not present in pinned `nixpkgs`, such as `spaces`, are packaged locally and exposed through flake `packages` and `apps`.
+- Work-only private Homebrew taps are supplied through local env state, not tracked files.
 
 Current hidden runtime dependencies are also declared, including `jq`.
+
+### Private work Homebrew taps
+
+The public flake intentionally does not name private Homebrew taps. For work-only taps, set `DOTFILES_WORK_HOMEBREW_TAPS` to a colon-separated list of tap names.
+
+When using bootstrap, put the value in the ignored repo-local file `.dotfiles-private.env`:
+
+```bash
+DOTFILES_WORK_HOMEBREW_TAPS=owner/tap
+```
+
+`./bootstrap.sh work` loads that file and forwards the variable across the final `sudo` apply. If you run `darwin-rebuild` directly, set the variable in the shell for that command. The personal role ignores this variable.
 
 ## Managed vs unmanaged files
 

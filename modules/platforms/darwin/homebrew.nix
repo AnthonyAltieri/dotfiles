@@ -1,10 +1,17 @@
+{ lib, role, ... }:
+let
+  privateWorkHomebrewTaps =
+    lib.optionals (role == "work")
+      (lib.filter (tap: tap != "")
+        (lib.splitString ":" (builtins.getEnv "DOTFILES_WORK_HOMEBREW_TAPS")));
+in
 {
   homebrew = {
     enable = true;
 
     taps = [
       "oven-sh/bun"
-    ];
+    ] ++ privateWorkHomebrewTaps;
 
     onActivation = {
       autoUpdate = false;

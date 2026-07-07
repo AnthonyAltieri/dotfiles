@@ -139,6 +139,7 @@ Today `personal.nix` and `work.nix` are intentionally thin. That is deliberate. 
 
 - `default.nix` imports the Darwin platform modules.
 - `homebrew.nix` declares Homebrew packages and casks through `nix-darwin`.
+- `homebrew.nix` also accepts work-only private taps from `DOTFILES_WORK_HOMEBREW_TAPS`, keeping private tap names out of tracked public files.
 - `defaults.nix` owns macOS defaults like keyboard repeat settings.
 - `ghostty.nix` only applies to non-sandbox Darwin roles.
 
@@ -234,6 +235,14 @@ Preview modes:
 - If `/etc/bashrc` or `/etc/zshrc` still contain unmanaged pre-nix-darwin content, bootstrap resolves that before activation.
 - Without `--overwrite`, bootstrap renames each conflicting file to `*.before-nix-darwin` and continues automatically.
 - With `--overwrite`, bootstrap shows a unified diff for each conflicting file and asks for confirmation before replacing it. Declining any prompt aborts the apply without changing `/etc`.
+
+Private work-only Homebrew taps should stay out of tracked files. Bootstrap loads `.dotfiles-private.env` from the repo root when present; that file is ignored by git and currently supports this entry:
+
+```bash
+DOTFILES_WORK_HOMEBREW_TAPS=owner/tap
+```
+
+Use colon separation for more than one tap. The variable is ignored unless the Darwin role is `work`, and bootstrap forwards it through the final `sudo` apply so the flake sees the same value during `darwin-rebuild`.
 
 ## Daily commands
 
