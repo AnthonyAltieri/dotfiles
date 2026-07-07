@@ -160,16 +160,17 @@ Current hidden runtime dependencies are also declared, including `jq`.
 
 ### Private work Homebrew
 
-The public flake intentionally does not name private Homebrew taps or casks. For work-only taps, set `DOTFILES_WORK_HOMEBREW_TAPS` to a colon-separated list of tap names. For work-only casks, set `DOTFILES_WORK_HOMEBREW_CASKS` to a colon-separated list of cask tokens.
+The public flake intentionally does not name private Homebrew taps or casks. For work-only taps, set `DOTFILES_WORK_HOMEBREW_TAPS` to a colon-separated list of tap names. For private taps that should clone through SSH or another explicit Git URL, set `DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS` to a semicolon-separated list of `tap=clone_target` entries. For work-only casks, set `DOTFILES_WORK_HOMEBREW_CASKS` to a colon-separated list of cask tokens.
 
 When using bootstrap, put the value in the ignored repo-local file `.dotfiles-private.env`:
 
 ```bash
 DOTFILES_WORK_HOMEBREW_TAPS=owner/tap
+DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS=owner/tap=git@github.com:owner/homebrew-tap.git
 DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 ```
 
-`./bootstrap.sh work` loads that file and forwards the variables across the final `sudo` apply. If you run `darwin-rebuild` directly, set the variables in the shell for that command. The personal role ignores these variables.
+`./bootstrap.sh work` loads that file and forwards the variables across the final `sudo` apply. If you run `darwin-rebuild` directly, set the variables in the shell for that command. The personal role ignores these variables. If a tap is listed in both `DOTFILES_WORK_HOMEBREW_TAPS` and `DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS`, the clone-target entry wins.
 
 ## Managed vs unmanaged files
 

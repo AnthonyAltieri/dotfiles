@@ -139,7 +139,7 @@ Today `personal.nix` and `work.nix` are intentionally thin. That is deliberate. 
 
 - `default.nix` imports the Darwin platform modules.
 - `homebrew.nix` declares Homebrew packages and casks through `nix-darwin`.
-- `homebrew.nix` also accepts work-only private taps from `DOTFILES_WORK_HOMEBREW_TAPS`, keeping private tap names out of tracked public files.
+- `homebrew.nix` also accepts work-only private taps and casks from ignored env state, keeping private package names out of tracked public files.
 - `defaults.nix` owns macOS defaults like keyboard repeat settings.
 - `ghostty.nix` only applies to non-sandbox Darwin roles.
 
@@ -240,10 +240,11 @@ Private work-only Homebrew taps and casks should stay out of tracked files. Boot
 
 ```bash
 DOTFILES_WORK_HOMEBREW_TAPS=owner/tap
+DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS=owner/tap=git@github.com:owner/homebrew-tap.git
 DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 ```
 
-Use colon separation for more than one tap or cask. These variables are ignored unless the Darwin role is `work`, and bootstrap forwards them through the final `sudo` apply so the flake sees the same values during `darwin-rebuild`.
+Use colon separation for more than one plain tap or cask. Use semicolon separation for more than one `tap=clone_target` entry because SSH clone targets contain colons. If a tap appears in both `DOTFILES_WORK_HOMEBREW_TAPS` and `DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS`, the clone-target entry wins. These variables are ignored unless the Darwin role is `work`, and bootstrap forwards them through the final `sudo` apply so the flake sees the same values during `darwin-rebuild`.
 
 ## Daily commands
 
