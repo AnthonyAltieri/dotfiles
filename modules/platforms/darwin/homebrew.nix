@@ -1,9 +1,11 @@
 { lib, role, ... }:
 let
-  privateWorkHomebrewTaps =
+  privateWorkHomebrewItems = envName:
     lib.optionals (role == "work")
       (lib.filter (tap: tap != "")
-        (lib.splitString ":" (builtins.getEnv "DOTFILES_WORK_HOMEBREW_TAPS")));
+        (lib.splitString ":" (builtins.getEnv envName)));
+  privateWorkHomebrewTaps = privateWorkHomebrewItems "DOTFILES_WORK_HOMEBREW_TAPS";
+  privateWorkHomebrewCasks = privateWorkHomebrewItems "DOTFILES_WORK_HOMEBREW_CASKS";
 in
 {
   homebrew = {
@@ -47,6 +49,6 @@ in
       "1password-cli"
       "ghostty"
       "raycast"
-    ];
+    ] ++ privateWorkHomebrewCasks;
   };
 }

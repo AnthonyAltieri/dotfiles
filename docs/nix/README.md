@@ -236,13 +236,14 @@ Preview modes:
 - Without `--overwrite`, bootstrap renames each conflicting file to `*.before-nix-darwin` and continues automatically.
 - With `--overwrite`, bootstrap shows a unified diff for each conflicting file and asks for confirmation before replacing it. Declining any prompt aborts the apply without changing `/etc`.
 
-Private work-only Homebrew taps should stay out of tracked files. Bootstrap loads `.dotfiles-private.env` from the repo root when present; that file is ignored by git and currently supports this entry:
+Private work-only Homebrew taps and casks should stay out of tracked files. Bootstrap loads `.dotfiles-private.env` from the repo root when present; that file is ignored by git and currently supports these entries:
 
 ```bash
 DOTFILES_WORK_HOMEBREW_TAPS=owner/tap
+DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 ```
 
-Use colon separation for more than one tap. The variable is ignored unless the Darwin role is `work`, and bootstrap forwards it through the final `sudo` apply so the flake sees the same value during `darwin-rebuild`.
+Use colon separation for more than one tap or cask. These variables are ignored unless the Darwin role is `work`, and bootstrap forwards them through the final `sudo` apply so the flake sees the same values during `darwin-rebuild`.
 
 ## Daily commands
 
