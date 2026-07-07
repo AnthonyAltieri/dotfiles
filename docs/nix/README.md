@@ -244,7 +244,7 @@ DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS=owner/tap=git@github.com:owner/homebrew
 DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 ```
 
-Use colon separation for more than one plain tap or cask. Use semicolon separation for more than one `tap=clone_target` entry because SSH clone targets contain colons. If a tap appears in both `DOTFILES_WORK_HOMEBREW_TAPS` and `DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS`, the clone-target entry wins. These variables are ignored unless the Darwin role is `work`, and bootstrap forwards them through the final `sudo` apply so the flake sees the same values during `darwin-rebuild`.
+Use colon separation for more than one plain tap or cask. Use semicolon separation for more than one `tap=clone_target` entry because SSH clone targets contain colons. If a tap appears in both `DOTFILES_WORK_HOMEBREW_TAPS` and `DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS`, the clone-target entry wins. These variables are ignored unless the Darwin role is `work`. Bootstrap trusts private taps as the Homebrew activation user and forwards the variables through the final `sudo` apply so the flake sees the same values during `darwin-rebuild`.
 
 ## Daily commands
 
