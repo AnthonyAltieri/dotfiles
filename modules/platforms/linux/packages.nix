@@ -13,6 +13,7 @@
     nodejs
     pnpm
     rustc
+    tree-sitter
     uv
   ];
 }

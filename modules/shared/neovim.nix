@@ -25,6 +25,7 @@ let
       "${pkgs.git}/bin"
       "${pkgs.gnumake}/bin"
       "${pkgs.gcc}/bin"
+      "${pkgs.tree-sitter}/bin"
       "${pkgs.unzip}/bin"
       "/usr/bin"
       "/bin"
