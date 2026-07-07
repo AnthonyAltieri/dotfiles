@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXPERIMENTAL_FEATURES="nix-command flakes"
 FLAKE_REF="path:${SCRIPT_DIR}"
 FLAKE_EVAL_FLAGS=(--impure)
+PRIVATE_ENV_FILE="${SCRIPT_DIR}/.dotfiles-private.env"
 
 usage() {
   local exit_code="${1:-1}"
@@ -140,6 +141,38 @@ require_darwin() {
 
 log() {
   printf '[bootstrap] %s\n' "$*"
+}
+
+load_private_env() {
+  if [[ ! -e "$PRIVATE_ENV_FILE" ]]; then
+    return 0
+  fi
+
+  if [[ ! -f "$PRIVATE_ENV_FILE" || ! -r "$PRIVATE_ENV_FILE" ]]; then
+    echo "Private env file exists but is not readable: $PRIVATE_ENV_FILE" >&2
+    exit 1
+  fi
+
+  local line=""
+  local value=""
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      ""|\#*)
+        ;;
+      DOTFILES_WORK_HOMEBREW_TAPS=*)
+        value="${line#DOTFILES_WORK_HOMEBREW_TAPS=}"
+        export DOTFILES_WORK_HOMEBREW_TAPS="$value"
+        ;;
+      *)
+        echo "Unsupported entry in $PRIVATE_ENV_FILE: $line" >&2
+        echo "Only DOTFILES_WORK_HOMEBREW_TAPS=... is supported." >&2
+        exit 1
+        ;;
+    esac
+  done <"$PRIVATE_ENV_FILE"
+
+  log "Loaded local private dotfiles env."
 }
 
 normalize_root_home() {
@@ -451,7 +484,8 @@ switch_darwin_role() {
   if [[ "$(id -u)" -eq 0 ]]; then
     "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}" "${FLAKE_EVAL_FLAGS[@]}"
   else
-    sudo -- "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}" "${FLAKE_EVAL_FLAGS[@]}"
+    sudo -- env "DOTFILES_WORK_HOMEBREW_TAPS=${DOTFILES_WORK_HOMEBREW_TAPS:-}" \
+      "$system_path/sw/bin/darwin-rebuild" switch --flake "${FLAKE_REF}#${config_name}" "${FLAKE_EVAL_FLAGS[@]}"
   fi
 }
 
@@ -466,6 +500,7 @@ if [[ "$COMMAND" == "install-dependencies" ]]; then
   exit 0
 fi
 
+load_private_env
 ensure_nix
 ensure_homebrew
 
