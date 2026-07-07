@@ -2,6 +2,7 @@
 {
   home.packages = with pkgs; [
     awscli2
+    docker
     postgresql
     ripgrep
     spaces

@@ -123,6 +123,10 @@ assert_jq '.packages | index("neovim") != null' "Expected neovim in home.package
 assert_jq '.packages | index("starship") != null' "Expected starship in home.packages"
 assert_jq '.packages | index("vim") != null' "Expected vim in home.packages"
 
+if jq -e '.sessionVariables.DOTFILES_COMMON == "1"' >/dev/null <<<"$summary"; then
+  assert_jq '.packages | index("docker") != null' "Expected docker in home.packages for common roles"
+fi
+
 case "$profile" in
   personal)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
