@@ -265,6 +265,74 @@ ensure_homebrew() {
   load_homebrew
 }
 
+homebrew_activation_user() {
+  if [[ -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
+    printf '%s\n' "$SUDO_USER"
+  elif [[ -n "${USER:-}" && "${USER:-}" != "root" ]]; then
+    printf '%s\n' "$USER"
+  elif [[ -n "${LOGNAME:-}" && "${LOGNAME:-}" != "root" ]]; then
+    printf '%s\n' "$LOGNAME"
+  else
+    id -un
+  fi
+}
+
+run_as_homebrew_activation_user() {
+  local brew_user
+  brew_user="$(homebrew_activation_user)"
+
+  sudo --user="$brew_user" --set-home "$@"
+}
+
+trust_private_homebrew_taps() {
+  if [[ "$ROLE" != "work" ]]; then
+    return 0
+  fi
+
+  local brew_bin=""
+  local tap=""
+  local spec=""
+  local -a private_taps=()
+  local -a clone_target_specs=()
+
+  brew_bin="$(command -v brew)"
+
+  IFS=":" read -r -a private_taps <<<"${DOTFILES_WORK_HOMEBREW_TAPS:-}"
+
+  IFS=";" read -r -a clone_target_specs <<<"${DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS:-}"
+  for spec in "${clone_target_specs[@]}"; do
+    tap="${spec%%=*}"
+    if [[ -n "$tap" ]]; then
+      private_taps+=("$tap")
+    fi
+  done
+
+  local -a trusted_taps=()
+  local trusted_tap=""
+  for tap in "${private_taps[@]}"; do
+    if [[ -z "$tap" ]]; then
+      continue
+    fi
+
+    for trusted_tap in "${trusted_taps[@]}"; do
+      if [[ "$trusted_tap" == "$tap" ]]; then
+        continue 2
+      fi
+    done
+
+    trusted_taps+=("$tap")
+  done
+
+  if (( ${#trusted_taps[@]} == 0 )); then
+    return 0
+  fi
+
+  log "Trusting work-private Homebrew taps for $(homebrew_activation_user)."
+  for tap in "${trusted_taps[@]}"; do
+    run_as_homebrew_activation_user "$brew_bin" trust --tap "$tap"
+  done
+}
+
 build_system_closure() {
   local config_name
   config_name="$(darwin_config_name)"
@@ -545,5 +613,6 @@ if (( DRY_RUN )); then
 fi
 
 preflight_etc_shell_conflicts "$SYSTEM_PATH"
+trust_private_homebrew_taps
 switch_darwin_role "$SYSTEM_PATH"
 log "Done."

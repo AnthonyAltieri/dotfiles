@@ -170,7 +170,7 @@ DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS=owner/tap=git@github.com:owner/homebrew
 DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 ```
 
-`./bootstrap.sh work` loads that file and forwards the variables across the final `sudo` apply. If you run `darwin-rebuild` directly, set the variables in the shell for that command. The personal role ignores these variables. If a tap is listed in both `DOTFILES_WORK_HOMEBREW_TAPS` and `DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS`, the clone-target entry wins.
+`./bootstrap.sh work` loads that file, trusts the private taps as the Homebrew activation user, and forwards the variables across the final `sudo` apply. If you run `darwin-rebuild` directly, set the variables in the shell for that command and run `brew trust` for private taps yourself. The personal role ignores these variables. If a tap is listed in both `DOTFILES_WORK_HOMEBREW_TAPS` and `DOTFILES_WORK_HOMEBREW_TAP_CLONE_TARGETS`, the clone-target entry wins.
 
 ## Managed vs unmanaged files
 
