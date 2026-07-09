@@ -69,7 +69,11 @@ local function register_parser_aliases()
 end
 
 local function setup_current_treesitter()
-	require("nvim-treesitter").setup()
+	local treesitter = require("nvim-treesitter")
+	treesitter.setup({
+		install_dir = vim.fn.stdpath("data") .. "/site",
+	})
+	treesitter.install(ensure_installed)
 
 	local group = vim.api.nvim_create_augroup("aalt-treesitter", { clear = true })
 	vim.api.nvim_create_autocmd("User", {
