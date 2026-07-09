@@ -11,8 +11,8 @@ if ! rg -q '^[[:space:]]*"tree-sitter-cli"$' "$HOMEBREW_MODULE"; then
 	exit 1
 fi
 
-if rg -q '^[[:space:]]*"tree-sitter"$' "$HOMEBREW_MODULE"; then
-	printf 'tree-sitter installs only libtree-sitter; use tree-sitter-cli instead\n' >&2
+if ! rg -q '^[[:space:]]*"tree-sitter"$' "$HOMEBREW_MODULE"; then
+	printf 'expected Homebrew to retain tree-sitter for Neovim runtime support\n' >&2
 	exit 1
 fi
 
@@ -21,4 +21,4 @@ if ! rg -Fq '"/opt/homebrew/bin"' "$NEOVIM_MODULE"; then
 	exit 1
 fi
 
-echo "ok Neovim bootstrap installs and can find the tree-sitter CLI"
+echo "ok Neovim bootstrap retains the tree-sitter runtime and installs the CLI"
