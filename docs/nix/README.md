@@ -161,7 +161,7 @@ Managed examples:
 - shared `~/.codex/skills/*`, excluding work-only skills
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- selected Claude commands and shared skills, including `atlas`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, and `spaces`
+- selected Claude commands, `~/.claude/CLAUDE.md`, and shared skills, including `atlas`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, `notion-read`, and `spaces`
 - selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
 
 The work profile also manages the `observe` skill for both Codex and Claude.

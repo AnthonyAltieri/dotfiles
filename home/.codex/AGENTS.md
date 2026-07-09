@@ -86,6 +86,11 @@ When given a bug report, fix it end-to-end.
 - For substantive coding, refactoring, debugging, and design-review tasks, use `$programming`.
 - `$programming` owns the default application-code style: validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.
 ---
+## Notion Defaults
+- For read-only Notion document, page, database, or URL tasks, use `$notion-read` (NotionRead).
+- If the task is reading and not updating/writing, prefer fetching or exporting the Notion content into a local temp file and analyzing that file instead of reading chunks through the MCP.
+- For creates, updates, comments, property changes, relation changes, or any other write, use the normal Notion write workflow.
+---
 ## Workspace Defaults
 - For worktree-style Codex requests, isolated task branches, or multi-repo workspace setup, use `$spaces`.
 - In this repo, all worktree-style management goes through `spaces`; interpret “worktree” requests as the local `spaces` workflow.

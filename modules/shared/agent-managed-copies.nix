@@ -38,6 +38,7 @@ let
     "handoff"
     "improve-codebase-architecture"
     "notion-knowledge-capture"
+    "notion-read"
     "programming"
     "spaces"
     "sql-read"
@@ -69,6 +70,7 @@ let
     ++ codexSkillCopies sharedSkillNames
     ++ codexSkillCopies codexOnlySkillNames
     ++ [
+      (managedFile ".claude/CLAUDE.md" ../../home/.claude/CLAUDE.md)
       (managedFile ".claude/README.md" ../../home/.claude/README.md)
       (managedFile ".claude/settings.json" ../../home/.claude/settings.json)
       (managedDirectory ".claude/commands" ../../home/.claude/commands)

@@ -1,0 +1,12 @@
+interface:
+  display_name: "NotionRead"
+  short_description: "Prefer temp-file reads for Notion docs"
+  default_prompt: "Use $notion-read to fetch this Notion document into a local temp file before analyzing it."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "notion"
+      description: "Notion MCP server for page discovery and fallback reads"
+      transport: "streamable_http"
+      url: "https://mcp.notion.com/mcp"
