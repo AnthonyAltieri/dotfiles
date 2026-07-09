@@ -73,6 +73,16 @@ assert_jq() {
   fi
 }
 
+assert_work_notion_mcp_enabled() {
+  assert_jq '.activationEntries | index("workCodexNotionMcp") != null' "Expected work Notion MCP activation entry"
+  assert_jq '.workCodexNotionMcpScript | contains("https://mcp.notion.com/mcp")' "Expected Notion MCP URL in work activation entry"
+  assert_jq '.workCodexNotionMcpScript | contains("rmcp_client")' "Expected rmcp_client in work activation entry"
+}
+
+assert_work_notion_mcp_disabled() {
+  assert_jq '.activationEntries | index("workCodexNotionMcp") == null' "Did not expect work Notion MCP activation entry"
+}
+
 cd /work
 
 summary="$(nix eval --impure --json --no-write-lock-file --expr '
@@ -87,6 +97,8 @@ let
 in {
   files = builtins.attrNames cfg.home.file;
   xdgFiles = builtins.attrNames cfg.xdg.configFile;
+  activationEntries = builtins.attrNames cfg.home.activation;
+  workCodexNotionMcpScript = cfg.home.activation.workCodexNotionMcp.data or "";
   agentManagedCopies = map (entry: {
     target = entry.target;
     kind = entry.kind;
@@ -137,6 +149,7 @@ case "$profile" in
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal"
+    assert_work_notion_mcp_disabled
     ;;
   work)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
@@ -147,6 +160,7 @@ case "$profile" in
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work"
+    assert_work_notion_mcp_enabled
     ;;
   sandbox)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
@@ -157,6 +171,7 @@ case "$profile" in
     assert_jq '.packages | index("rustc") == null' "Did not expect rustc in home.packages for sandbox"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox"
+    assert_work_notion_mcp_disabled
     ;;
   personal-linux|personal-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
@@ -167,6 +182,7 @@ case "$profile" in
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal-linux"
+    assert_work_notion_mcp_disabled
     ;;
   work-linux|work-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
@@ -177,6 +193,7 @@ case "$profile" in
     assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work-linux"
+    assert_work_notion_mcp_enabled
     ;;
   sandbox-x86_64-linux|sandbox-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
@@ -187,6 +204,7 @@ case "$profile" in
     assert_jq '.packages | index("rustc") == null' "Did not expect rustc in home.packages for sandbox Linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox Linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox Linux"
+    assert_work_notion_mcp_disabled
     ;;
 esac
 
@@ -211,6 +229,25 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
       exit 1
     fi
   done
+
+  case "$profile_output" in
+    work-linux|work-aarch64-linux)
+      if [[ ! -f "$HOME/.codex/config.toml" ]]; then
+        echo "Expected work profile activation to create Codex config.toml" >&2
+        exit 1
+      fi
+
+      if ! grep -Fq 'rmcp_client = true' "$HOME/.codex/config.toml"; then
+        echo "Expected work profile activation to enable rmcp_client" >&2
+        exit 1
+      fi
+
+      if ! grep -Fq 'url = "https://mcp.notion.com/mcp"' "$HOME/.codex/config.toml"; then
+        echo "Expected work profile activation to configure Notion MCP URL" >&2
+        exit 1
+      fi
+      ;;
+  esac
 fi
 
 echo "Smoke test passed for ${profile} (${profile_output})"
