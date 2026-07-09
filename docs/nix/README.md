@@ -165,13 +165,24 @@ Managed examples:
 - selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
 
 The work profile also manages the `observe` skill for both Codex and Claude.
+It applies a targeted merge to `~/.codex/config.toml` for Codex's Notion remote MCP connection:
+
+```toml
+[features]
+rmcp_client = true
+
+[mcp_servers.notion]
+url = "https://mcp.notion.com/mcp"
+```
+
+That merge intentionally touches only those keys. Notion OAuth state remains local; on a new machine, run `codex mcp login notion` after applying the work profile.
 
 The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read`.
 The managed `.codex` and `.claude` payloads are copied into place as regular files during activation rather than symlinked, which avoids local skill discovery issues in Codex and Claude.
 
 Unmanaged examples:
 
-- `~/.codex/config.toml`
+- `~/.codex/config.toml`, except for the work profile's targeted Notion MCP merge
 - `~/.codex/auth.json`
 - `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`

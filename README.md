@@ -190,6 +190,18 @@ Managed agent files include:
 
 The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
 
+The work profile also applies a targeted merge to `~/.codex/config.toml` so Codex knows about the Notion remote MCP server:
+
+```toml
+[features]
+rmcp_client = true
+
+[mcp_servers.notion]
+url = "https://mcp.notion.com/mcp"
+```
+
+That merge intentionally touches only those keys. Notion OAuth state remains local; on a new machine, run `codex mcp login notion` after applying the work profile.
+
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
 Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
@@ -197,7 +209,7 @@ The flake also exposes `spaces` directly for ad hoc use via `nix run .#spaces --
 
 Examples of intentionally unmanaged local state:
 
-- `~/.codex/config.toml`
+- `~/.codex/config.toml`, except for the work profile's targeted Notion MCP merge
 - `~/.codex/auth.json`
 - `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`
