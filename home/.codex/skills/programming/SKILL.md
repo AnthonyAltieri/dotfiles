@@ -55,6 +55,9 @@ Rules:
 ## Types And Errors
 
 - Make illegal states unrepresentable.
+- Respect existing branded, opaque, and nominal types, regardless of how they are implemented. If the repository already defines a domain type such as `UserId`, import and use that type plus its canonical parser, schema, constructor, or guard instead of redeclaring it as a primitive or structurally equivalent alias.
+- Do not bypass brands with local aliases like `type UserId = string`, unsafe casts, duplicate schemas, or parallel helper types. Raw values must enter internal code through the repository's existing validation or construction path.
+- If a new domain concept or identifier appears, recommend introducing a branded type for it. Prefer a Zod-backed brand when the project already uses Zod, especially at runtime boundaries.
 - Model state transitions explicitly.
 - Prefer closed sets of variants so new cases surface as compile errors.
 - Prefer explicit result or error types for expected failures; reserve exceptions for truly exceptional paths.
