@@ -68,6 +68,7 @@ in
       "ripgrep"
       "rust"
       "starship"
+      "tree-sitter"
       "tree-sitter-cli"
       "tmux"
       "uv"
