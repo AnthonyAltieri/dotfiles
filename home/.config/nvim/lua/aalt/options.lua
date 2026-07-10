@@ -35,6 +35,10 @@ vim.opt.timeoutlen = 300
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 vim.opt.mousescroll = "ver:1,hor:6"
+vim.opt.mousemoveevent = true
+
+-- Keep modal cursor feedback explicit, including through terminal multiplexers.
+vim.opt.guicursor = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,t:block-blinkon500-blinkoff500-TermCursor"
 
 -- Colors
 vim.opt.termguicolors = true

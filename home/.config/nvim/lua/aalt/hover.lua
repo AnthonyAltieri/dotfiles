@@ -1,5 +1,14 @@
 local M = {}
 
+local MOUSE_HOVER_DELAY_MS = 500
+
+local mouse_hover_state = {
+	delay_ms = MOUSE_HOVER_DELAY_MS,
+	generation = 0,
+	timer = nil,
+	winid = nil,
+}
+
 local function bounded(value, lower, upper)
 	upper = math.max(1, upper)
 	lower = math.min(lower, upper)
@@ -66,6 +75,20 @@ local function client_position_params(params)
 			ret = vim.tbl_extend("force", ret, params)
 		end
 		return ret
+	end
+end
+
+local function client_mouse_position_params(bufnr, position)
+	local line = vim.api.nvim_buf_get_lines(bufnr, position.line, position.line + 1, true)[1] or ""
+
+	return function(client)
+		return {
+			textDocument = vim.lsp.util.make_text_document_params(bufnr),
+			position = {
+				line = position.line,
+				character = vim.str_utfindex(line, client.offset_encoding or "utf-16", position.byte_col, false),
+			},
+		}
 	end
 end
 
@@ -302,16 +325,26 @@ function M.float_options()
 	}
 end
 
-local function request_hover(callback)
-	local source_buf = vim.api.nvim_get_current_buf()
-	vim.lsp.buf_request_all(source_buf, "textDocument/hover", client_position_params(), function(results, ctx)
-		if vim.api.nvim_get_current_buf() ~= ctx.bufnr then
+local function request_hover(callback, opts)
+	opts = opts or {}
+
+	local source_buf = opts.bufnr or vim.api.nvim_get_current_buf()
+	local params = opts.position and client_mouse_position_params(source_buf, opts.position) or client_position_params()
+
+	vim.lsp.buf_request_all(source_buf, "textDocument/hover", params, function(results, ctx)
+		if opts.is_valid then
+			if not opts.is_valid() then
+				return
+			end
+		elseif vim.api.nvim_get_current_buf() ~= ctx.bufnr then
 			return
 		end
 
 		local lines, format, message = M.hover_lines_from_results(results)
 		if not lines or #lines == 0 then
-			vim.notify(message or "No information available", vim.log.levels.INFO, { title = "Hover Preview" })
+			if not opts.silent then
+				vim.notify(message or "No information available", vim.log.levels.INFO, { title = "Hover Preview" })
+			end
 			return
 		end
 
@@ -374,7 +407,164 @@ function M.hover_lines_from_results(results)
 	return lines, format, nil
 end
 
+local function close_mouse_hover()
+	local winid = mouse_hover_state.winid
+	mouse_hover_state.winid = nil
+
+	if winid and vim.api.nvim_win_is_valid(winid) then
+		pcall(vim.api.nvim_win_close, winid, true)
+	end
+end
+
+local function cancel_mouse_hover()
+	mouse_hover_state.generation = mouse_hover_state.generation + 1
+
+	local timer = mouse_hover_state.timer
+	mouse_hover_state.timer = nil
+	if timer and not timer:is_closing() then
+		timer:stop()
+		timer:close()
+	end
+
+	close_mouse_hover()
+end
+
+local function mouse_target()
+	local mouse = vim.fn.getmousepos()
+	local winid = tonumber(mouse.winid) or 0
+	local line = tonumber(mouse.line) or 0
+	local column = tonumber(mouse.column) or 0
+
+	if winid == 0 or line < 1 or column < 1 or not vim.api.nvim_win_is_valid(winid) then
+		return nil
+	end
+
+	if vim.api.nvim_win_get_config(winid).relative ~= "" then
+		return nil
+	end
+
+	local bufnr = vim.api.nvim_win_get_buf(winid)
+	if not vim.api.nvim_buf_is_loaded(bufnr) or line > vim.api.nvim_buf_line_count(bufnr) then
+		return nil
+	end
+
+	local text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, true)[1] or ""
+	if column > #text then
+		return nil
+	end
+
+	return {
+		bufnr = bufnr,
+		winid = winid,
+		line = line - 1,
+		byte_col = column - 1,
+		changedtick = vim.api.nvim_buf_get_changedtick(bufnr),
+	}
+end
+
+local function mouse_target_is_valid(target, generation)
+	if generation ~= mouse_hover_state.generation then
+		return false
+	end
+
+	if not vim.api.nvim_win_is_valid(target.winid) or not vim.api.nvim_buf_is_loaded(target.bufnr) then
+		return false
+	end
+
+	if vim.api.nvim_win_get_buf(target.winid) ~= target.bufnr then
+		return false
+	end
+
+	if vim.api.nvim_buf_get_changedtick(target.bufnr) ~= target.changedtick then
+		return false
+	end
+
+	local mouse = vim.fn.getmousepos()
+	return mouse.winid == target.winid and mouse.line - 1 == target.line and mouse.column - 1 == target.byte_col
+end
+
+local function has_other_floating_preview(bufnr)
+	local preview = vim.b[bufnr].lsp_floating_preview
+	return type(preview) == "number"
+		and preview ~= mouse_hover_state.winid
+		and vim.api.nvim_win_is_valid(preview)
+end
+
+local function show_mouse_hover(target, generation)
+	local is_valid = function()
+		return mouse_target_is_valid(target, generation) and not has_other_floating_preview(target.bufnr)
+	end
+
+	request_hover(function(lines, format)
+		if not is_valid() then
+			return
+		end
+
+		local opts = M.float_options()
+		opts.relative = "mouse"
+		opts.focusable = false
+		opts.focus = false
+		opts.offset_x = 1
+
+		local opened_win
+		local ok = pcall(vim.api.nvim_win_call, target.winid, function()
+			local _
+			_, opened_win = vim.lsp.util.open_floating_preview(lines, format, opts)
+		end)
+
+		if ok and opened_win and vim.api.nvim_win_is_valid(opened_win) then
+			mouse_hover_state.winid = opened_win
+		end
+	end, {
+		bufnr = target.bufnr,
+		position = target,
+		is_valid = is_valid,
+		silent = true,
+	})
+end
+
+function M.handle_mouse_move()
+	cancel_mouse_hover()
+	local generation = mouse_hover_state.generation
+
+	local target = mouse_target()
+	if not target then
+		return
+	end
+
+	if #vim.lsp.get_clients({ bufnr = target.bufnr, method = "textDocument/hover" }) == 0 then
+		return
+	end
+
+	local timer
+	timer = vim.defer_fn(function()
+		if mouse_hover_state.timer == timer then
+			mouse_hover_state.timer = nil
+		end
+
+		if mouse_target_is_valid(target, generation) and not has_other_floating_preview(target.bufnr) then
+			show_mouse_hover(target, generation)
+		end
+	end, mouse_hover_state.delay_ms)
+	mouse_hover_state.timer = timer
+end
+
+function M.setup_mouse_hover(opts)
+	opts = opts or {}
+	vim.validate("opts", opts, "table")
+	vim.validate("opts.delay_ms", opts.delay_ms, "number", true)
+
+	mouse_hover_state.delay_ms = math.max(0, opts.delay_ms or MOUSE_HOVER_DELAY_MS)
+	cancel_mouse_hover()
+
+	vim.keymap.set({ "n", "i" }, "<MouseMove>", M.handle_mouse_move, {
+		desc = "Show LSP documentation under mouse",
+		silent = true,
+	})
+end
+
 function M.show_float()
+	cancel_mouse_hover()
 	request_hover(function(lines, format)
 		local opts = M.float_options()
 		opts.focus_id = "textDocument/hover"
@@ -383,6 +573,7 @@ function M.show_float()
 end
 
 function M.show_split()
+	cancel_mouse_hover()
 	request_hover(function(lines, format)
 		open_split(lines, format)
 	end)
