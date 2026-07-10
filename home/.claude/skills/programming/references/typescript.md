@@ -1,57 +1,62 @@
 # TypeScript Defaults
 
-Use these defaults when the task is TypeScript or TSX.
+Use these defaults when the task is TypeScript or TSX. Follow established repository conventions when they make a different deliberate choice.
 
-## Boundaries
+## Boundaries And Domain Types
 
-- Use `zod` or an equivalent runtime schema at boundaries.
-- Parse `unknown` into validated input types before it reaches application logic.
-- Keep transport DTOs separate from richer internal domain types when they differ.
-- Prefer schema-derived types or explicit internal models over hand-maintained duplicate interfaces.
+- Use the repository's canonical runtime schema library and parsers at boundaries; use `zod` when the project already standardizes on it.
+- Accept `unknown` at untrusted ingress and parse it before application logic.
+- Derive types from canonical schemas when schema output is the internal representation.
+- Keep transport DTOs separate from richer internal domain types when their meaning or invariants differ.
+- Reuse existing branded or opaque types and their canonical schema, parser, constructor, or guard.
+- Do not recreate a domain identifier as `string`, duplicate its schema, or use an assertion to bypass construction.
+- Introduce a brand when it prevents a concrete interchange or preserves an invariant across a meaningful boundary, and when it fits the repository's modeling approach.
+- Prefer a Zod-backed brand when the repository already uses Zod and the value crosses a runtime boundary.
+- Avoid `as` assertions for validation. Keep an unavoidable interop assertion narrow and explain the invariant the external type cannot express.
 
 ## Types And Control Flow
 
-- Use string literal unions and `as const` objects instead of enums.
-- Prefer discriminated unions over boolean flags and loosely related optional fields.
-- Use exhaustive `switch` statements with a `never` check when variants must stay closed.
+- Prefer inference for local trusted values; annotate exported contracts and places where an annotation prevents accidental widening or documents intent.
+- Use string literal unions and `as const` objects instead of enums unless an external contract or repository convention requires an enum.
+- Represent closed variants as discriminated unions and use exhaustive `switch` statements with a `never` check.
 - Prefer `unknown` at boundaries and `never` at impossible states; avoid `any`.
-- Use `satisfies` when it preserves literal precision without widening.
-- Model expected failures with result shapes or unions before throwing.
+- Use `satisfies` when it checks a shape while preserving useful literal precision.
+- Model expected failures with result shapes or unions when callers should branch on them.
 
-## Design
+## Files
 
 - Name files in lowercase kebab-case.
-- Prefer plain objects and functions over classes.
-- Use a class only when an instance truly owns mutable state, resources, or lifecycle.
-- Keep orchestration functions shallow and domain-named; move mechanics into helpers.
 
 ## Compact Pattern
 
 ```ts
-const paymentStatus = {
-  pending: "pending",
-  settled: "settled",
-  failed: "failed",
+import { z } from "zod";
+
+const receiptIdSchema = z.string().uuid().brand<"ReceiptId">();
+type ReceiptId = z.infer<typeof receiptIdSchema>;
+
+const chargeKind = {
+  ok: "ok",
+  retryableError: "retryable-error",
+  fatalError: "fatal-error",
 } as const;
 
-type PaymentStatus = (typeof paymentStatus)[keyof typeof paymentStatus];
-
 type ChargeResult =
-  | { kind: "ok"; receiptId: string }
-  | { kind: "retryable-error"; reason: string }
-  | { kind: "fatal-error"; reason: string };
+  | { kind: typeof chargeKind.ok; receiptId: ReceiptId }
+  | { kind: typeof chargeKind.retryableError; reason: string }
+  | { kind: typeof chargeKind.fatalError; reason: string };
 
-function handleChargeResult(result: ChargeResult): string {
+const messageFromChargeResult = (result: ChargeResult): string => {
   switch (result.kind) {
-    case "ok":
+    case chargeKind.ok:
       return result.receiptId;
-    case "retryable-error":
-    case "fatal-error":
+    case chargeKind.retryableError:
+    case chargeKind.fatalError:
       return result.reason;
     default: {
       const exhaustive: never = result;
       return exhaustive;
     }
   }
-}
+};
 ```
