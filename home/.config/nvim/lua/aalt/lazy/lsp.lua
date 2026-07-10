@@ -174,7 +174,13 @@ return {
                 pyright = {},
                 ruff = {},
                 rust_analyzer = {},
-                tsgo = {},
+                tsgo = {
+                    capabilities = {
+                        experimental = {
+                            hoverVerbosityLevel = true,
+                        },
+                    },
+                },
                 lua_ls = {
                     -- cmd = {...},
                     -- filetypes { ...},
