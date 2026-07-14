@@ -3,8 +3,6 @@
 Managed with Nix using `nix-darwin` for macOS and Home Manager for user configuration.
 
 For the full architecture walkthrough, see [`docs/nix/README.md`](docs/nix/README.md).
-The `spaces`-based Codex workflow in this repo is adapted from Alex Fazio's article: https://x.com/alxfazio/status/2035093597238784486
-For `spaces`-based Codex workspace flows, see [`docs/codex-spaces.md`](docs/codex-spaces.md).
 
 ## Configuration model
 
@@ -83,8 +81,6 @@ Preview without switching:
 
 `--dry-run` is available only after Nix is already installed on the machine. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
 
-The normal role apply path also builds the shared `spaces` CLI through Nix. On a real Darwin apply, activation then links the built binary to `/usr/local/bin/spaces`. `install-dependencies` does not build `spaces`, and `--dry-run` does not create the `/usr/local/bin` link because activation scripts do not run.
-
 Show a closure diff before a real apply:
 
 ```bash
@@ -153,7 +149,7 @@ nix flake update
 - **Darwin** uses Homebrew through `modules/platforms/darwin/homebrew.nix`.
 - **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
 - **Sandbox** stays lean and avoids desktop-specific settings.
-- Shared role packages that are not present in pinned `nixpkgs`, such as `spaces`, are packaged locally and exposed through flake `packages` and `apps`.
+- Repo-local packages that are not present in pinned `nixpkgs`, such as `observe`, are defined under `pkgs/` and exposed through flake `packages`.
 - Work-only private Homebrew taps and casks are supplied through local env state, not tracked files.
 
 Current hidden runtime dependencies are also declared, including `jq`.
@@ -178,7 +174,7 @@ This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
 Managed agent files include:
 
-- `~/.codex/skills/{adversarial-review,agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,linear-claim-work,notion-knowledge-capture,notion-read,programming,spaces,sql-read,ultragoal}`
+- `~/.codex/skills/{adversarial-review,agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,linear-claim-work,notion-knowledge-capture,notion-read,programming,sql-read,ultragoal}`
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
@@ -186,7 +182,7 @@ Managed agent files include:
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
 - `~/.claude/commands/{handle-pr-checks.md,handle-pr-comments.md,pr.md}`
-- `~/.claude/skills/{agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,notion-read,programming,spaces,sql-read}`
+- `~/.claude/skills/{agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,notion-read,programming,sql-read}`
 - `~/.claude/{statusline-command.sh,tmux-notify.sh}`
 
 The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
@@ -207,7 +203,6 @@ These managed `.codex` and `.claude` paths are copied into place as regular file
 
 Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
 Use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` when asked to add an image to a PR body. The prompt-gated MVP accepts exactly one PNG, JPEG, or GIF per invocation on public, same-repository PRs only and uploads through an experimental, undocumented GitHub endpoint.
-The flake also exposes `spaces` directly for ad hoc use via `nix run .#spaces -- --help`.
 
 Examples of intentionally unmanaged local state:
 
@@ -235,7 +230,6 @@ Examples of intentionally unmanaged local state:
 Fast local checks:
 
 ```bash
-bash tests/zsh/codex-spaces-wrapper-smoke.sh
 bash tests/nvim-external-write-merge-smoke.sh
 bash tests/nvim-monorepo-routing-smoke.sh
 bash scripts/test-skill-helpers.sh
@@ -246,7 +240,6 @@ The Neovim checks expect the relevant lazy.nvim plugin checkouts to already exis
 Once Nix is available on the target machine, run:
 
 ```bash
-nix run .#spaces -- --help
 nix flake check --impure
 nix build --impure .#darwinConfigurations.personal.system
 nix build --impure .#darwinConfigurations.personal-overwrite.system
@@ -259,7 +252,7 @@ nix build --impure .#homeConfigurations.sandbox-aarch64-linux.activationPackage
 nix build --impure .#homeConfigurations.sandbox-x86_64-linux.activationPackage
 ```
 
-`flake.lock` pins upstream inputs, including the non-flake `spaces` source repo, so update it intentionally when you want to move those revisions.
+`flake.lock` pins upstream flake inputs, so update it intentionally when you want to move those revisions.
 
 ## Docker smoke tests
 

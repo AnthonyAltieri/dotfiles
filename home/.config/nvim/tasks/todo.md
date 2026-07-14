@@ -65,14 +65,13 @@
 - [x] Update this section with a concise review of what changed and what remains intentionally different.
 
 ## Review
-- Claude skill coverage now matches the Codex source set at the top level: `atlas`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-manage-pr`, `notion-knowledge-capture`, `programming`, `spaces`, and `sql-read`.
-- Added new Claude skill directories for `atlas`, `notion-knowledge-capture`, and `spaces`, and synced shared skill payloads from the current Codex source trees.
+- Claude skill coverage now matches the Codex source set at the top level: `atlas`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-manage-pr`, `notion-knowledge-capture`, `programming`, and `sql-read`.
+- Added new Claude skill directories for `atlas` and `notion-knowledge-capture`, and synced shared skill payloads from the current Codex source trees.
 - Adapted the Claude-only SKILL docs where straight copying would have been wrong:
 - `gh-address-comments` keeps `FROM CLAUDE:` reply examples.
 - `sql-read` now uses `$CLAUDE_CONFIG_DIR/skills/sql-read/...` paths instead of Codex paths.
 - `atlas` points to `$CLAUDE_CONFIG_DIR` in its reference example.
 - `notion-knowledge-capture` now describes generic Claude-side Notion integration setup instead of Codex-specific `codex mcp ...` commands.
-- `spaces` now describes the repo’s `spaces` workflow in agent-neutral terms instead of Codex wrapper commands.
 - Updated `modules/shared/files.nix` so the new Claude skills are actually installed, and updated the README/docs managed-file descriptions to match.
 - Verification:
 - top-level skill lists for `home/.codex/skills` and `home/.claude/skills` now match exactly

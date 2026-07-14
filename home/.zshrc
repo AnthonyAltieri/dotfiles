@@ -72,5 +72,3 @@ fi
 
 # WarpStream
 export PATH="$HOME/.warpstream:$PATH"
-
-# The Codex spaces wrapper is sourced from ~/.config/zsh/functions/codex-spaces-wrapper.zsh.

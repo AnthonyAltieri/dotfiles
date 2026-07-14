@@ -91,11 +91,6 @@ When given a bug report, fix it end-to-end.
 - If the task is reading and not updating/writing, prefer fetching or exporting the Notion content into a local temp file and analyzing that file instead of reading chunks through the MCP.
 - For creates, updates, comments, property changes, relation changes, or any other write, use the normal Notion write workflow.
 ---
-## Workspace Defaults
-- For worktree-style Codex requests, isolated task branches, or multi-repo workspace setup, use `$spaces`.
-- In this repo, all worktree-style management goes through `spaces`; interpret “worktree” requests as the local `spaces` workflow.
-- `$spaces` owns the default shell and CLI patterns for this repo: `codex --spaces`, `spaces create/show/list/remove`, and the choice between opening a single repo root versus a full multi-repo space root.
----
 ## Branch Creation Policy
 
 - If I ask for a new branch, always base it on the latest `origin/main`.

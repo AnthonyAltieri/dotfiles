@@ -13,11 +13,6 @@
       url = "github:LnL7/nix-darwin/nix-darwin-25.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    spaces-src = {
-      url = "github:AnthonyAltieri/spaces";
-      flake = false;
-    };
   };
 
   outputs = inputs@{ self, nixpkgs, ... }: let
@@ -54,9 +49,6 @@
   in {
     overlays.default = final: prev: {
       observe = final.callPackage ./pkgs/observe.nix { };
-      spaces = final.callPackage ./pkgs/spaces.nix {
-        spacesSrc = inputs.spaces-src;
-      };
     };
 
     packages = forAllSystems (
@@ -70,16 +62,8 @@
       in
       {
         observe = pkgs.observe;
-        spaces = pkgs.spaces;
       }
     );
-
-    apps = forAllSystems (system: {
-      spaces = {
-        type = "app";
-        program = "${self.packages.${system}.spaces}/bin/spaces";
-      };
-    });
 
     darwinConfigurations = {
       personal = mkDarwin {

@@ -5,7 +5,6 @@
     docker
     postgresql
     ripgrep
-    spaces
   ];
 
   home.sessionVariables = {
