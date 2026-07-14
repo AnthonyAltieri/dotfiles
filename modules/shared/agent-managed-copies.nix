@@ -46,6 +46,7 @@ let
 
   codexOnlySkillNames = [
     "adversarial-review"
+    "linear-claim-work"
     "ultragoal"
   ];
 

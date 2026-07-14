@@ -178,7 +178,7 @@ This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
 Managed agent files include:
 
-- `~/.codex/skills/{adversarial-review,agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,notion-read,programming,spaces,sql-read,ultragoal}`
+- `~/.codex/skills/{adversarial-review,agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,linear-claim-work,notion-knowledge-capture,notion-read,programming,spaces,sql-read,ultragoal}`
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`

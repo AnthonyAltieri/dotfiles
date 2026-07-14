@@ -123,10 +123,12 @@ assert_jq '.agentManagedTargets | index(".codex/skills/adversarial-review") != n
 assert_jq '[.agentManagedCopies[] | select(.target == ".codex/skills/adversarial-review")] | length == 1' "Expected exactly one Codex adversarial-review managed copy"
 assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expected Codex handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != null' "Expected Codex linear-claim-work skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") == null' "Did not expect Claude adversarial-review skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/handoff") != null' "Expected Claude handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/improve-codebase-architecture") != null' "Expected Claude improve-codebase-architecture skill to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/linear-claim-work") == null' "Did not expect Claude linear-claim-work skill to be managed"
 assert_jq '.files | index(".vimrc") != null' "Expected ~/.vimrc to be managed"
 assert_jq '.packages | index("git") != null' "Expected git in home.packages"
 assert_jq '.packages | index("jq") != null' "Expected jq in home.packages"
@@ -236,6 +238,7 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
     "$HOME/.codex/AGENTS.md" \
     "$HOME/.codex/skills/adversarial-review/SKILL.md" \
     "$HOME/.codex/skills/adversarial-review/agents/openai.yaml" \
+    "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
     "$HOME/.claude/settings.json" \
     "$HOME/.claude/commands/pr.md"
