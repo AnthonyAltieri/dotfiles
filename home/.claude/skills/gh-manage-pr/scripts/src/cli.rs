@@ -1,3 +1,4 @@
+use crate::body::validate_alt as validate_body_alt;
 use crate::github::RepositorySlug;
 use std::path::PathBuf;
 
@@ -102,6 +103,7 @@ fn validate_alt(value: &str) -> Result<String, String> {
     if value.chars().any(char::is_control) {
         return Err("--alt must be a single line without control characters.".to_string());
     }
+    validate_body_alt(value)?;
     Ok(value.to_string())
 }
 
@@ -161,5 +163,19 @@ mod tests {
         ])
         .expect_err("multiline alt");
         assert!(error.contains("single line"));
+    }
+
+    #[test]
+    fn rejects_reserved_block_markers_in_alt_text() {
+        for marker in ["<!-- gh-pr-image:begin -->", "<!-- gh-pr-image:end -->"] {
+            let error = parse_args(vec![
+                "add".to_string(),
+                "shot.png".to_string(),
+                "--alt".to_string(),
+                format!("Preview {marker}"),
+            ])
+            .expect_err(marker);
+            assert!(error.contains("reserved block markers"), "{error}");
+        }
     }
 }

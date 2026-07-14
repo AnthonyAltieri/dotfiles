@@ -5,7 +5,7 @@ pub mod image;
 pub mod journal;
 pub mod user_attachments;
 
-use crate::body::{add_attachment, find_attachment, BodyAttachment};
+use crate::body::{add_attachment, find_attachment, validate_alt, BodyAttachment};
 use crate::cli::AddConfig;
 use crate::github::GhClient;
 use crate::image::load_image;
@@ -73,6 +73,7 @@ pub fn add_image_to_pr(
     github: &GhClient,
     uploader: &UserAttachmentsClient,
 ) -> Result<RunOutput, AppError> {
+    validate_alt(&config.alt).map_err(AppError::usage)?;
     let image = load_image(&config.image, &config.alt).map_err(AppError::usage)?;
     let (repository_slug, pull_request_number) = github
         .resolve_target(config.repository.as_ref(), config.pull_request.as_deref())
@@ -308,7 +309,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn invalid_images_fail_before_any_github_call() {
+    fn invalid_local_inputs_fail_before_any_github_call() {
         let fixture = Fixture::new("PUBLIC", true, false);
         let mut config = fixture.config();
         config.image = fixture.image.with_file_name("missing.png");
@@ -318,6 +319,14 @@ mod tests {
             .expect_err("local validation failure");
         assert_eq!(error.kind(), ErrorKind::Usage);
         assert!(error.to_string().contains("Failed to inspect image"));
+        assert_eq!(fs::read_to_string(&fixture.log).expect("log"), "");
+
+        config.image = fixture.image.clone();
+        config.alt = "Preview <!-- gh-pr-image:begin -->".to_string();
+        let error = add_image_to_pr(&config, &fixture.github, &uploader)
+            .expect_err("reserved marker failure");
+        assert_eq!(error.kind(), ErrorKind::Usage);
+        assert!(error.to_string().contains("reserved block markers"));
         assert_eq!(fs::read_to_string(&fixture.log).expect("log"), "");
     }
 
@@ -454,6 +463,26 @@ set -eu
 BODY='{body}'
 LOG='{log}'
 printf '%s\n' "$*" >> "$LOG"
+
+if [ "$GH_HOST" != "github.com" ]; then
+  printf 'gh command was not pinned to github.com: %s\n' "$GH_HOST" >&2
+  exit 1
+fi
+
+if [ "$1" = "api" ]; then
+  HOST_PINNED=false
+  PREVIOUS=''
+  for ARGUMENT in "$@"; do
+    if [ "$PREVIOUS" = "--hostname" ] && [ "$ARGUMENT" = "github.com" ]; then
+      HOST_PINNED=true
+    fi
+    PREVIOUS=$ARGUMENT
+  done
+  if [ "$HOST_PINNED" != true ]; then
+    printf 'api call was not pinned to github.com: %s\n' "$*" >&2
+    exit 1
+  fi
+fi
 
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
   BODY_JSON=$(jq -Rs . < "$BODY")

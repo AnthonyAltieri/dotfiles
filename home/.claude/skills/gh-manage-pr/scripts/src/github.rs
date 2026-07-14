@@ -3,6 +3,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+const GITHUB_HOST: &str = "github.com";
+
 const PR_PREFLIGHT_QUERY: &str = r#"query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     visibility
@@ -39,6 +41,10 @@ impl RepositorySlug {
 
     pub fn as_string(&self) -> String {
         format!("{}/{}", self.owner, self.name)
+    }
+
+    fn as_github_selector(&self) -> String {
+        format!("{GITHUB_HOST}/{}", self.as_string())
     }
 
     fn same_repository(&self, other: &Self) -> bool {
@@ -118,7 +124,7 @@ impl GhClient {
         }
         args.extend([
             "-R".to_string(),
-            repository.as_string(),
+            repository.as_github_selector(),
             "--json".to_string(),
             "number,url".to_string(),
         ]);
@@ -155,6 +161,8 @@ impl GhClient {
             format!("name={}", repository.name),
             "-F".to_string(),
             format!("number={number}"),
+            "--hostname".to_string(),
+            GITHUB_HOST.to_string(),
         ];
         let response = self.run_json(&args, None)?;
         reject_graphql_errors(&response)?;
@@ -229,6 +237,8 @@ impl GhClient {
             &[
                 "api".to_string(),
                 format!("repos/{}", repository.as_string()),
+                "--hostname".to_string(),
+                GITHUB_HOST.to_string(),
             ],
             None,
         )?;
@@ -256,7 +266,7 @@ impl GhClient {
                 "auth".to_string(),
                 "token".to_string(),
                 "--hostname".to_string(),
-                "github.com".to_string(),
+                GITHUB_HOST.to_string(),
             ],
             None,
         )?;
@@ -270,6 +280,8 @@ impl GhClient {
             &[
                 "api".to_string(),
                 format!("repos/{}/pulls/{number}", repository.as_string()),
+                "--hostname".to_string(),
+                GITHUB_HOST.to_string(),
             ],
             None,
         )?;
@@ -292,6 +304,8 @@ impl GhClient {
                 "PATCH".to_string(),
                 "--input".to_string(),
                 "-".to_string(),
+                "--hostname".to_string(),
+                GITHUB_HOST.to_string(),
             ],
             Some(&input),
         )?;
@@ -304,7 +318,7 @@ impl GhClient {
     ) -> Result<RepositorySlug, String> {
         let mut args = vec!["repo".to_string(), "view".to_string()];
         if let Some(requested) = requested {
-            args.push(requested.as_string());
+            args.push(requested.as_github_selector());
         }
         args.extend(["--json".to_string(), "nameWithOwner,url".to_string()]);
         let response = self.run_json(&args, None)?;
@@ -340,6 +354,7 @@ impl GhClient {
         let mut command = Command::new(&self.program);
         command
             .args(args)
+            .env("GH_HOST", GITHUB_HOST)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         if stdin.is_some() {
@@ -475,6 +490,10 @@ mod tests {
     fn parses_and_compares_repository_names() {
         let repository = RepositorySlug::parse("Owner/repo.name").expect("repository");
         assert_eq!(repository.as_string(), "Owner/repo.name");
+        assert_eq!(
+            repository.as_github_selector(),
+            "github.com/Owner/repo.name"
+        );
         assert!(repository
             .same_repository(&RepositorySlug::parse("owner/REPO.NAME").expect("same repository")));
         assert!(RepositorySlug::parse("owner/repo/extra").is_err());

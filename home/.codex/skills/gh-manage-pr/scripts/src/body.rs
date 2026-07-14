@@ -228,9 +228,12 @@ fn validate_digest(value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_alt(value: &str) -> Result<(), String> {
+pub(crate) fn validate_alt(value: &str) -> Result<(), String> {
     if value.trim().is_empty() || value.chars().any(char::is_control) {
         return Err("gh-pr-image alt text must be a non-empty single line.".to_string());
+    }
+    if value.contains(BEGIN_MARKER) || value.contains(END_MARKER) {
+        return Err("gh-pr-image alt text must not contain reserved block markers.".to_string());
     }
     Ok(())
 }
@@ -291,6 +294,30 @@ mod tests {
         let second = add_attachment(&first.body, attachment('a')).expect("second");
         assert!(second.already_present);
         assert_eq!(second.body, first.body);
+    }
+
+    #[test]
+    fn rejects_reserved_block_markers_in_alt_text() {
+        for marker in [BEGIN_MARKER, END_MARKER] {
+            let mut candidate = attachment('a');
+            candidate.alt = format!("Preview {marker}");
+
+            let error = add_attachment("Intro", candidate).expect_err(marker);
+            assert!(error.contains("reserved block markers"), "{error}");
+        }
+    }
+
+    #[test]
+    fn preserves_markdown_punctuation_in_alt_text() {
+        let mut candidate = attachment('a');
+        candidate.alt = "Settings [dialog] (*dark* mode)".to_string();
+
+        let change = add_attachment("Intro", candidate.clone()).expect("add attachment");
+        let parsed = find_attachment(&change.body, &candidate.sha256)
+            .expect("parse managed block")
+            .expect("find attachment");
+
+        assert_eq!(parsed.alt, candidate.alt);
     }
 
     #[test]

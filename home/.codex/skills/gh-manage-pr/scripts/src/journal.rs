@@ -17,6 +17,15 @@ impl RecoveryJournal {
         pull_request: &PullRequest,
         image: &ValidatedImage,
     ) -> Result<Self, String> {
+        Self::prepare_with_sync(repository, pull_request, image, sync_parent_directory)
+    }
+
+    fn prepare_with_sync(
+        repository: &Repository,
+        pull_request: &PullRequest,
+        image: &ValidatedImage,
+        sync_parent: impl FnOnce(&Path) -> Result<(), String>,
+    ) -> Result<Self, String> {
         let mut file = Builder::new()
             .prefix("gh-pr-image-recovery-")
             .suffix(".json")
@@ -38,6 +47,7 @@ impl RecoveryJournal {
         )?;
         file.keep()
             .map_err(|error| format!("Failed to retain recovery journal: {}", error.error))?;
+        sync_parent(&path)?;
         Ok(Self { path })
     }
 
@@ -91,6 +101,14 @@ impl RecoveryJournal {
     }
 
     fn replace(&self, record: &JournalRecord<'_>) -> Result<(), String> {
+        self.replace_with_sync(record, sync_parent_directory)
+    }
+
+    fn replace_with_sync(
+        &self,
+        record: &JournalRecord<'_>,
+        sync_parent: impl FnOnce(&Path) -> Result<(), String>,
+    ) -> Result<(), String> {
         let parent = self
             .path
             .parent()
@@ -103,7 +121,7 @@ impl RecoveryJournal {
         replacement
             .persist(&self.path)
             .map_err(|error| format!("Failed to persist recovery journal: {}", error.error))?;
-        Ok(())
+        sync_parent(&self.path)
     }
 }
 
@@ -168,11 +186,30 @@ fn write_json(file: &mut NamedTempFile, record: &JournalRecord<'_>) -> Result<()
         .map_err(|error| format!("Failed to sync recovery journal: {error}"))
 }
 
+fn sync_parent_directory(path: &Path) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Recovery journal has no parent directory.".to_string())?;
+    let directory = fs::File::open(parent).map_err(|error| {
+        format!(
+            "Failed to open recovery journal directory `{}`: {error}",
+            parent.display()
+        )
+    })?;
+    directory.sync_all().map_err(|error| {
+        format!(
+            "Failed to sync recovery journal directory `{}`: {error}",
+            parent.display()
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::github::RepositorySlug;
     use serde_json::Value;
+    use std::cell::Cell;
 
     fn context() -> (Repository, PullRequest, ValidatedImage) {
         (
@@ -236,6 +273,60 @@ mod tests {
 
         journal.cleanup().expect("cleanup");
         assert!(!journal.path().exists());
+    }
+
+    #[test]
+    fn syncs_parent_after_retaining_and_replacing_journal() {
+        let (repository, pull_request, image) = context();
+        let retain_syncs = Cell::new(0);
+        let journal =
+            RecoveryJournal::prepare_with_sync(&repository, &pull_request, &image, |path| {
+                let value: Value = serde_json::from_slice(&fs::read(path).expect("read retained"))
+                    .expect("retained json");
+                assert_eq!(
+                    value.pointer("/status").and_then(Value::as_str),
+                    Some("upload_pending_or_unknown")
+                );
+                retain_syncs.set(retain_syncs.get() + 1);
+                Ok(())
+            })
+            .expect("journal");
+        assert_eq!(retain_syncs.get(), 1);
+
+        let attachment = UploadedAttachment {
+            sha256: "a".repeat(64),
+            name: "screen.png".to_string(),
+            media_type: "image/png".to_string(),
+            alt: "Settings".to_string(),
+            url: "https://github.com/user-attachments/assets/abc".to_string(),
+        };
+        let replacement_syncs = Cell::new(0);
+        journal
+            .replace_with_sync(
+                &JournalRecord {
+                    schema_version: 1,
+                    repository: repository.slug.as_string(),
+                    pull_request: pull_request.number,
+                    status: "uploaded",
+                    attachment: Some(JournalAttachment::from_uploaded(&attachment)),
+                    note: None,
+                },
+                |path| {
+                    let value: Value =
+                        serde_json::from_slice(&fs::read(path).expect("read replacement"))
+                            .expect("replacement json");
+                    assert_eq!(
+                        value.pointer("/attachment/url").and_then(Value::as_str),
+                        Some(attachment.url.as_str())
+                    );
+                    replacement_syncs.set(replacement_syncs.get() + 1);
+                    Ok(())
+                },
+            )
+            .expect("replace");
+        assert_eq!(replacement_syncs.get(), 1);
+
+        journal.cleanup().expect("cleanup");
     }
 
     #[cfg(unix)]
