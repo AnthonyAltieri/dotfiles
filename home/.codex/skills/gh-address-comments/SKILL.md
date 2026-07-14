@@ -23,7 +23,7 @@ If no PR exists for the current branch, report this and stop.
 
 ## Quick start
 
-When running from Codex in this environment, request unsandboxed execution for the bundled helpers that spawn child `gh` processes: `fetch-comments`, `create-comment`, `create-thread-reply`, and `resolve-thread`. Do not treat `~/.spaces/*` as the root cause when those helpers report `run gh auth login`; the failure mode is sandboxed child-process GitHub auth, even when top-level `gh` still works.
+When running from Codex in this environment, request unsandboxed execution for the bundled helpers that spawn child `gh` processes: `fetch-comments`, `create-comment`, `create-thread-reply`, and `resolve-thread`. When those helpers report `run gh auth login`, the likely failure mode is sandboxed child-process GitHub auth rather than the repo location, even when top-level `gh` still works.
 
 1. Fetch and summarize review data with a direct helper pipeline when you need compact grouping first.
    - Run outside the sandbox: `fetch-comments --format compact | summarize-threads`
@@ -46,7 +46,7 @@ When running from Codex in this environment, request unsandboxed execution for t
 2. Fetch comments and review threads.
    - Preferred: run `fetch-comments` outside the sandbox for full conversation/review/thread data.
    - For large review sets, use `fetch-comments --format compact | summarize-threads` first so the model sees grouped metadata before opening individual threads.
-   - Do not diagnose helper auth failures as a `~/.spaces/*` cwd issue. In this environment the broken path is sandboxed child `gh` auth, not the repo location.
+   - Do not diagnose helper auth failures as a working-directory issue. In this environment the broken path is sandboxed child `gh` auth, not the repo location.
    - Manual fallback via read-only GraphQL fetches is acceptable when needed:
      - `gh api graphql` query for `reviewThreads`, `reviews`, and thread comments.
 3. Filter scope.
@@ -119,7 +119,7 @@ When running from Codex in this environment, request unsandboxed execution for t
 - `create-thread-reply` expects a review thread ID, not a comment ID.
 - Keep the reply text agent-specific (`FROM CODEX:` etc.); the helper adds only the robot emoji prefix.
 - If a helper prints `run gh auth login`, retry the helper outside the sandbox before assuming GitHub auth is actually broken.
-- Do not treat `~/.spaces/*` as the cause of that auth failure. The observed issue is sandboxed child-process `gh` auth.
+- Do not treat the working directory as the cause of that auth failure. The observed issue is sandboxed child-process `gh` auth.
 - Do not silently replace helper-based comment, reply, or resolve mutations with direct `gh api graphql` mutations, because that bypasses the configured prompt gate on the helper commands.
 - For bodies that contain backticks, shell metacharacters, or file paths, prefer `--body-file` or stdin instead of inline `--body "..."`.
 - If any helper command is missing, reapply the profile so the packaged helpers are rebuilt and activated.

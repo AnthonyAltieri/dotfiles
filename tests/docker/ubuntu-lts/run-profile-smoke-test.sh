@@ -167,7 +167,6 @@ case "$profile" in
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for personal"
     assert_jq '.packages | index("cargo") != null' "Expected cargo in home.packages for personal"
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for personal"
-    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal"
     assert_work_notion_mcp_disabled
@@ -178,7 +177,6 @@ case "$profile" in
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for work"
     assert_jq '.packages | index("cargo") != null' "Expected cargo in home.packages for work"
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for work"
-    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work"
     assert_work_notion_mcp_enabled
@@ -200,7 +198,6 @@ case "$profile" in
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for personal-linux"
     assert_jq '.packages | index("cargo") != null' "Expected cargo in home.packages for personal-linux"
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for personal-linux"
-    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for personal-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal-linux"
     assert_work_notion_mcp_disabled
@@ -211,7 +208,6 @@ case "$profile" in
     assert_jq '.ohMyZsh == true' "Expected Oh My Zsh for work-linux"
     assert_jq '.packages | index("cargo") != null' "Expected cargo in home.packages for work-linux"
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for work-linux"
-    assert_jq '.packages | index("spaces") != null' "Expected spaces in home.packages for work-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work-linux"
     assert_work_notion_mcp_enabled
