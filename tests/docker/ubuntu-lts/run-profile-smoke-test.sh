@@ -121,9 +121,11 @@ assert_jq '.xdgFiles | index("starship.toml") != null' "Expected starship config
 assert_jq '.agentManagedTargets | index(".codex/AGENTS.md") != null' "Expected Codex config to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expected Codex handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != null' "Expected Codex linear-claim-work skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/handoff") != null' "Expected Claude handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/improve-codebase-architecture") != null' "Expected Claude improve-codebase-architecture skill to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/linear-claim-work") == null' "Did not expect Claude linear-claim-work skill to be managed"
 assert_jq '.files | index(".vimrc") != null' "Expected ~/.vimrc to be managed"
 assert_jq '.packages | index("git") != null' "Expected git in home.packages"
 assert_jq '.packages | index("jq") != null' "Expected jq in home.packages"
@@ -215,6 +217,7 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
 
   for path in \
     "$HOME/.codex/AGENTS.md" \
+    "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
     "$HOME/.claude/settings.json" \
     "$HOME/.claude/commands/pr.md"

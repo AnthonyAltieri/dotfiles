@@ -1,0 +1,12 @@
+interface:
+  display_name: "Linear Claim Work"
+  short_description: "Locate and safely claim Linear work"
+  default_prompt: "Use $linear-claim-work to locate or create the right Linear issue, safely establish ownership, and return grounded execution context."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "linear"
+      description: "Linear MCP server"
+      transport: "streamable_http"
+      url: "https://mcp.linear.app/mcp"

@@ -45,6 +45,7 @@ let
   ];
 
   codexOnlySkillNames = [
+    "linear-claim-work"
     "ultragoal"
   ];
 
