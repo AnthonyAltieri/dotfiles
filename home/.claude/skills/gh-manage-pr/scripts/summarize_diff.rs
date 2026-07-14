@@ -51,10 +51,7 @@ fn summarize_input(input: &str) -> Result<String, String> {
             continue;
         }
 
-        let change_units = stats
-            .chars()
-            .filter(|ch| *ch == '+' || *ch == '-')
-            .count();
+        let change_units = stats.chars().filter(|ch| *ch == '+' || *ch == '-').count();
         let group_name = top_level_group(path);
 
         let group = groups.entry(group_name).or_default();
@@ -187,6 +184,9 @@ mod tests {
 
     #[test]
     fn parses_summary_line_with_missing_deletions() {
-        assert_eq!(parse_summary_line("1 file changed, 4 insertions(+)"), (4, 0));
+        assert_eq!(
+            parse_summary_line("1 file changed, 4 insertions(+)"),
+            (4, 0)
+        );
     }
 }

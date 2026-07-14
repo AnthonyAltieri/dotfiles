@@ -201,3 +201,15 @@ prefix_rule(
         "fetch-comments --format compact",
     ],
 )
+
+prefix_rule(
+    pattern=["gh-pr-image", "add"],
+    decision="prompt",
+    justification="Uploading an image and updating a pull request body mutates GitHub state and uses an experimental endpoint, so it should stay approval-gated.",
+    match=[
+        "gh-pr-image add screenshot.png --alt settings --pr 123 -R owner/repo",
+    ],
+    not_match=[
+        "gh-manage-pr-summarize /tmp/pr.diffstat",
+    ],
+)
