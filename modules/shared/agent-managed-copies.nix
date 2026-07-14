@@ -45,6 +45,7 @@ let
   ];
 
   codexOnlySkillNames = [
+    "adversarial-review"
     "ultragoal"
   ];
 
