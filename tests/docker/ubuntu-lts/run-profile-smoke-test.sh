@@ -119,10 +119,13 @@ assert_jq '.xdgFiles | index("zsh") != null' "Expected ~/.config/zsh to be manag
 assert_jq '.xdgFiles | index("nvim") != null' "Expected ~/.config/nvim to be managed"
 assert_jq '.xdgFiles | index("starship.toml") != null' "Expected starship config to be managed"
 assert_jq '.agentManagedTargets | index(".codex/AGENTS.md") != null' "Expected Codex config to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/adversarial-review") != null' "Expected Codex adversarial-review skill to be managed"
+assert_jq '[.agentManagedCopies[] | select(.target == ".codex/skills/adversarial-review")] | length == 1' "Expected exactly one Codex adversarial-review managed copy"
 assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expected Codex handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != null' "Expected Codex linear-claim-work skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") == null' "Did not expect Claude adversarial-review skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/handoff") != null' "Expected Claude handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/improve-codebase-architecture") != null' "Expected Claude improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/linear-claim-work") == null' "Did not expect Claude linear-claim-work skill to be managed"
@@ -136,6 +139,22 @@ assert_jq '.packages | index("ripgrep") != null' "Expected ripgrep in home.packa
 assert_jq '.packages | index("neovim") != null' "Expected neovim in home.packages"
 assert_jq '.packages | index("starship") != null' "Expected starship in home.packages"
 assert_jq '.packages | index("vim") != null' "Expected vim in home.packages"
+
+adversarial_review_source="$(jq -er '.agentManagedCopies[] | select(.target == ".codex/skills/adversarial-review") | .source' <<<"$summary")"
+if [[ ! -f "$adversarial_review_source/SKILL.md" || ! -f "$adversarial_review_source/agents/openai.yaml" ]]; then
+  echo "Expected complete Codex adversarial-review source payload" >&2
+  exit 1
+fi
+
+if ! grep -Fq 'name: adversarial-review' "$adversarial_review_source/SKILL.md"; then
+  echo "Expected Codex adversarial-review source identity" >&2
+  exit 1
+fi
+
+if ! grep -Fq 'allow_implicit_invocation: false' "$adversarial_review_source/agents/openai.yaml"; then
+  echo "Expected Codex adversarial-review source to require explicit invocation" >&2
+  exit 1
+fi
 
 if jq -e '.sessionVariables.DOTFILES_COMMON == "1"' >/dev/null <<<"$summary"; then
   assert_jq '.packages | index("docker") != null' "Expected docker in home.packages for common roles"
@@ -217,6 +236,8 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
 
   for path in \
     "$HOME/.codex/AGENTS.md" \
+    "$HOME/.codex/skills/adversarial-review/SKILL.md" \
+    "$HOME/.codex/skills/adversarial-review/agents/openai.yaml" \
     "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
     "$HOME/.claude/settings.json" \
@@ -232,6 +253,21 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
       exit 1
     fi
   done
+
+  if ! grep -Fq 'name: adversarial-review' "$HOME/.codex/skills/adversarial-review/SKILL.md"; then
+    echo "Expected installed Codex adversarial-review skill identity" >&2
+    exit 1
+  fi
+
+  if ! grep -Fq 'allow_implicit_invocation: false' "$HOME/.codex/skills/adversarial-review/agents/openai.yaml"; then
+    echo "Expected installed Codex adversarial-review skill to require explicit invocation" >&2
+    exit 1
+  fi
+
+  if [[ -e "$HOME/.claude/skills/adversarial-review" || -L "$HOME/.claude/skills/adversarial-review" ]]; then
+    echo "Did not expect Claude adversarial-review skill to be installed" >&2
+    exit 1
+  fi
 
   case "$profile_output" in
     work-linux|work-aarch64-linux)

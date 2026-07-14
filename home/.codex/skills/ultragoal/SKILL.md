@@ -67,6 +67,9 @@ Specify:
 - **Approval gates:** irreversible, public, shared, or costly actions need separate user approval.
 - **Blocker standard:** external blocker plus smallest next action; difficulty or uncertainty is not enough.
 - **Completion proof:** exact commands, outputs, paths, screenshots, or readbacks required before `update_goal(status="complete")`.
+- **Explicit completion gates:** when the user pairs an independent review skill with Ultragoal, persist the named gate and its pass evidence in the durable completion proof, or in the self-contained goal objective when no durable goal file is used. Keep the primary verifier and supporting checks; review evidence supplements rather than replaces them.
+
+If an already active self-contained goal gains an explicit completion gate, persist the active objective and new gate in the nearest durable goal state when safe, report that the active objective itself is unchanged, and inspect that state on resume. If the gate cannot be made durable, report the persistence limitation and do not claim the active objective contains it.
 
 For flaky or stateful checks, require clean-state reproduction and enough consecutive passes to rule out luck.
 
@@ -99,6 +102,8 @@ Before activation, red-team the draft:
 - Are approval gates explicit?
 - Does the loop say what to do after a failed attempt or wait?
 - Is completion observable outside the running agent?
+
+This pre-activation red-team checks only the goal design. It does not satisfy an explicitly paired independent-review gate, which must run against the current candidate before completion.
 
 If activation was requested, or the Default Activation Rule applies, call `create_goal` only after the goal packet is grounded and red-teamed. This call is the final action of activation; do not call it early, and do not merely say a goal should be set.
 
