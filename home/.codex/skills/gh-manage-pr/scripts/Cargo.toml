@@ -1,0 +1,23 @@
+[package]
+name = "gh-manage-pr-tools"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+ureq = { version = "3.3", default-features = false, features = ["rustls"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "gh-manage-pr-summarize"
+path = "summarize_diff.rs"
+
+[[bin]]
+name = "gh-pr-image"
+path = "src/bin/gh_pr_image.rs"

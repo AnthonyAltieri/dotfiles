@@ -205,7 +205,8 @@ That merge intentionally touches only those keys. Notion OAuth state remains loc
 
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
-Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
+Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
+Use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` when asked to add an image to a PR body. The prompt-gated MVP accepts exactly one PNG, JPEG, or GIF per invocation on public, same-repository PRs only and uploads through an experimental, undocumented GitHub endpoint.
 The flake also exposes `spaces` directly for ad hoc use via `nix run .#spaces -- --help`.
 
 Examples of intentionally unmanaged local state:

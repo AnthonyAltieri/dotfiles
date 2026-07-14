@@ -10,7 +10,9 @@ let
           relativePath = lib.removePrefix "${srcString}/" pathString;
         in
           !(
-            lib.hasInfix "/target/" relativePath
+            relativePath == "target"
+            || lib.hasPrefix "target/" relativePath
+            || lib.hasInfix "/target/" relativePath
             || lib.hasSuffix "/target" relativePath
           );
     };
@@ -22,27 +24,6 @@ let
       src = cleanRustSource src;
       cargoLock.lockFile = lockFile;
       doCheck = false;
-    };
-
-  buildSingleBinary = { pname, src, mainFile, meta ? { } }:
-    pkgs.stdenv.mkDerivation {
-      inherit pname meta;
-      version = "0.1.0";
-      src = cleanRustSource src;
-      nativeBuildInputs = [ pkgs.rustc ];
-      dontConfigure = true;
-
-      buildPhase = ''
-        runHook preBuild
-        rustc ${mainFile} -O -o ${pname}
-        runHook postBuild
-      '';
-
-      installPhase = ''
-        runHook preInstall
-        install -Dm755 ${pname} $out/bin/${pname}
-        runHook postInstall
-      '';
     };
 
   ghAddressCommentsTools = buildRustHelper {
@@ -63,10 +44,10 @@ let
     lockFile = ../../home/.codex/skills/sql-read/scripts/Cargo.lock;
   };
 
-  ghManagePrSummarizer = buildSingleBinary {
-    pname = "gh-manage-pr-summarize";
+  ghManagePrTools = buildRustHelper {
+    pname = "gh-manage-pr-tools";
     src = ../../home/.codex/skills/gh-manage-pr/scripts;
-    mainFile = "summarize_diff.rs";
+    lockFile = ../../home/.codex/skills/gh-manage-pr/scripts/Cargo.lock;
   };
 
   atlasCli = buildRustHelper {
@@ -80,7 +61,7 @@ in
     [
       ghAddressCommentsTools
       ghFixCiTools
-      ghManagePrSummarizer
+      ghManagePrTools
       sqlReadTools
     ]
     ++ lib.optionals (platform == "darwin") [

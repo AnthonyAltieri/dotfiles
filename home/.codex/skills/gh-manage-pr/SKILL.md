@@ -1,18 +1,20 @@
 ---
 name: gh-manage-pr
-description: Use when a user asks to create or update a GitHub pull request; detect existing PR for the branch, generate a dense structured PR body from branch changes, and apply it via gh.
+description: Use when a user asks to create or update a GitHub pull request or add an image to a PR body; detect existing PR context, generate a dense structured description, apply it via gh, and use the dedicated prompt-gated image helper for supported uploads.
 metadata:
-  short-description: Create or update GitHub PRs with structured descriptions
+  short-description: Create, update, or add an image to a GitHub PR
 ---
 
-# Create or Update PR
+# Create, Update, or Add an Image to a PR
 
-Create or update a pull request with the GitHub CLI (`gh`).
+Create or update a pull request with the GitHub CLI (`gh`), and use `gh-pr-image` when an image must be added to its body.
 
 ## Inputs
 
 - `repo`: repository path (default `.`)
 - `base`: base branch for comparison (default `master`, fallback `main` if needed)
+- `pr`: PR number, URL, or branch when the image target should not be inferred
+- optional image path and required accessible alt text for PR-body images
 - optional title/body hints from user
 
 ## Quick start
@@ -24,6 +26,8 @@ Create or update a pull request with the GitHub CLI (`gh`).
    - `gh-manage-pr-summarize /tmp/pr.diffstat`
 3. Run the summarizer and use the JSON output plus `assets/pr-body-template.md` to draft the PR body.
    - `gh-manage-pr-summarize /tmp/pr.diffstat`
+4. When asked to add an image to the PR body, use the prompt-gated image helper.
+   - `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]`
 
 ## Workflow
 
@@ -48,7 +52,13 @@ Create or update a pull request with the GitHub CLI (`gh`).
      - Only omit `--draft` when the user explicitly asks for a ready-for-review/open PR.
    - Update:
      - `gh pr edit <pr> --title "<title>" --body-file <tmpfile>`
-5. Return final PR URL and a concise summary of what was updated.
+5. Add a requested image to the PR body.
+   - You must use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` rather than constructing a separate upload or image-hosting workflow.
+   - The current MVP accepts exactly one PNG, JPEG, or GIF per invocation.
+   - Use it only for a public PR whose head and base are in the same repository. Private repositories and fork-authored PRs are not supported.
+   - The command is prompt-gated because it uploads bytes and updates GitHub state. Allow that approval flow; do not bypass it with lower-level commands.
+   - The upload uses an experimental, undocumented GitHub endpoint. If the target is unsupported, report the limitation instead of silently selecting another backend.
+6. Return the final PR URL and a concise summary of what was updated.
 
 ## PR Body Structure
 
@@ -79,6 +89,8 @@ For each major change area:
 - For mixed-feature branches, group by subsystem and user-visible capability instead of by commit order.
 - Keep the summary section outcome-focused; implementation details belong in later sections.
 - New PRs default to draft unless the user explicitly asks for a ready-for-review/open PR.
+- `gh-pr-image` is intentionally limited to one PNG, JPEG, or GIF per invocation on public, same-repository PRs.
+- Treat a failure from its experimental, undocumented upload endpoint as a compatibility failure; do not fall back to browser cookies, third-party hosting, or repository-backed assets without a separate user decision.
 
 ## Output Format
 
@@ -92,5 +104,6 @@ For each major change area:
 ## Bundled Resources
 
 - `gh-manage-pr-summarize` - Installed helper that converts `git diff --stat` output into compact JSON grouped by subsystem.
+- `gh-pr-image` - Prompt-gated helper that adds one supported image to the body of a public, same-repository PR through an experimental GitHub upload endpoint.
 - `scripts/summarize_diff.rs` - Converts `git diff --stat` output into compact JSON grouped by subsystem, with exact top-level insertion/deletion totals and per-section change magnitude.
 - `assets/pr-body-template.md` - Reusable PR body structure with placeholders for summary and implementation sections.
