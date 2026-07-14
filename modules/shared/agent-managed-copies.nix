@@ -40,7 +40,6 @@ let
     "notion-knowledge-capture"
     "notion-read"
     "programming"
-    "spaces"
     "sql-read"
   ];
 

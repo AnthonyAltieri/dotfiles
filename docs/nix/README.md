@@ -126,7 +126,7 @@ Use these placement rules:
 
 `modules/roles/` is where profile intent lives:
 
-- `common.nix` carries shared `personal`/`work` behavior, including Oh My Zsh enablement and shared CLI packages such as `spaces`.
+- `common.nix` carries shared `personal`/`work` behavior, including Oh My Zsh enablement and shared CLI packages such as `docker`, `postgresql`, and `ripgrep`.
 - `personal.nix` is the personal overlay.
 - `work.nix` is the work overlay.
 - `sandbox.nix` is intentionally separate and stays lean.
@@ -161,7 +161,7 @@ Managed examples:
 - shared `~/.codex/skills/*`, excluding work-only skills
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- selected Claude commands, `~/.claude/CLAUDE.md`, and shared skills, including `atlas`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, `notion-read`, and `spaces`
+- selected Claude commands, `~/.claude/CLAUDE.md`, and shared skills, including `atlas`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, and `notion-read`
 - selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
 
 The work profile also manages the `observe` skill for both Codex and Claude.
@@ -211,7 +211,6 @@ What it does:
 7. runs `darwin-rebuild switch --flake` for the chosen role
 
 Run bootstrap as your normal user. On a real apply, it uses `sudo` only for the final `darwin-rebuild switch` step.
-That Darwin closure build now includes the locally packaged `spaces` CLI through the shared `common` role. On a real apply, nix-darwin activation also creates `/usr/local/bin/spaces` as a symlink to the Nix-built binary. `install-dependencies` does not build `spaces`, and preview-only `--dry-run` runs do not create the symlink because activation scripts do not execute.
 
 That makes the first-install prerequisite flow:
 
@@ -297,7 +296,6 @@ Prefer the smallest layer that actually owns the behavior. Do not put Linux-only
 Fast local checks:
 
 ```bash
-bash tests/zsh/codex-spaces-wrapper-smoke.sh
 bash tests/nvim-external-write-merge-smoke.sh
 bash tests/nvim-monorepo-routing-smoke.sh
 bash scripts/test-skill-helpers.sh
@@ -308,7 +306,6 @@ The Neovim checks expect the relevant lazy.nvim plugin checkouts to already exis
 The intended validation path is:
 
 ```bash
-nix run .#spaces -- --help
 nix flake check --impure
 nix build --impure .#darwinConfigurations.personal.system
 nix build --impure .#darwinConfigurations.personal-overwrite.system
