@@ -10,6 +10,7 @@ local mouse_hover_state = {
 }
 
 local active_session
+local pending_standard_hover
 
 local function bounded(value, lower, upper)
 	upper = math.max(1, upper)
@@ -348,7 +349,11 @@ local function request_hover(callback, opts)
 		params = client_position_params(source_buf, vim.api.nvim_win_get_cursor(0))
 	end
 
-	vim.lsp.buf_request_all(source_buf, "textDocument/hover", params, function(results, ctx)
+	return vim.lsp.buf_request_all(source_buf, "textDocument/hover", params, function(results, ctx)
+		if opts.on_response then
+			opts.on_response()
+		end
+
 		if opts.is_valid then
 			if not opts.is_valid() then
 				return
@@ -465,6 +470,78 @@ local function close_session(session, close_float)
 	if close_float ~= false and float_win and vim.api.nvim_win_is_valid(float_win) then
 		pcall(vim.api.nvim_win_close, float_win, true)
 	end
+end
+
+local function cancel_standard_hover_request(request)
+	if not request then
+		return false
+	end
+
+	if pending_standard_hover == request then
+		pending_standard_hover = nil
+	end
+	request.cancelled = true
+
+	local cancel = request.cancel
+	request.cancel = nil
+	if cancel then
+		pcall(cancel)
+	end
+
+	return true
+end
+
+local function hover_source_buffer(win)
+	local ok, source_buf = pcall(vim.api.nvim_win_get_var, win, "textDocument/hover")
+	if ok and type(source_buf) == "number" then
+		return source_buf
+	end
+end
+
+local function close_standard_hover(win, source_buf)
+	if
+		type(win) ~= "number"
+		or not vim.api.nvim_win_is_valid(win)
+		or not vim.api.nvim_buf_is_valid(source_buf)
+		or hover_source_buffer(win) ~= source_buf
+		or vim.b[source_buf].lsp_floating_preview ~= win
+	then
+		return false
+	end
+
+	vim.api.nvim_win_close(win, true)
+	return true
+end
+
+function M.close_float()
+	local current_win = vim.api.nvim_get_current_win()
+	local current_buf = vim.api.nvim_get_current_buf()
+	if active_session and (current_win == active_session.source_win or current_win == active_session.float_win) then
+		close_session(active_session)
+		return true
+	end
+
+	local focused_hover_source = hover_source_buffer(current_win)
+	local cancelled_pending = false
+	if
+		pending_standard_hover
+		and (
+			current_buf == pending_standard_hover.source_buf
+			or focused_hover_source == pending_standard_hover.source_buf
+		)
+	then
+		cancelled_pending = cancel_standard_hover_request(pending_standard_hover)
+	end
+
+	if close_standard_hover(vim.b[current_buf].lsp_floating_preview, current_buf) then
+		return true
+	end
+
+	if focused_hover_source ~= nil and close_standard_hover(current_win, focused_hover_source) then
+		return true
+	end
+
+	return cancelled_pending
 end
 
 local function source_is_unchanged(session)
@@ -856,6 +933,7 @@ end
 
 function M.show_float()
 	cancel_mouse_hover()
+	cancel_standard_hover_request(pending_standard_hover)
 	local source_buf = vim.api.nvim_get_current_buf()
 	local source_win = vim.api.nvim_get_current_win()
 	local source_cursor = vim.api.nvim_win_get_cursor(source_win)
@@ -889,11 +967,34 @@ function M.show_float()
 		end
 	end
 	if not tsgo_client_id then
-		request_hover(function(lines, format)
+		local request = {
+			cancel = nil,
+			cancelled = false,
+			source_buf = source_buf,
+		}
+		pending_standard_hover = request
+
+		local completed = false
+		local cancel = request_hover(function(lines, format)
 			local opts = M.float_options()
 			opts.focus_id = "textDocument/hover"
 			vim.lsp.util.open_floating_preview(lines, format, opts)
-		end)
+		end, {
+			bufnr = source_buf,
+			is_valid = function()
+				return not request.cancelled and vim.api.nvim_get_current_buf() == source_buf
+			end,
+			on_response = function()
+				completed = true
+				request.cancel = nil
+				if pending_standard_hover == request then
+					pending_standard_hover = nil
+				end
+			end,
+		})
+		if not completed and pending_standard_hover == request then
+			request.cancel = cancel
+		end
 		return
 	end
 

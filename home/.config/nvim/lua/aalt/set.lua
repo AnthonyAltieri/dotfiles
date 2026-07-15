@@ -1,6 +1,9 @@
--- Set highlight on search, but clear on pressing <Esc> in normal mode
+-- Use normal-mode Escape to close hover documentation and clear search highlighting.
 vim.opt.hlsearch = true
-vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>")
+vim.keymap.set("n", "<Esc>", function()
+	require("aalt.hover").close_float()
+	vim.cmd.nohlsearch()
+end, { desc = "Close hover and clear search highlight" })
 
 -- Diagnostic keymaps
 vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { desc = "Go to previous [D]iagnostic message" })
