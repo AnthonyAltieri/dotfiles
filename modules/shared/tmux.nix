@@ -12,7 +12,13 @@ let
     ''
     else pkgs.tmux;
 in {
-  xdg.configFile."tmux/tmux.conf".force = overwriteHomeManagerBackups;
+  xdg.configFile."tmux/tmux.conf" = {
+    force = overwriteHomeManagerBackups;
+    # Repair a running server without starting one during activation.
+    onChange = ''
+      ${tmuxPackage}/bin/tmux -N set-environment -gu NO_COLOR 2>/dev/null || true
+    '';
+  };
 
   programs.tmux = {
     enable = true;
