@@ -66,6 +66,8 @@ EOF
 
 run_case "non_tsgo_session" <<'EOF'
 local hover = require("aalt.hover")
+local set_path = vim.fn.getenv("REPO_LUA") .. "/aalt/set.lua"
+dofile(set_path)
 local source_buf = vim.api.nvim_get_current_buf()
 vim.api.nvim_buf_set_name(source_buf, vim.fn.getenv("TMP_DIR") .. "/non-tsgo.lua")
 vim.api.nvim_buf_set_lines(source_buf, 0, -1, false, { "value" })
@@ -74,6 +76,8 @@ vim.api.nvim_win_set_cursor(source_win, { 1, 0 })
 local client = { id = 7, name = "lua_ls", offset_encoding = "utf-16", stop = function() end }
 local clients = { client }
 local request_count = 0
+local defer_response = false
+local deferred_request
 local notifications = {}
 local original_get_clients = vim.lsp.get_clients
 local original_get_client_by_id = vim.lsp.get_client_by_id
@@ -91,11 +95,19 @@ vim.lsp.buf_request_all = function(bufnr, method, params, callback)
 	local request_params = params(client, bufnr)
 	assert(method == "textDocument/hover", method)
 	assert(request_params.verbosityLevel == nil, vim.inspect(request_params))
-	callback({
+	local results = {
 		[client.id] = {
 			result = { contents = { kind = "markdown", value = "```lua\nlocal value: string\n```" } },
 		},
-	}, { bufnr = bufnr })
+	}
+	local ctx = { bufnr = bufnr }
+	if defer_response then
+		deferred_request = { callback = callback, results = results, ctx = ctx, cancelled = false }
+		return function()
+			deferred_request.cancelled = true
+		end
+	end
+	callback(results, ctx)
 	return function() end
 end
 vim.notify = function(message, level, opts)
@@ -110,23 +122,60 @@ local function find_mapping(bufnr, lhs)
 	end
 end
 
+local function global_mapping_callback(lhs)
+	for _, mapping in ipairs(vim.api.nvim_get_keymap("n")) do
+		if mapping.lhs == lhs then
+			assert(type(mapping.callback) == "function", lhs .. " should use a Lua callback")
+			return mapping.callback
+		end
+	end
+	error("missing global mapping: " .. lhs)
+end
+
+local escape = global_mapping_callback("<Esc>")
+
 hover.show_float()
 assert(request_count == 1, "non-tsgo hover should request once")
 local float_win = assert(vim.b[source_buf].lsp_floating_preview)
 local float_buf = vim.api.nvim_win_get_buf(float_win)
 assert(find_mapping(float_buf, "+") == nil, "non-tsgo hover should not map expansion")
 assert(find_mapping(float_buf, "-") == nil, "non-tsgo hover should not map collapse")
+assert(vim.api.nvim_get_current_win() == source_win, "initial non-tsgo hover should retain source focus")
 
+vim.fn.setreg("/", "value")
+vim.cmd("let v:hlsearch = 1")
+escape()
+assert(not vim.api.nvim_win_is_valid(float_win), "source Escape should close the non-tsgo hover")
+assert(vim.v.hlsearch == 0, "source Escape should retain nohlsearch behavior")
+
+hover.show_float()
+assert(request_count == 2, "reopened non-tsgo hover should request again")
+float_win = assert(vim.b[source_buf].lsp_floating_preview)
 hover.show_float()
 assert(vim.api.nvim_get_current_win() == float_win, "second non-tsgo hover should focus the float")
-assert(request_count == 2, "non-tsgo hover should retain the existing aggregate request behavior")
-vim.api.nvim_win_close(float_win, true)
-assert(not vim.api.nvim_win_is_valid(float_win), "the standard hover float should remain closeable")
+assert(request_count == 3, "non-tsgo hover should retain the existing aggregate request behavior")
+escape()
+assert(not vim.api.nvim_win_is_valid(float_win), "focused Escape should close the non-tsgo hover")
 
 vim.api.nvim_set_current_win(source_win)
+local _, unrelated_win = vim.lsp.util.open_floating_preview({ "unrelated" }, "markdown", hover.float_options())
+escape()
+assert(vim.api.nvim_win_is_valid(unrelated_win), "Escape should not close an unrelated floating preview")
+vim.api.nvim_win_close(unrelated_win, true)
+
+vim.api.nvim_set_current_win(source_win)
+defer_response = true
+hover.show_float()
+assert(request_count == 4, "pending non-tsgo hover should start a request")
+escape()
+assert(deferred_request.cancelled == true, "source Escape should cancel a pending non-tsgo hover")
+deferred_request.callback(deferred_request.results, deferred_request.ctx)
+assert(vim.b[source_buf].lsp_floating_preview == nil, "a stale non-tsgo response should stay closed")
+defer_response = false
+
 clients = {}
 hover.show_float()
-assert(request_count == 2, "no-client hover should not start a request")
+assert(request_count == 4, "no-client hover should not start a request")
 assert(#notifications == 1, "no-client hover should notify once")
 assert(notifications[1].message:find("No hover-capable language server attached", 1, true), notifications[1].message)
 
@@ -140,6 +189,8 @@ EOF
 
 run_case "interactive_session" <<'EOF'
 local hover = require("aalt.hover")
+local set_path = vim.fn.getenv("REPO_LUA") .. "/aalt/set.lua"
+dofile(set_path)
 local line = 'const icon = "😀"; setSpanAttrs({})'
 local source_buf = vim.api.nvim_create_buf(true, false)
 vim.api.nvim_buf_set_name(source_buf, vim.fn.getenv("TMP_DIR") .. "/hover.ts")
@@ -273,6 +324,18 @@ local function has_mapping(bufnr, lhs)
 	return false
 end
 
+local function global_mapping_callback(lhs)
+	for _, mapping in ipairs(vim.api.nvim_get_keymap("n")) do
+		if mapping.lhs == lhs then
+			assert(type(mapping.callback) == "function", lhs .. " should use a Lua callback")
+			return mapping.callback
+		end
+	end
+	error("missing global mapping: " .. lhs)
+end
+
+local escape = global_mapping_callback("<Esc>")
+
 hover.show_float()
 assert(#requests == 1, "initial hover should make one request")
 assert(requests[1].kind == "client", "interactive hover should request tsgo directly")
@@ -341,11 +404,37 @@ deliver(requests[6], expanded, true)
 assert(not vim.api.nvim_win_is_valid(float_win), "a stale response should not reopen a closed hover")
 
 vim.api.nvim_set_current_win(source_win)
-hover.show_split()
-assert(#requests == 7, "split hover should make a request")
-assert(requests[7].kind == "all", "split hover should retain aggregate server results")
-assert_request(requests[7], nil)
+hover.show_float()
+assert_request(requests[7], 0)
 deliver(requests[7], compact, true)
+local escaped_float_win = assert(vim.b[source_buf].lsp_floating_preview)
+assert(vim.api.nvim_get_current_win() == source_win, "initial hover should retain source focus")
+escape()
+assert(not vim.api.nvim_win_is_valid(escaped_float_win), "source Escape should close the interactive hover")
+
+hover.show_float()
+assert_request(requests[8], 0)
+deliver(requests[8], compact, true)
+escaped_float_win = assert(vim.b[source_buf].lsp_floating_preview)
+local escaped_float_buf = vim.api.nvim_win_get_buf(escaped_float_win)
+hover.show_float()
+assert(vim.api.nvim_get_current_win() == escaped_float_win, "second hover should focus the reopened float")
+mapping_callback(escaped_float_buf, "<Esc>")()
+assert(not vim.api.nvim_win_is_valid(escaped_float_win), "focused Escape should close the interactive hover")
+
+vim.api.nvim_set_current_win(source_win)
+hover.show_float()
+assert_request(requests[9], 0)
+escape()
+assert(requests[9].cancelled == true, "source Escape should cancel a pending interactive hover")
+deliver(requests[9], compact, true)
+assert(vim.b[source_buf].lsp_floating_preview == nil, "a cancelled hover response should stay closed")
+
+hover.show_split()
+assert(#requests == 10, "split hover should make a request")
+assert(requests[10].kind == "all", "split hover should retain aggregate server results")
+assert_request(requests[10], nil)
+deliver(requests[10], compact, true)
 local split_buf = vim.api.nvim_get_current_buf()
 local split_text = table.concat(vim.api.nvim_buf_get_lines(split_buf, 0, -1, false), "\n")
 assert(split_buf ~= source_buf, "split hover should open a separate buffer")
