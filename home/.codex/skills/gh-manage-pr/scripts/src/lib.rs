@@ -261,7 +261,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn full_workflow_uploads_patches_and_is_idempotent() {
-        let fixture = Fixture::new("PUBLIC", true, false);
+        let fixture = Fixture::new(true, false);
         let (endpoint, server) = upload_server();
         let uploader = UserAttachmentsClient::testing(&endpoint);
         let config = fixture.config();
@@ -288,13 +288,12 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn unsupported_or_unwritable_prs_fail_before_token_or_upload() {
-        for (visibility, viewer_can_update, cross_repository, expected) in [
-            ("PRIVATE", true, false, "public repositories"),
-            ("PUBLIC", false, false, "cannot update this PR"),
-            ("PUBLIC", true, true, "same-repository"),
+    fn unwritable_or_cross_repository_prs_fail_before_token_or_upload() {
+        for (viewer_can_update, cross_repository, expected) in [
+            (false, false, "cannot update this PR"),
+            (true, true, "same-repository"),
         ] {
-            let fixture = Fixture::new(visibility, viewer_can_update, cross_repository);
+            let fixture = Fixture::new(viewer_can_update, cross_repository);
             let uploader = UserAttachmentsClient::testing("http://127.0.0.1:9/upload");
             let error = add_image_to_pr(&fixture.config(), &fixture.github, &uploader)
                 .expect_err("preflight failure");
@@ -310,7 +309,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn invalid_local_inputs_fail_before_any_github_call() {
-        let fixture = Fixture::new("PUBLIC", true, false);
+        let fixture = Fixture::new(true, false);
         let mut config = fixture.config();
         config.image = fixture.image.with_file_name("missing.png");
         let uploader = UserAttachmentsClient::testing("http://127.0.0.1:9/upload");
@@ -405,7 +404,7 @@ mod tests {
 
     #[cfg(unix)]
     impl Fixture {
-        fn new(visibility: &str, viewer_can_update: bool, cross_repository: bool) -> Self {
+        fn new(viewer_can_update: bool, cross_repository: bool) -> Self {
             use std::os::unix::fs::PermissionsExt;
 
             let directory = tempdir().expect("tempdir");
@@ -419,8 +418,7 @@ mod tests {
             fs::write(&body, "Intro").expect("body");
             fs::write(&log, "").expect("log");
 
-            let script =
-                fake_gh_script(&body, &log, visibility, viewer_can_update, cross_repository);
+            let script = fake_gh_script(&body, &log, viewer_can_update, cross_repository);
             fs::write(&program, script).expect("script");
             let mut permissions = fs::metadata(&program).expect("metadata").permissions();
             permissions.set_mode(0o700);
@@ -451,7 +449,6 @@ mod tests {
     fn fake_gh_script(
         body: &Path,
         log: &Path,
-        visibility: &str,
         viewer_can_update: bool,
         cross_repository: bool,
     ) -> String {
@@ -486,7 +483,7 @@ fi
 
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
   BODY_JSON=$(jq -Rs . < "$BODY")
-  printf '{{"data":{{"repository":{{"visibility":"{visibility}","pullRequest":{{"body":%s,"isCrossRepository":{cross_repository},"number":42,"url":"https://github.com/owner/repo/pull/42","viewerCanUpdate":{viewer_can_update},"viewerCannotUpdateReasons":["NOT_AUTHOR"]}}}}}}}}\n' "$BODY_JSON"
+  printf '{{"data":{{"repository":{{"pullRequest":{{"body":%s,"isCrossRepository":{cross_repository},"number":42,"url":"https://github.com/owner/repo/pull/42","viewerCanUpdate":{viewer_can_update},"viewerCannotUpdateReasons":["NOT_AUTHOR"]}}}}}}}}\n' "$BODY_JSON"
 elif [ "$1" = "api" ] && [ "$2" = "repos/owner/repo" ]; then
   printf '{{"id":123}}\n'
 elif [ "$1" = "auth" ] && [ "$2" = "token" ]; then

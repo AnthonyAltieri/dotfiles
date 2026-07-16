@@ -7,7 +7,6 @@ const GITHUB_HOST: &str = "github.com";
 
 const PR_PREFLIGHT_QUERY: &str = r#"query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
-    visibility
     pullRequest(number: $number) {
       body
       isCrossRepository
@@ -169,13 +168,6 @@ impl GhClient {
         let repository_value = response
             .pointer("/data/repository")
             .ok_or_else(|| "GitHub GraphQL response is missing the repository.".to_string())?;
-        if repository_value.get("visibility").and_then(Value::as_str) != Some("PUBLIC") {
-            return Err(
-                "gh-pr-image currently supports only public repositories; no image was uploaded."
-                    .to_string(),
-            );
-        }
-
         let pull_request = repository_value
             .get("pullRequest")
             .ok_or_else(|| "GitHub GraphQL response is missing the pull request.".to_string())?;
