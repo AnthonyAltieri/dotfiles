@@ -2,7 +2,7 @@ use crate::body::validate_alt as validate_body_alt;
 use crate::github::RepositorySlug;
 use std::path::PathBuf;
 
-pub const HELP: &str = "Usage: gh-pr-image add <image> --alt <text> [--pr <number|url|branch>] [-R <owner/repo>]\n\nUploads one PNG, JPEG, or GIF to a public same-repository GitHub pull request and adds it to the managed Screenshots section.";
+pub const HELP: &str = "Usage: gh-pr-image add <image> --alt <text> [--pr <number|url|branch>] [-R <owner/repo>]\n\nUploads one PNG, JPEG, or GIF to a same-repository GitHub pull request and adds it to the managed Screenshots section.";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddConfig {
