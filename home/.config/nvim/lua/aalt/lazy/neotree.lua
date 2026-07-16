@@ -24,6 +24,7 @@ return {
 			window = {
 				width = 40,
 				mappings = {
+					["<LeftMouse>"] = "open",
 					["/"] = function(state)
 						local cwd = state.path
 						require("fzf-lua").files({
