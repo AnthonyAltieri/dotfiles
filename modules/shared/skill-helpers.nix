@@ -34,14 +34,14 @@ let
 
   ghAddressCommentsTools = buildRustHelper {
     pname = "gh-address-comments-tools";
-    src = ../../home/.codex/skills/gh-review-thread-actions/scripts;
-    lockFile = ../../home/.codex/skills/gh-review-thread-actions/scripts/Cargo.lock;
+    src = ../../home/.codex/skills/gh-comments/scripts;
+    lockFile = ../../home/.codex/skills/gh-comments/scripts/Cargo.lock;
   };
 
   ghFixCiTools = buildRustHelper {
     pname = "gh-fix-ci-tools";
-    src = ../../home/.codex/skills/gh-ci-log-tools/scripts;
-    lockFile = ../../home/.codex/skills/gh-ci-log-tools/scripts/Cargo.lock;
+    src = ../../home/.codex/skills/gh-ci/scripts;
+    lockFile = ../../home/.codex/skills/gh-ci/scripts/Cargo.lock;
   };
 
   sqlReadTools = buildRustHelper {

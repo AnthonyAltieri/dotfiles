@@ -1,9 +1,9 @@
 ---
-name: gh-review-thread-actions
-description: GitHub PR review-thread companion for fetching comments, summarizing threads, and performing prompt-gated comment, reply, or resolve actions. Use when the user asks for those thread operations; use github:gh-address-comments when code changes are required.
+name: gh-comments
+description: GitHub PR comment companion for fetching comments, summarizing review threads, and performing prompt-gated comment, reply, or resolve actions. Use when the user asks for those comment operations; use github:gh-address-comments when code changes are required.
 ---
 
-# GitHub Review Thread Actions
+# GitHub Comments
 
 Use the bundled helpers for deterministic PR review-thread reads and narrowly scoped mutations. This skill does not edit application code, commit changes, update PR descriptions, or publish branches.
 
@@ -12,7 +12,7 @@ Use the bundled helpers for deterministic PR review-thread reads and narrowly sc
 - Use this skill for explicit requests to fetch or summarize PR comments, post a top-level comment, reply to a review thread, or resolve a thread.
 - Use `github:gh-address-comments` when feedback must be triaged and implemented in the codebase.
 - Use `gh-pr-body` for PR title, body, or body-image updates.
-- Use `gh-ci-log-tools` for deterministic GitHub Actions log extraction or classification.
+- Use `gh-ci` for deterministic GitHub Actions log extraction or classification.
 
 ## Read workflow
 

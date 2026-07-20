@@ -1,9 +1,9 @@
 ---
-name: gh-ci-log-tools
-description: Inspect or compress GitHub Actions check logs with the local `inspect-pr-checks` and `classify-ci-log` helpers. Use only when the user explicitly invokes `$gh-ci-log-tools`, asks for deterministic local CI-log classification, or the primary GitHub CI workflow needs compact local evidence; do not use as the general GitHub CI fix workflow.
+name: gh-ci
+description: Inspect or compress GitHub Actions check logs with the local `inspect-pr-checks` and `classify-ci-log` helpers. Use only when the user explicitly invokes `$gh-ci`, asks for deterministic local CI-log classification, or the primary GitHub CI workflow needs compact local evidence; do not use as the general GitHub CI fix workflow.
 ---
 
-# GitHub CI Log Tools
+# GitHub CI
 
 Provide deterministic local evidence to the primary GitHub CI workflow. Do not implement fixes, rerun checks, mutate GitHub, commit, push, or update a pull request description from this skill.
 

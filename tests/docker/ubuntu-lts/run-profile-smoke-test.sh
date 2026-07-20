@@ -123,9 +123,11 @@ assert_jq '.xdgFiles | index("starship.toml") != null' "Expected starship config
 assert_jq '.agentManagedTargets | index(".codex/AGENTS.md") != null' "Expected Codex config to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/adversarial-review") != null' "Expected Codex adversarial-review skill to be managed"
 assert_jq '[.agentManagedCopies[] | select(.target == ".codex/skills/adversarial-review")] | length == 1' "Expected exactly one Codex adversarial-review managed copy"
-assert_jq '.agentManagedTargets | index(".codex/skills/gh-ci-log-tools") != null' "Expected Codex GitHub CI log tools to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/gh-ci") != null' "Expected Codex GitHub CI skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-pr-body") != null' "Expected Codex GitHub PR body skill to be managed"
-assert_jq '.agentManagedTargets | index(".codex/skills/gh-review-thread-actions") != null' "Expected Codex GitHub review thread actions to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/gh-comments") != null' "Expected Codex GitHub comments skill to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/gh-ci-log-tools") == null' "Did not expect renamed Codex GitHub CI log tools skill"
+assert_jq '.agentManagedTargets | index(".codex/skills/gh-review-thread-actions") == null' "Did not expect renamed Codex GitHub review thread actions skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-address-comments") == null' "Did not expect legacy Codex GitHub address-comments skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-fix-ci") == null' "Did not expect legacy Codex GitHub fix-CI skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-manage-pr") == null' "Did not expect legacy Codex GitHub manage-PR skill"
@@ -248,9 +250,9 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
     "$HOME/.codex/AGENTS.md" \
     "$HOME/.codex/skills/adversarial-review/SKILL.md" \
     "$HOME/.codex/skills/adversarial-review/agents/openai.yaml" \
-    "$HOME/.codex/skills/gh-ci-log-tools/SKILL.md" \
+    "$HOME/.codex/skills/gh-ci/SKILL.md" \
     "$HOME/.codex/skills/gh-pr-body/SKILL.md" \
-    "$HOME/.codex/skills/gh-review-thread-actions/SKILL.md" \
+    "$HOME/.codex/skills/gh-comments/SKILL.md" \
     "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
     "$HOME/.claude/settings.json" \
@@ -263,6 +265,16 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
 
     if [[ -L "$path" ]]; then
       echo "Expected copied agent file to be a real file: ${path}" >&2
+      exit 1
+    fi
+  done
+
+  for path in \
+    "$HOME/.codex/skills/gh-ci-log-tools" \
+    "$HOME/.codex/skills/gh-review-thread-actions"
+  do
+    if [[ -e "$path" || -L "$path" ]]; then
+      echo "Did not expect renamed agent path to remain: ${path}" >&2
       exit 1
     fi
   done

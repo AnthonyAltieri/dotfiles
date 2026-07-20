@@ -37,8 +37,8 @@ done
 # GitHub entrypoints intentionally differ by agent, but the deterministic
 # helpers and static resources remain one mirrored implementation.
 compare_resources atlas atlas
-compare_resources gh-review-thread-actions gh-address-comments
-compare_resources gh-ci-log-tools gh-fix-ci
+compare_resources gh-comments gh-address-comments
+compare_resources gh-ci gh-fix-ci
 compare_resources gh-pr-body gh-manage-pr
 
 echo "Shared skill payloads are synchronized."

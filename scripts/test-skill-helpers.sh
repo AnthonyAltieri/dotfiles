@@ -18,8 +18,8 @@ run() {
 run cargo test --offline --manifest-path home/.codex/skills/atlas/scripts/Cargo.toml
 run cargo test --offline --manifest-path home/.codex/skills/sql-read/scripts/Cargo.toml
 run tests/sql-read-state-migration-smoke.sh
-run cargo test --offline --manifest-path home/.codex/skills/gh-review-thread-actions/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.codex/skills/gh-ci-log-tools/scripts/Cargo.toml
+run cargo test --offline --manifest-path home/.codex/skills/gh-comments/scripts/Cargo.toml
+run cargo test --offline --manifest-path home/.codex/skills/gh-ci/scripts/Cargo.toml
 run cargo test --offline --manifest-path home/.codex/skills/gh-pr-body/scripts/Cargo.toml
 
 run cargo test --offline --manifest-path home/.claude/skills/sql-read/scripts/Cargo.toml

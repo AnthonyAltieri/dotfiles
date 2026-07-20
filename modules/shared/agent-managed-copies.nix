@@ -41,9 +41,9 @@ let
 
   codexOnlySkillNames = [
     "adversarial-review"
-    "gh-ci-log-tools"
+    "gh-ci"
     "gh-pr-body"
-    "gh-review-thread-actions"
+    "gh-comments"
     "linear-claim-work"
     "ultragoal"
   ];
