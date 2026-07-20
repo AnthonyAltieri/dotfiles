@@ -1,0 +1,6 @@
+interface:
+  display_name: "GitHub Review Thread Actions"
+  short_description: "Inspect and act on GitHub PR review threads"
+  icon_small: "./assets/github-small.svg"
+  icon_large: "./assets/github.png"
+  default_prompt: "Fetch and summarize the unresolved review threads for the current pull request."

@@ -18,21 +18,27 @@ use std::time::{Duration, Instant};
 const DEFAULT_MAX_ROWS: usize = 200;
 const DEFAULT_TIMEOUT_MS: u64 = 5_000;
 const DEFAULT_FORMAT: OutputFormat = OutputFormat::Json;
+const STATE_DIR_ENV_VAR: &str = "SQL_READ_STATE_DIR";
+const XDG_STATE_HOME_ENV_VAR: &str = "XDG_STATE_HOME";
+const HOME_ENV_VAR: &str = "HOME";
 const TARGET_STORE_VERSION: u32 = 1;
 const TARGET_STORE_FILE: &str = "targets.json";
 const HELP_TEXT: &str = "\
 sql-read
 
 Usage:
-  sql-read run --state-dir <DIR> --target <NAME> [--file <PATH>] [--format json|table|tsv] [--max-rows <N>] [--timeout-ms <N>]
-  sql-read target upsert --state-dir <DIR> --name <NAME> --engine postgres (--dsn <RAW_DSN> | --dsn-env-var <ENV_VAR>)
-  sql-read target upsert --state-dir <DIR> --name <NAME> --engine sqlite (--sqlite-db-path <RAW_PATH> | --sqlite-db-path-env-var <ENV_VAR>)
-  sql-read target list --state-dir <DIR>
-  sql-read target remove --state-dir <DIR> --name <NAME>
+  sql-read run [--state-dir <DIR>] --target <NAME> [--file <PATH>] [--format json|table|tsv] [--max-rows <N>] [--timeout-ms <N>]
+  sql-read target upsert [--state-dir <DIR>] --name <NAME> --engine postgres --dsn-env-var <ENV_VAR>
+  sql-read target upsert [--state-dir <DIR>] --name <NAME> --engine sqlite --sqlite-db-path-env-var <ENV_VAR>
+  sql-read target list [--state-dir <DIR>]
+  sql-read target remove [--state-dir <DIR>] --name <NAME>
 
 Notes:
   `run` is the only blanket-approvable execution path.
   Configure a named target first, then run read-only queries against it.
+  State defaults to $SQL_READ_STATE_DIR, then $XDG_STATE_HOME/sql-read,
+  then $HOME/.local/state/sql-read. --state-dir overrides the default.
+  Target setup reads connection values only from pre-existing environment variables.
   Query text is read from --file or stdin.
 ";
 
@@ -94,9 +100,7 @@ struct UpsertConfig {
     name: String,
     engine: Engine,
     dsn_env_var: Option<String>,
-    dsn: Option<String>,
     sqlite_db_path_env_var: Option<String>,
-    sqlite_db_path: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -237,10 +241,9 @@ fn parse_run_command(args: &[String]) -> Result<Command, CliError> {
     }
 
     Ok(Command::Run(RunConfig {
-        state_dir: state_dir.ok_or_else(|| {
-            CliError::Message("`run` requires `--state-dir`.".to_string())
-        })?,
-        target: target.ok_or_else(|| CliError::Message("`run` requires `--target`.".to_string()))?,
+        state_dir: resolve_state_dir(state_dir).map_err(CliError::Message)?,
+        target: target
+            .ok_or_else(|| CliError::Message("`run` requires `--target`.".to_string()))?,
         file,
         format,
         max_rows,
@@ -271,9 +274,7 @@ fn parse_target_upsert(args: &[String]) -> Result<Command, CliError> {
     let mut name = None;
     let mut engine = None;
     let mut dsn_env_var = None;
-    let mut dsn = None;
     let mut sqlite_db_path_env_var = None;
-    let mut sqlite_db_path = None;
     let mut index = 3;
 
     while index < args.len() {
@@ -295,21 +296,22 @@ fn parse_target_upsert(args: &[String]) -> Result<Command, CliError> {
             }
             "--dsn-env-var" => {
                 let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                set_once(&mut dsn_env_var, value.to_string(), flag).map_err(CliError::Message)?;
-            }
-            "--dsn" => {
-                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                set_once(&mut dsn, value.to_string(), flag).map_err(CliError::Message)?;
+                let normalized = normalize_env_var_name(value, flag).map_err(CliError::Message)?;
+                set_once(&mut dsn_env_var, normalized, flag).map_err(CliError::Message)?;
             }
             "--sqlite-db-path-env-var" => {
                 let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                set_once(&mut sqlite_db_path_env_var, value.to_string(), flag)
+                let normalized = normalize_env_var_name(value, flag).map_err(CliError::Message)?;
+                set_once(&mut sqlite_db_path_env_var, normalized, flag)
                     .map_err(CliError::Message)?;
             }
-            "--sqlite-db-path" => {
-                let value = next_value(args, &mut index, flag).map_err(CliError::Message)?;
-                set_once(&mut sqlite_db_path, value.to_string(), flag)
-                    .map_err(CliError::Message)?;
+            "--dsn" | "--sqlite-db-path" => {
+                return Err(CliError::Message(raw_connection_value_message(flag)));
+            }
+            other if other.starts_with("--dsn=") || other.starts_with("--sqlite-db-path=") => {
+                return Err(CliError::Message(raw_connection_value_message(
+                    other.split_once('=').map_or(other, |(name, _)| name),
+                )));
             }
             other if other.starts_with("--") => {
                 return Err(CliError::Message(format!("Unknown flag `{other}`.")));
@@ -323,22 +325,16 @@ fn parse_target_upsert(args: &[String]) -> Result<Command, CliError> {
         index += 1;
     }
 
-    let engine = engine.ok_or_else(|| {
-        CliError::Message("`target upsert` requires `--engine`.".to_string())
-    })?;
+    let engine = engine
+        .ok_or_else(|| CliError::Message("`target upsert` requires `--engine`.".to_string()))?;
 
     Ok(Command::Target(TargetCommand::Upsert(UpsertConfig {
-        state_dir: state_dir.ok_or_else(|| {
-            CliError::Message("`target upsert` requires `--state-dir`.".to_string())
-        })?,
-        name: name.ok_or_else(|| {
-            CliError::Message("`target upsert` requires `--name`.".to_string())
-        })?,
+        state_dir: resolve_state_dir(state_dir).map_err(CliError::Message)?,
+        name: name
+            .ok_or_else(|| CliError::Message("`target upsert` requires `--name`.".to_string()))?,
         engine,
         dsn_env_var,
-        dsn,
         sqlite_db_path_env_var,
-        sqlite_db_path,
     })))
 }
 
@@ -367,9 +363,7 @@ fn parse_target_list(args: &[String]) -> Result<Command, CliError> {
     }
 
     Ok(Command::Target(TargetCommand::List(ListConfig {
-        state_dir: state_dir.ok_or_else(|| {
-            CliError::Message("`target list` requires `--state-dir`.".to_string())
-        })?,
+        state_dir: resolve_state_dir(state_dir).map_err(CliError::Message)?,
     })))
 }
 
@@ -404,12 +398,9 @@ fn parse_target_remove(args: &[String]) -> Result<Command, CliError> {
     }
 
     Ok(Command::Target(TargetCommand::Remove(RemoveConfig {
-        state_dir: state_dir.ok_or_else(|| {
-            CliError::Message("`target remove` requires `--state-dir`.".to_string())
-        })?,
-        name: name.ok_or_else(|| {
-            CliError::Message("`target remove` requires `--name`.".to_string())
-        })?,
+        state_dir: resolve_state_dir(state_dir).map_err(CliError::Message)?,
+        name: name
+            .ok_or_else(|| CliError::Message("`target remove` requires `--name`.".to_string()))?,
     })))
 }
 
@@ -461,6 +452,59 @@ fn set_once<T>(slot: &mut Option<T>, value: T, flag: &str) -> Result<(), String>
     Ok(())
 }
 
+fn resolve_state_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
+    explicit.map_or_else(default_state_dir, Ok)
+}
+
+fn default_state_dir() -> Result<PathBuf, String> {
+    default_state_dir_from(
+        env::var_os(STATE_DIR_ENV_VAR).map(PathBuf::from),
+        env::var_os(XDG_STATE_HOME_ENV_VAR).map(PathBuf::from),
+        env::var_os(HOME_ENV_VAR).map(PathBuf::from),
+    )
+}
+
+fn default_state_dir_from(
+    state_dir_override: Option<PathBuf>,
+    xdg_state_home: Option<PathBuf>,
+    home: Option<PathBuf>,
+) -> Result<PathBuf, String> {
+    if let Some(path) = non_empty_path(state_dir_override) {
+        return Ok(path);
+    }
+    if let Some(path) = non_empty_path(xdg_state_home) {
+        return Ok(path.join("sql-read"));
+    }
+    if let Some(path) = non_empty_path(home) {
+        return Ok(path.join(".local/state/sql-read"));
+    }
+
+    Err(format!(
+        "Cannot determine the SQL Read state directory. Pass `--state-dir`, set `{STATE_DIR_ENV_VAR}`, or set `{XDG_STATE_HOME_ENV_VAR}`/`{HOME_ENV_VAR}`."
+    ))
+}
+
+fn non_empty_path(path: Option<PathBuf>) -> Option<PathBuf> {
+    path.filter(|value| !value.as_os_str().is_empty())
+}
+
+fn normalize_env_var_name(value: &str, flag: &str) -> Result<String, String> {
+    let mut characters = value.chars();
+    let valid_start = characters
+        .next()
+        .is_some_and(|character| character == '_' || character.is_ascii_alphabetic());
+    let valid_rest =
+        characters.all(|character| character == '_' || character.is_ascii_alphanumeric());
+
+    if !valid_start || !valid_rest {
+        return Err(format!(
+            "Value for `{flag}` must be a shell-compatible environment variable name."
+        ));
+    }
+
+    Ok(value.to_string())
+}
+
 fn normalize_target_name(value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -471,7 +515,18 @@ fn normalize_target_name(value: &str) -> Result<String, String> {
 
 fn migration_message(subcommand: &str) -> String {
     format!(
-        "Subcommand `{subcommand}` was removed. Configure a named target with `sql-read target upsert --state-dir <dir> --name <target> ...`, then execute queries with `sql-read run --state-dir <dir> --target <name> [--file <path>]`."
+        "Subcommand `{subcommand}` was removed. Configure a named target with `sql-read target upsert --name <target> ...`, then execute queries with `sql-read run --target <name> [--file <path>]`."
+    )
+}
+
+fn raw_connection_value_message(flag: &str) -> String {
+    let env_flag = match flag {
+        "--dsn" => "--dsn-env-var",
+        "--sqlite-db-path" => "--sqlite-db-path-env-var",
+        _ => "the matching environment-variable flag",
+    };
+    format!(
+        "`{flag}` is not accepted because connection values must not appear in command text. Set the value out of band in a pre-existing environment variable, then pass only its name with `{env_flag}`."
     )
 }
 
@@ -587,69 +642,40 @@ fn remove_target(config: &RemoveConfig) -> Result<String, String> {
 fn resolve_upsert_target(config: &UpsertConfig) -> Result<StoredTarget, String> {
     match config.engine {
         Engine::Postgres => {
-            if config.sqlite_db_path.is_some() || config.sqlite_db_path_env_var.is_some() {
+            if config.sqlite_db_path_env_var.is_some() {
                 return Err(
-                    "`target upsert --engine postgres` only accepts `--dsn` or `--dsn-env-var`."
-                        .to_string(),
+                    "`target upsert --engine postgres` only accepts `--dsn-env-var`.".to_string(),
                 );
             }
-            match (config.dsn_env_var.as_deref(), config.dsn.as_deref()) {
-                (Some(_), Some(_)) => Err(
-                    "`target upsert --engine postgres` accepts either `--dsn` or `--dsn-env-var`, not both."
-                        .to_string(),
-                ),
-                (None, None) => Err(
-                    "`target upsert --engine postgres` requires `--dsn` or `--dsn-env-var`."
-                        .to_string(),
-                ),
-                (Some(env_name), None) => Ok(StoredTarget {
+            match config.dsn_env_var.as_deref() {
+                None => {
+                    Err("`target upsert --engine postgres` requires `--dsn-env-var`.".to_string())
+                }
+                Some(env_name) => Ok(StoredTarget {
                     engine: Engine::Postgres,
                     value: read_env_var(env_name)?,
-                }),
-                (None, Some(value)) => Ok(StoredTarget {
-                    engine: Engine::Postgres,
-                    value: normalize_non_empty_value(value, "--dsn")?,
                 }),
             }
         }
         Engine::Sqlite => {
-            if config.dsn.is_some() || config.dsn_env_var.is_some() {
+            if config.dsn_env_var.is_some() {
                 return Err(
-                    "`target upsert --engine sqlite` only accepts `--sqlite-db-path` or `--sqlite-db-path-env-var`."
+                    "`target upsert --engine sqlite` only accepts `--sqlite-db-path-env-var`."
                         .to_string(),
                 );
             }
-            match (
-                config.sqlite_db_path_env_var.as_deref(),
-                config.sqlite_db_path.as_deref(),
-            ) {
-                (Some(_), Some(_)) => Err(
-                    "`target upsert --engine sqlite` accepts either `--sqlite-db-path` or `--sqlite-db-path-env-var`, not both."
+            match config.sqlite_db_path_env_var.as_deref() {
+                None => Err(
+                    "`target upsert --engine sqlite` requires `--sqlite-db-path-env-var`."
                         .to_string(),
                 ),
-                (None, None) => Err(
-                    "`target upsert --engine sqlite` requires `--sqlite-db-path` or `--sqlite-db-path-env-var`."
-                        .to_string(),
-                ),
-                (Some(env_name), None) => Ok(StoredTarget {
+                Some(env_name) => Ok(StoredTarget {
                     engine: Engine::Sqlite,
                     value: read_env_var(env_name)?,
-                }),
-                (None, Some(value)) => Ok(StoredTarget {
-                    engine: Engine::Sqlite,
-                    value: normalize_non_empty_value(value, "--sqlite-db-path")?,
                 }),
             }
         }
     }
-}
-
-fn normalize_non_empty_value(value: &str, flag: &str) -> Result<String, String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Err(format!("Value for `{flag}` must not be empty."));
-    }
-    Ok(trimmed.to_string())
 }
 
 fn read_env_var(name: &str) -> Result<String, String> {
@@ -690,8 +716,12 @@ fn load_target_store_or_default(state_dir: &Path) -> Result<TargetStore, String>
 }
 
 fn write_target_store(state_dir: &Path, store: &TargetStore) -> Result<(), String> {
-    fs::create_dir_all(state_dir)
-        .map_err(|err| format!("Failed to create state dir `{}`: {err}", state_dir.display()))?;
+    fs::create_dir_all(state_dir).map_err(|err| {
+        format!(
+            "Failed to create state dir `{}`: {err}",
+            state_dir.display()
+        )
+    })?;
     set_permissions(state_dir, 0o700)?;
 
     let path = target_store_path(state_dir);
@@ -700,8 +730,12 @@ fn write_target_store(state_dir: &Path, store: &TargetStore) -> Result<(), Strin
         .map_err(|err| format!("Failed to serialize target store: {err}"))?;
     rendered.push(b'\n');
 
-    fs::write(&tmp_path, rendered)
-        .map_err(|err| format!("Failed to write target store `{}`: {err}", tmp_path.display()))?;
+    fs::write(&tmp_path, rendered).map_err(|err| {
+        format!(
+            "Failed to write target store `{}`: {err}",
+            tmp_path.display()
+        )
+    })?;
     set_permissions(&tmp_path, 0o600)?;
     fs::rename(&tmp_path, &path).map_err(|err| {
         format!(
@@ -1083,23 +1117,7 @@ mod tests {
         let state_dir = temp_state_dir("shape");
         let db_path = sqlite_fixture_db();
 
-        run_args(
-            args(&[
-                "sql-read",
-                "target",
-                "upsert",
-                "--state-dir",
-                &state_dir,
-                "--name",
-                "local-app",
-                "--engine",
-                "sqlite",
-                "--sqlite-db-path",
-                &db_path,
-            ]),
-            None,
-        )
-        .expect("upsert");
+        upsert_sqlite_target(&state_dir, "local-app", &db_path);
 
         let content =
             fs::read_to_string(target_store_path(Path::new(&state_dir))).expect("read store");
@@ -1130,27 +1148,7 @@ mod tests {
     fn target_upsert_env_var_persists_value_and_run_works_without_env() {
         let state_dir = temp_state_dir("persist");
         let db_path = sqlite_fixture_db();
-        let env_name = "SQL_READ_TARGET_SQLITE_DB";
-        env::set_var(env_name, &db_path);
-
-        run_args(
-            args(&[
-                "sql-read",
-                "target",
-                "upsert",
-                "--state-dir",
-                &state_dir,
-                "--name",
-                "local",
-                "--engine",
-                "sqlite",
-                "--sqlite-db-path-env-var",
-                env_name,
-            ]),
-            None,
-        )
-        .expect("upsert");
-        env::remove_var(env_name);
+        upsert_sqlite_target(&state_dir, "local", &db_path);
 
         let output = run_args(
             args(&[
@@ -1188,23 +1186,7 @@ mod tests {
         let state_dir = temp_state_dir("list");
         let dsn = "postgresql://reader:secret@db.example/app";
 
-        run_args(
-            args(&[
-                "sql-read",
-                "target",
-                "upsert",
-                "--state-dir",
-                &state_dir,
-                "--name",
-                "prod-readonly",
-                "--engine",
-                "postgres",
-                "--dsn",
-                dsn,
-            ]),
-            None,
-        )
-        .expect("upsert");
+        upsert_postgres_target(&state_dir, "prod-readonly", dsn);
 
         let output = run_args(
             args(&["sql-read", "target", "list", "--state-dir", &state_dir]),
@@ -1232,23 +1214,7 @@ mod tests {
         let db_path = sqlite_fixture_db();
 
         for name in ["first", "second"] {
-            run_args(
-                args(&[
-                    "sql-read",
-                    "target",
-                    "upsert",
-                    "--state-dir",
-                    &state_dir,
-                    "--name",
-                    name,
-                    "--engine",
-                    "sqlite",
-                    "--sqlite-db-path",
-                    &db_path,
-                ]),
-                None,
-            )
-            .expect("upsert");
+            upsert_sqlite_target(&state_dir, name, &db_path);
         }
 
         run_args(
@@ -1314,23 +1280,7 @@ mod tests {
         let state_dir = temp_state_dir("sqlite-run");
         let db_path = sqlite_fixture_db();
 
-        run_args(
-            args(&[
-                "sql-read",
-                "target",
-                "upsert",
-                "--state-dir",
-                &state_dir,
-                "--name",
-                "local-app",
-                "--engine",
-                "sqlite",
-                "--sqlite-db-path",
-                &db_path,
-            ]),
-            None,
-        )
-        .expect("upsert");
+        upsert_sqlite_target(&state_dir, "local-app", &db_path);
 
         let output = run_args(
             args(&[
@@ -1364,23 +1314,7 @@ mod tests {
         let state_dir = temp_state_dir("reject-write");
         let db_path = sqlite_fixture_db();
 
-        run_args(
-            args(&[
-                "sql-read",
-                "target",
-                "upsert",
-                "--state-dir",
-                &state_dir,
-                "--name",
-                "local-app",
-                "--engine",
-                "sqlite",
-                "--sqlite-db-path",
-                &db_path,
-            ]),
-            None,
-        )
-        .expect("upsert");
+        upsert_sqlite_target(&state_dir, "local-app", &db_path);
 
         let error = run_args(
             args(&[
@@ -1413,23 +1347,7 @@ mod tests {
         let state_dir = temp_state_dir("perms");
         let db_path = sqlite_fixture_db();
 
-        run_args(
-            args(&[
-                "sql-read",
-                "target",
-                "upsert",
-                "--state-dir",
-                &state_dir,
-                "--name",
-                "local-app",
-                "--engine",
-                "sqlite",
-                "--sqlite-db-path",
-                &db_path,
-            ]),
-            None,
-        )
-        .expect("upsert");
+        upsert_sqlite_target(&state_dir, "local-app", &db_path);
 
         let state_mode = fs::metadata(&state_dir)
             .expect("state metadata")
@@ -1457,7 +1375,152 @@ mod tests {
                 CliError::Message(message) => {
                     assert!(message.contains("was removed"));
                     assert!(message.contains("target upsert"));
-                    assert!(message.contains("run --state-dir"));
+                    assert!(message.contains("run --target"));
+                }
+                other => panic!("unexpected error: {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn state_dir_precedence_is_explicit_then_override_then_xdg_then_home() {
+        let explicit = PathBuf::from("/explicit");
+        let override_dir = PathBuf::from("/override");
+        let xdg = PathBuf::from("/xdg-state");
+        let home = PathBuf::from("/home/tester");
+
+        assert_eq!(
+            resolve_state_dir(Some(explicit.clone())).expect("explicit state dir"),
+            explicit
+        );
+        assert_eq!(
+            default_state_dir_from(
+                Some(override_dir.clone()),
+                Some(xdg.clone()),
+                Some(home.clone())
+            )
+            .expect("override state dir"),
+            override_dir
+        );
+        assert_eq!(
+            default_state_dir_from(None, Some(xdg.clone()), Some(home.clone()))
+                .expect("XDG state dir"),
+            xdg.join("sql-read")
+        );
+        assert_eq!(
+            default_state_dir_from(None, None, Some(home.clone())).expect("HOME state dir"),
+            home.join(".local/state/sql-read")
+        );
+        assert!(default_state_dir_from(None, None, None).is_err());
+    }
+
+    #[test]
+    fn commands_use_environment_default_state_dir_when_flag_is_omitted() {
+        let state_dir = temp_state_dir("default");
+        let db_path = sqlite_fixture_db();
+        let db_env_name = unique_env_name("DEFAULT_SQLITE_DB");
+        let previous_state_dir = env::var_os(STATE_DIR_ENV_VAR);
+
+        env::set_var(STATE_DIR_ENV_VAR, &state_dir);
+        env::set_var(&db_env_name, &db_path);
+        let upsert_result = run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--name",
+                "local-default",
+                "--engine",
+                "sqlite",
+                "--sqlite-db-path-env-var",
+                &db_env_name,
+            ]),
+            None,
+        );
+        env::remove_var(&db_env_name);
+        let run_result = run_args(
+            args(&["sql-read", "run", "--target", "local-default"]),
+            Some("select count(*) as count from widgets"),
+        );
+        match previous_state_dir {
+            Some(value) => env::set_var(STATE_DIR_ENV_VAR, value),
+            None => env::remove_var(STATE_DIR_ENV_VAR),
+        }
+
+        upsert_result.expect("upsert with default state dir");
+        let output = run_result.expect("run with default state dir");
+        let parsed: Value = serde_json::from_str(&output).expect("json");
+        assert_eq!(parsed.pointer("/rows/0/0").and_then(Value::as_i64), Some(2));
+
+        cleanup_path(&db_path);
+        cleanup_path(&state_dir);
+    }
+
+    #[test]
+    fn raw_connection_value_flags_are_rejected_without_echoing_values() {
+        for (flag, secret) in [
+            ("--dsn", "postgresql://reader:secret@db.example/app"),
+            ("--sqlite-db-path", "/sensitive/private/app.sqlite3"),
+        ] {
+            for supplied in [flag.to_string(), format!("{flag}={secret}")] {
+                let error = run_args(
+                    args(&[
+                        "sql-read",
+                        "target",
+                        "upsert",
+                        "--name",
+                        "private",
+                        "--engine",
+                        if flag == "--dsn" {
+                            "postgres"
+                        } else {
+                            "sqlite"
+                        },
+                        &supplied,
+                        secret,
+                    ]),
+                    None,
+                )
+                .expect_err("raw connection value");
+
+                match error {
+                    CliError::Message(message) => {
+                        assert!(message.contains("must not appear in command text"));
+                        assert!(!message.contains(secret));
+                    }
+                    other => panic!("unexpected error: {other:?}"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn environment_variable_flags_reject_connection_values_without_echoing_them() {
+        for (flag, secret, engine) in [
+            (
+                "--dsn-env-var",
+                "postgresql://reader:secret@db.example/app",
+                "postgres",
+            ),
+            (
+                "--sqlite-db-path-env-var",
+                "/sensitive/private/app.sqlite3",
+                "sqlite",
+            ),
+        ] {
+            let error = run_args(
+                args(&[
+                    "sql-read", "target", "upsert", "--name", "private", "--engine", engine, flag,
+                    secret,
+                ]),
+                None,
+            )
+            .expect_err("connection value passed as environment variable name");
+
+            match error {
+                CliError::Message(message) => {
+                    assert!(message.contains("environment variable name"));
+                    assert!(!message.contains(secret));
                 }
                 other => panic!("unexpected error: {other:?}"),
             }
@@ -1468,7 +1531,6 @@ mod tests {
     #[ignore = "requires SQL_READ_TEST_POSTGRES_DSN"]
     fn postgres_run_uses_named_target() {
         let state_dir = temp_state_dir("postgres");
-        let dsn = env::var("SQL_READ_TEST_POSTGRES_DSN").expect("test dsn");
 
         run_args(
             args(&[
@@ -1481,8 +1543,8 @@ mod tests {
                 "prod-readonly",
                 "--engine",
                 "postgres",
-                "--dsn",
-                &dsn,
+                "--dsn-env-var",
+                "SQL_READ_TEST_POSTGRES_DSN",
             ]),
             None,
         )
@@ -1512,6 +1574,59 @@ mod tests {
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| value.to_string()).collect()
+    }
+
+    fn upsert_sqlite_target(state_dir: &str, name: &str, db_path: &str) {
+        let env_name = unique_env_name("SQLITE_DB");
+        env::set_var(&env_name, db_path);
+        let result = run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                state_dir,
+                "--name",
+                name,
+                "--engine",
+                "sqlite",
+                "--sqlite-db-path-env-var",
+                &env_name,
+            ]),
+            None,
+        );
+        env::remove_var(&env_name);
+        result.expect("upsert SQLite target");
+    }
+
+    fn upsert_postgres_target(state_dir: &str, name: &str, dsn: &str) {
+        let env_name = unique_env_name("POSTGRES_DSN");
+        env::set_var(&env_name, dsn);
+        let result = run_args(
+            args(&[
+                "sql-read",
+                "target",
+                "upsert",
+                "--state-dir",
+                state_dir,
+                "--name",
+                name,
+                "--engine",
+                "postgres",
+                "--dsn-env-var",
+                &env_name,
+            ]),
+            None,
+        );
+        env::remove_var(&env_name);
+        result.expect("upsert Postgres target");
+    }
+
+    fn unique_env_name(label: &str) -> String {
+        format!(
+            "SQL_READ_TEST_{label}_{}",
+            unique_suffix().replace('-', "_")
+        )
     }
 
     fn sqlite_fixture_db() -> String {

@@ -1,7 +1,7 @@
 interface:
   display_name: "NotionRead"
-  short_description: "Prefer temp-file reads for Notion docs"
-  default_prompt: "Use $notion-read to fetch this Notion document into a local temp file before analyzing it."
+  short_description: "Analyze current Notion content without writes"
+  default_prompt: "Use $notion-read to fetch this Notion content once, analyze it locally, and clean up temporary data."
 
 dependencies:
   tools:

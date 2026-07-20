@@ -21,16 +21,16 @@ Use this skill to shape application code. Follow the caller's instructions for p
 
 ## Required References
 
-Read every matching reference completely before designing, editing, debugging, or reviewing. Read multiple references when multiple rows match.
-
-For every substantive application-code task, the orchestration row matches. Expect the dependency-lifetime row to match most tasks; skip it only for a pure leaf transformation or type-only change that constructs, shares, and owns no dependency or resource.
+Read every matching reference completely before designing, editing, debugging, or reviewing. Match references by the concern actually in scope; a task being substantive does not by itself select orchestration or dependency-lifetime guidance. Read multiple references when multiple rows match.
 
 | Situation | Required reference | Focus |
 | --- | --- | --- |
-| Any substantive application-code implementation, refactor, bug fix, debugging or diagnosis, or design review | [Orchestration and locality](references/orchestration-and-locality.md) | Default code shape, locality, dataflow, and effects |
-| Most substantive application tasks, including entrypoints, framework wiring, dependency use or construction, ambient config, stateful collaborators, resources, or cleanup | [Dependency lifetimes](references/dependency-lifetimes.md) | Construction, sharing, scoping, ownership, and cleanup |
+| The task changes or evaluates a multi-step workflow, branching control flow, effect ordering, helper extraction, composition, or orchestration readability | [Orchestration and locality](references/orchestration-and-locality.md) | Locality, explicit dataflow, commands, and proportional extraction |
+| The task constructs, shares, scopes, caches, or cleans up a dependency or resource; changes an entrypoint/composition root; or involves ambient configuration or a stateful collaborator | [Dependency lifetimes](references/dependency-lifetimes.md) | Construction, identity, sharing, ownership, and cleanup |
 | TypeScript or TSX is in scope | [TypeScript defaults](references/typescript.md) | TypeScript validation, brands, inference, literals, unions, and files |
 | Python is in scope | [Python defaults](references/python.md) | Python boundary validation and type modeling |
+
+Skip the orchestration reference for a leaf transformation, isolated local fix, or type/schema-only change with no control-flow or locality decision. Skip the dependency-lifetime reference when the task constructs, shares, owns, and cleans up no dependency or resource. During review, load only the references matching the concerns being evaluated.
 
 ## Decision Order
 

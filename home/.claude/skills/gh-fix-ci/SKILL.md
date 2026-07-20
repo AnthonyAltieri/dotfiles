@@ -50,7 +50,7 @@ If no PR exists for the current branch, report this and stop.
    - `git show HEAD --stat`
    - Fetch workflow files or artifacts if needed:
      - `gh api repos/<owner>/<repo>/contents/.github/workflows/<workflow_file> --jq '.content' | base64 -d`
-     - `gh run view <run_id> --json artifacts`
+     - `gh api repos/<owner>/<repo>/actions/runs/<run_id>/artifacts --jq '.artifacts[] | {id,name,expired}'`
      - `gh run download <run_id> -n <artifact_name>`
 5. Analyze and classify each failure.
    - Build: compilation/bundling/type failures
@@ -62,7 +62,7 @@ If no PR exists for the current branch, report this and stop.
    - Parse exact error and file/line.
    - Determine whether failure is introduced by this PR.
    - Check for pre-existing patterns:
-     - `gh run list --branch=main --limit=5`
+     - `gh run list --branch=<baseRefName> --limit=5`
 7. Recommend next action per failure.
    - Environment/flaky: recommend rerun (`gh run rerun <run_id> --failed`)
    - Config: identify workflow/config changes needed
@@ -70,9 +70,9 @@ If no PR exists for the current branch, report this and stop.
    - Pre-existing failure: call out as not introduced by this PR
 8. Before implementation, request explicit user approval for code changes when the fix is non-trivial or ambiguous.
 9. After implementation, summarize changed files and validation, then re-check relevant statuses.
-10. Update PR description.
-    - After fixes are committed and verified, update the PR description to reflect the **current state** of the PR (not the history of steps taken).
-    - Follow the **gh-manage-pr** skill workflow to regenerate and apply the updated description.
+10. Report the CI result.
+    - Summarize the root cause, focused fix, verification, and remaining external checks.
+    - Update the PR title or description only when the user explicitly requests that separate operation.
 
 ## Output Format
 

@@ -17,25 +17,31 @@ let
           );
     };
 
-  buildRustHelper = { pname, src, lockFile, meta ? { } }:
+  buildRustHelper = {
+    pname,
+    src,
+    lockFile,
+    meta ? { },
+    nativeCheckInputs ? [ ],
+  }:
     pkgs.rustPlatform.buildRustPackage {
-      inherit pname meta;
+      inherit pname meta nativeCheckInputs;
       version = "0.1.0";
       src = cleanRustSource src;
       cargoLock.lockFile = lockFile;
-      doCheck = false;
+      doCheck = true;
     };
 
   ghAddressCommentsTools = buildRustHelper {
     pname = "gh-address-comments-tools";
-    src = ../../home/.codex/skills/gh-address-comments/scripts;
-    lockFile = ../../home/.codex/skills/gh-address-comments/scripts/Cargo.lock;
+    src = ../../home/.codex/skills/gh-review-thread-actions/scripts;
+    lockFile = ../../home/.codex/skills/gh-review-thread-actions/scripts/Cargo.lock;
   };
 
   ghFixCiTools = buildRustHelper {
     pname = "gh-fix-ci-tools";
-    src = ../../home/.codex/skills/gh-fix-ci/scripts;
-    lockFile = ../../home/.codex/skills/gh-fix-ci/scripts/Cargo.lock;
+    src = ../../home/.codex/skills/gh-ci-log-tools/scripts;
+    lockFile = ../../home/.codex/skills/gh-ci-log-tools/scripts/Cargo.lock;
   };
 
   sqlReadTools = buildRustHelper {
@@ -46,8 +52,9 @@ let
 
   ghManagePrTools = buildRustHelper {
     pname = "gh-manage-pr-tools";
-    src = ../../home/.codex/skills/gh-manage-pr/scripts;
-    lockFile = ../../home/.codex/skills/gh-manage-pr/scripts/Cargo.lock;
+    src = ../../home/.codex/skills/gh-pr-body/scripts;
+    lockFile = ../../home/.codex/skills/gh-pr-body/scripts/Cargo.lock;
+    nativeCheckInputs = [ pkgs.jq ];
   };
 
   atlasCli = buildRustHelper {

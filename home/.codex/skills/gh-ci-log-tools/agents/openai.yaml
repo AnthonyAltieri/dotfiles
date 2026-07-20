@@ -1,0 +1,6 @@
+interface:
+  display_name: "GitHub CI Log Tools"
+  short_description: "Inspect and classify Actions logs locally"
+  default_prompt: "Use $gh-ci-log-tools to produce compact local evidence from these GitHub Actions checks or logs."
+policy:
+  allow_implicit_invocation: false

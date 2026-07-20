@@ -1,13 +1,28 @@
 ---
 name: handoff
-description: Compact the current conversation into a handoff document for another agent to pick up.
-argument-hint: "What will the next session be used for?"
+description: Compact the current conversation into a self-contained handoff document for another agent to continue safely. Use when the user asks to hand off, resume in another session, or preserve current task context for a fresh agent.
 ---
 
-Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save it to a path produced by `mktemp -t handoff-XXXXXX.md` (read the file before you write to it).
+# Handoff
 
-Suggest the skills to be used, if any, by the next session.
+Create a temporary Markdown file with `mktemp -t handoff-XXXXXX.md`. Read the empty file before writing, then capture only the context a fresh agent needs to continue.
 
-Do not duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
+Use this concise schema:
 
-If the user passed arguments, treat them as a description of what the next session will focus on and tailor the doc accordingly.
+```markdown
+# Handoff
+
+## Objective and success criteria
+## Current state
+## Decisions, constraints, and assumptions
+## Remaining work
+## Verification performed and still needed
+## Canonical references
+## Suggested skills
+```
+
+Tailor the document to any focus supplied by the user. Reference existing plans, issues, ADRs, commits, diffs, and artifacts by path or URL instead of duplicating them. Distinguish completed work from proposed or unverified work, and include exact commands only when they are useful for resumption.
+
+Exclude secrets, tokens, credentials, private keys, raw environment contents, and sensitive payloads. Name the approved secret source or configuration location when the next agent needs to know where to obtain a value; never copy the value itself.
+
+Read the completed file back, verify that it is self-contained and accurate, then return its exact path.

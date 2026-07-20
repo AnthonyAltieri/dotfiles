@@ -1,42 +1,35 @@
 ---
 name: sql-read
 description: Use when a user needs live read-only Postgres or SQLite inspection; configure a named read-only target once, then use the blanket-approvable `sql-read run` path for later queries.
-metadata:
-  short-description: Read Postgres or SQLite safely
 ---
 
 # SQL Read
 
 Use the `sql-read` helper from the active Nix profile to inspect Postgres or SQLite data in read-only mode.
 
-Trigger this skill for:
-- live schema inspection
-- ad hoc read-only analysis queries
-- fast table or column lookups when the answer lives in a database
+Do not use it for writes, migrations, backfills, administration, or general interactive shell work.
 
-Do not use it for:
-- writes, migrations, or backfills
-- admin tasks
-- general interactive shell work
+## Safety boundary
 
-## Quick Start
+- Treat `sql-read run` as the only blanket-approvable command prefix.
+- Treat every `sql-read target ...` command as explicit setup or state management outside that blanket approval.
+- Never place a DSN, password, token, or SQLite path in command text. Raw `--dsn` and `--sqlite-db-path` inputs are rejected.
+- Require the connection value to exist in the helper process environment before target setup. The user may arrange this through shell startup configuration, a secret manager, or another out-of-band mechanism.
+- Do not run `export ...` in a separate tool call and assume it will persist; tool calls commonly start separate processes. Do not prefix a tool command with a secret-bearing assignment because that exposes the value in command text.
+- If the required environment variable is absent, stop and ask the user to arrange it out of band. Pass only its variable name to `target upsert`.
 
-The active Nix profile puts `sql-read` on `PATH`, so call it directly.
+The helper persists the resolved connection value in `targets.json`. On Unix, it sets the state directory to mode `0700` and the store to `0600`; still use least-privilege database credentials.
 
-1. Use the default Claude state dir: `"$CLAUDE_CONFIG_DIR/skills/sql-read/state"`.
-2. Export the connection input in its own command.
-   - `export PROD_READONLY_URL='postgresql://user:pass@host:5432/dbname'`
-3. Persist the named target in a separate command.
-   - `sql-read target upsert --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL`
-4. Run read-only queries against the stored target in a separate command.
-   - `sql-read run --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --target prod-readonly --file "$CLAUDE_CONFIG_DIR/skills/sql-read/assets/queries/postgres-schema-overview.sql" --format json`
-5. Use the same split workflow for SQLite targets.
-   - `export LOCAL_APP_DB='/absolute/path/to/app.sqlite3'`
-   - `sql-read target upsert --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --name local-app --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB`
-   - `sql-read run --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --target local-app --file "$CLAUDE_CONFIG_DIR/skills/sql-read/assets/queries/sqlite-schema-overview.sql" --format json`
-6. Inspect or remove configured targets with explicit target-management commands.
-   - `sql-read target list --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state"`
-   - `sql-read target remove --state-dir "$CLAUDE_CONFIG_DIR/skills/sql-read/state" --name local-app`
+## State location
+
+Omit `--state-dir` normally. The CLI resolves state in this order:
+
+1. `--state-dir <DIR>`
+2. `SQL_READ_STATE_DIR`
+3. `$XDG_STATE_HOME/sql-read`
+4. `$HOME/.local/state/sql-read`
+
+This shared XDG-owned default survives managed skill refreshes and works across Codex and Claude. Use the explicit flag or `SQL_READ_STATE_DIR` only when isolation is required.
 
 ## Workflow
 
@@ -44,9 +37,9 @@ The active Nix profile puts `sql-read` on `PATH`, so call it directly.
    - Use the bundled query templates in `assets/queries/`.
    - Load the relevant engine notes from `references/postgres.md` or `references/sqlite.md` only when needed.
 2. Configure the target once.
-   - Use `sql-read target upsert --state-dir <dir> --name <target> ...` to persist the resolved read-only DSN or SQLite path under the skill state dir.
-   - Keep env-var assignment and `target upsert` in separate commands.
-   - Do target setup in its own command; it is not part of the blanket-approved surface.
+   - Postgres: `sql-read target upsert --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL`
+   - SQLite: `sql-read target upsert --name local-app --engine sqlite --sqlite-db-path-env-var LOCAL_APP_DB`
+   - Pass an environment-variable name only after verifying that its value was arranged out of band.
 3. Keep queries narrow.
    - Ask for aggregates, counts, or explicit filters before scanning large tables.
    - Add an explicit `limit` in the SQL unless the query is already aggregate-only.
@@ -54,8 +47,11 @@ The active Nix profile puts `sql-read` on `PATH`, so call it directly.
    - Use `--format json` by default so the agent sees compact, structured rows.
    - Switch to `table` only when the user explicitly wants a human-readable table.
 5. Run read-only queries through the stored target.
-   - `sql-read run --state-dir <dir> --target <name> ...` is the only blanket-approved execution path.
+   - `sql-read run --target <name> --file <query.sql> --format json`
    - Later `run` calls do not require the env var to still exist.
+6. Inspect or remove targets explicitly.
+   - `sql-read target list`
+   - `sql-read target remove --name local-app`
 
 ## Output
 
@@ -85,7 +81,6 @@ Default JSON output is compact and stable:
 - Rust is a control and safety tool here, not a speed win over `psql`.
 - If `sql-read` is missing, reapply the profile so the packaged helper is rebuilt and activated.
 - Blanket approval should target `sql-read run`, not `sql-read target`.
-- Keep env-var assignment, `target upsert`, and `run` as separate commands.
-- `run` does not accept raw DSNs, raw SQLite paths, or env-var target flags; configure the target first.
+- `run` accepts only a configured target name; it does not accept connection values or environment-variable target flags.
 - Read-only enforcement in the helper is defense-in-depth, not a substitute for least-privilege credentials.
 - Postgres queries with duplicate column names are rejected; alias duplicate columns before running them.

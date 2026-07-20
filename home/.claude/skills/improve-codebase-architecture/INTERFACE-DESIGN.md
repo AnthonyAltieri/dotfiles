@@ -1,44 +1,41 @@
 # Interface Design
 
-When the user wants to explore alternative interfaces for a chosen deepening candidate, use this parallel sub-agent pattern. Based on "Design It Twice" (Ousterhout) — your first idea is unlikely to be the best.
+Use this process only after the user selects a deepening candidate and asks to explore alternative interfaces. Use the architecture vocabulary and dependency categories loaded directly from `SKILL.md`.
 
-Uses the vocabulary in [LANGUAGE.md](LANGUAGE.md) — **module**, **interface**, **seam**, **adapter**, **leverage**.
+## 1. Frame the Problem Space
 
-## Process
+Explain:
 
-### 1. Frame the problem space
+- the constraints every viable interface must satisfy;
+- the dependencies and their categories;
+- the invariants, ordering, error modes, and compatibility obligations callers must understand;
+- a rough illustrative code sketch that grounds the constraints without presenting a preferred design.
 
-Before spawning sub-agents, write a user-facing explanation of the problem space for the chosen candidate:
+Show this framing to the user before comparing designs.
 
-- The constraints any new interface would need to satisfy
-- The dependencies it would rely on, and which category they fall into (see [DEEPENING.md](DEEPENING.md))
-- A rough illustrative code sketch to ground the constraints — not a proposal, just a way to make the constraints concrete
+## 2. Produce Independent Alternatives
 
-Show this to the user, then immediately proceed to Step 2. The user reads and thinks while the sub-agents work in parallel.
+When subagents are available, delegate three or more read-only design briefs in parallel. Give each the same source evidence, constraints, project domain vocabulary, and architecture vocabulary, but a distinct design pressure:
 
-### 2. Spawn sub-agents
+1. Minimize the interface to one to three high-leverage entry points.
+2. Maximize flexibility for known extension cases without speculative abstraction.
+3. Optimize the most common caller so the default path is trivial.
+4. When relevant, design around ports and adapters for a real cross-seam dependency.
 
-Spawn 3+ sub-agents in parallel using the Agent tool. Each must produce a **radically different** interface for the deepened module.
+Subagents must not edit files or external state. Keep their drafts separate until all have returned.
 
-Prompt each sub-agent with a separate technical brief (file paths, coupling details, dependency category from [DEEPENING.md](DEEPENING.md), what sits behind the seam). The brief is independent of the user-facing problem-space explanation in Step 1. Give each agent a different design constraint:
+If fewer than three subagent contexts are available, develop the same alternatives sequentially with distinct constraints and disclose the reduced independence. Do not present sequential self-generated variants as independent evidence.
 
-- Agent 1: "Minimize the interface — aim for 1–3 entry points max. Maximise leverage per entry point."
-- Agent 2: "Maximise flexibility — support many use cases and extension."
-- Agent 3: "Optimise for the most common caller — make the default case trivial."
-- Agent 4 (if applicable): "Design around ports & adapters for cross-seam dependencies."
+Each alternative must include:
 
-Include both [LANGUAGE.md](LANGUAGE.md) vocabulary and CONTEXT.md vocabulary in the brief so each sub-agent names things consistently with the architecture language and the project's domain language.
+1. The interface: types, methods, parameters, invariants, ordering, and error modes.
+2. A representative caller example.
+3. The implementation hidden behind the seam.
+4. The dependency and adapter strategy.
+5. Tradeoffs in leverage, locality, migration cost, and testability.
 
-Each sub-agent outputs:
+## 3. Compare and Recommend
 
-1. Interface (types, methods, params — plus invariants, ordering, error modes)
-2. Usage example showing how callers use it
-3. What the implementation hides behind the seam
-4. Dependency strategy and adapters (see [DEEPENING.md](DEEPENING.md))
-5. Trade-offs — where leverage is high, where it's thin
+Present the alternatives sequentially, then compare their depth, locality, seam placement, caller burden, migration risk, and test surface. Recommend the strongest design and explain why. Propose a hybrid only when it preserves a coherent interface instead of accumulating features from every option.
 
-### 3. Present and compare
-
-Present designs sequentially so the user can absorb each one, then compare them in prose. Contrast by **depth** (leverage at the interface), **locality** (where change concentrates), and **seam placement**.
-
-After comparing, give your own recommendation: which design you think is strongest and why. If elements from different designs would combine well, propose a hybrid. Be opinionated — the user wants a strong read, not a menu.
+Remain read-only. If the user chooses a design and requests implementation, return to `SKILL.md` and hand the agreed design to `$programming`.

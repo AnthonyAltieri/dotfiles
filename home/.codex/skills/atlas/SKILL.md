@@ -8,6 +8,8 @@ description: "macOS-only AppleScript control for the ChatGPT Atlas desktop app. 
 
 Use the `atlas-cli` helper from the active Nix profile to control Atlas and inspect local browser data.
 
+Use Browser or Chrome control for DOM inspection, visible page interaction, and logged-in web sessions. Use this skill only for Atlas-native tab operations or Atlas-local bookmarks and history.
+
 ## Quick Start
 
 The active Nix profile puts `atlas-cli` on `PATH`, so call it directly.
@@ -80,11 +82,13 @@ History for today (local time):
 atlas-cli history --today --limit 200 --json
 ```
 
-The history command copies the SQLite database to a temporary location to avoid lock errors.
+The history command copies the SQLite database to an automatically cleaned temporary location to avoid lock errors.
 
-If `atlas-cli` is missing, reapply the profile so the packaged helper is rebuilt and activated.
+The helper checks stable and beta Atlas data roots and selects the one with the most recently modified `Local State`. Set `ATLAS_DATA_ROOT` to an absolute `browser-data/host` directory only when automatic selection is wrong.
 
-If history looks stale or empty, ask the user which Atlas install they are using, then check both Atlas data roots and inspect the one with the most recent `History` file:
+If `atlas-cli` is missing on macOS, reapply the profile so the packaged helper is rebuilt and activated. This skill is not installed on Linux profiles.
+
+If history looks stale or empty, inspect these roots without printing unrelated profile data:
 
 - `~/Library/Application Support/com.openai.atlas/browser-data/host/`
 - `~/Library/Application Support/com.openai.atlas.beta/browser-data/host/`

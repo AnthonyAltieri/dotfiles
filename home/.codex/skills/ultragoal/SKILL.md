@@ -95,6 +95,8 @@ For each lane, name the objective, non-goals, ownership boundary, verifier, stop
 
 ### 7. Activate Last
 
+Before drafting an activation call, use `get_goal` to inspect the current goal state. If an unfinished goal already exists, do not call `create_goal`: continue it only when the request is clearly a continuation, otherwise report the active objective and ask the user how to reconcile the competing objective. Follow the live goal tools' lifecycle rules rather than restating transition thresholds in this skill.
+
 Before activation, red-team the draft:
 
 - Can success be faked by weakening the verifier?

@@ -15,6 +15,14 @@ Create distinctive, production-grade frontend interfaces that avoid generic AI a
 2. Pick one strong aesthetic direction before coding.
 3. If you feel yourself converging on generic defaults, read `references/design-gotchas.md`.
 
+## Composition boundaries
+
+- Preserve an established product design system when one exists; this skill supplies art direction when the visual direction is genuinely open.
+- Use `programming` for substantive application state, data modeling, business rules, API boundaries, and error flows. Compose it with this skill when the UI includes those concerns.
+- Use `sites:sites-building` for projects containing `.openai/hosting.json` and for Sites-specific build workflows.
+- Use `visualize:visualize` for in-conversation charts, simulations, maps, or interactive explanatory tools.
+- Use `imagegen` for new raster imagery or bitmap edits; keep repo-native HTML, CSS, SVG, and component work here.
+
 ## Workflow
 
 1. Understand the context.
