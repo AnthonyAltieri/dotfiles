@@ -1,5 +1,5 @@
 { inputs }:
-{ role, system, username, homeDirectory }:
+{ role, system, username, homeDirectory, overwriteHomeManagerBackups ? false }:
 let
   lib = inputs.nixpkgs.lib;
   profiles = import ./profiles.nix { inherit lib; };
@@ -16,7 +16,7 @@ in
 inputs.home-manager.lib.homeManagerConfiguration {
   inherit pkgs;
   extraSpecialArgs = {
-    inherit inputs role system username homeDirectory platform;
+    inherit inputs role system username homeDirectory platform overwriteHomeManagerBackups;
   };
   modules = profiles.mkHomeModules {
     inherit role platform;

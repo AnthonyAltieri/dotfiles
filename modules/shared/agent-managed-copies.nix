@@ -1,4 +1,4 @@
-{ config, lib, role, ... }:
+{ config, lib, pkgs, platform, role, ... }:
 let
   managedCopy = {
     target,
@@ -30,11 +30,7 @@ let
 
   sharedSkillNames = [
     "agent-code-review-loop"
-    "atlas"
     "frontend-design"
-    "gh-address-comments"
-    "gh-fix-ci"
-    "gh-manage-pr"
     "handoff"
     "improve-codebase-architecture"
     "notion-knowledge-capture"
@@ -45,12 +41,25 @@ let
 
   codexOnlySkillNames = [
     "adversarial-review"
+    "gh-ci"
+    "gh-pr-body"
+    "gh-comments"
     "linear-claim-work"
     "ultragoal"
   ];
 
+  claudeOnlySkillNames = [
+    "gh-address-comments"
+    "gh-fix-ci"
+    "gh-manage-pr"
+  ];
+
   workOnlySkillNames = [
     "observe"
+  ];
+
+  darwinOnlySkillNames = [
+    "atlas"
   ];
 
   agentSkillCopies = agentName: sourceRoot: skillNames:
@@ -70,6 +79,9 @@ let
     ]
     ++ codexSkillCopies sharedSkillNames
     ++ codexSkillCopies codexOnlySkillNames
+    ++ lib.optionals (platform == "darwin") (
+      codexSkillCopies darwinOnlySkillNames
+    )
     ++ [
       (managedFile ".claude/CLAUDE.md" ../../home/.claude/CLAUDE.md)
       (managedFile ".claude/README.md" ../../home/.claude/README.md)
@@ -77,6 +89,10 @@ let
       (managedDirectory ".claude/commands" ../../home/.claude/commands)
     ]
     ++ claudeSkillCopies sharedSkillNames
+    ++ claudeSkillCopies claudeOnlySkillNames
+    ++ lib.optionals (platform == "darwin") (
+      claudeSkillCopies darwinOnlySkillNames
+    )
     ++ [
       (managedExecutableFile ".claude/statusline-command.sh" ../../home/.claude/statusline-command.sh)
       (managedExecutableFile ".claude/tmux-notify.sh" ../../home/.claude/tmux-notify.sh)
@@ -164,7 +180,27 @@ in
   config = {
     dotfiles.agentManagedCopies = agentManagedCopies;
 
-    home.activation.dotfilesAgentManagedCopies = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    home.activation.migrateSqlReadState = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      legacy_codex="$HOME/.codex/skills/sql-read/state/targets.json"
+      legacy_claude="$HOME/.claude/skills/sql-read/state/targets.json"
+
+      if [ -f "$legacy_codex" ] || [ -f "$legacy_claude" ]; then
+        if [ -n "''${DRY_RUN_CMD:-}" ]; then
+          echo "Would migrate legacy SQL Read target state into ${config.xdg.stateHome}/sql-read/targets.json"
+        else
+          ${pkgs.bash}/bin/bash ${../../scripts/migrate-sql-read-state.sh} \
+            ${pkgs.jq}/bin/jq \
+            "${config.xdg.stateHome}/sql-read/targets.json" \
+            "$legacy_codex" \
+            "$legacy_claude"
+        fi
+      fi
+    '';
+
+    home.activation.dotfilesAgentManagedCopies = lib.hm.dag.entryAfter [
+      "linkGeneration"
+      "migrateSqlReadState"
+    ] ''
       state_dir="${config.xdg.stateHome}/dotfiles"
       previous_paths_file="$state_dir/agent-managed-copy-paths.txt"
       tmp_previous_paths_file="$state_dir/agent-managed-copy-paths.txt.tmp"

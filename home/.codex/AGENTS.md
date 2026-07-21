@@ -114,7 +114,7 @@ git switch -c <branch-name> origin/main
 
 - When asked to add an image to a PR body, you must use `gh-pr-image`.
 - Run `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` and allow its prompt-gated GitHub mutation rather than bypassing the approval gate.
-- The current MVP accepts exactly one PNG, JPEG, or GIF per invocation and supports same-repository PRs that the authenticated GitHub account can update. On private or internal repositories, GitHub limits attachment viewing to users with repository access.
+- The current MVP accepts exactly one PNG, JPEG, or GIF per invocation and supports only public, same-repository PRs that the authenticated GitHub account can update. Private, internal, and fork-authored PRs are unsupported.
 - The helper uploads through an experimental, undocumented GitHub endpoint. If the request is outside the supported scope, stop and explain the limitation instead of silently selecting another image host or upload path.
 
 ---

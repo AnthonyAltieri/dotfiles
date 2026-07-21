@@ -97,10 +97,10 @@ prefix_rule(
     decision="allow",
     justification="The persisted-target sql-read run path is read-only by construction.",
     match=[
-        "sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json",
+        "sql-read run --target prod-readonly --file /tmp/query.sql --format json",
     ],
     not_match=[
-        "sql-read target upsert --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL",
+        "sql-read target upsert --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL",
     ],
 )
 
@@ -159,10 +159,10 @@ prefix_rule(
     decision="prompt",
     justification="Target mutation stores connection details and should stay approval-gated.",
     match=[
-        "sql-read target upsert --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL",
+        "sql-read target upsert --name prod-readonly --engine postgres --dsn-env-var PROD_READONLY_URL",
     ],
     not_match=[
-        "sql-read run --state-dir /Users/anthonyaltieri/.codex/skills/sql-read/state --target prod-readonly --file /tmp/query.sql --format json",
+        "sql-read run --target prod-readonly --file /tmp/query.sql --format json",
     ],
 )
 

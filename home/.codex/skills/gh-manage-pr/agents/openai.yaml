@@ -1,4 +1,0 @@
-interface:
-  display_name: "GitHub Manage PR"
-  short_description: "Create, update, or add an image to a PR"
-  default_prompt: "Create or update the PR for this branch using a concise, information-dense description based on the branch diff. When asked to add an image to the PR body, use the prompt-gated gh-pr-image helper and enforce its same-repository and update-permission requirements."

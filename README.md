@@ -174,7 +174,7 @@ This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
 Managed agent files include:
 
-- `~/.codex/skills/{adversarial-review,agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,linear-claim-work,notion-knowledge-capture,notion-read,programming,sql-read,ultragoal}`
+- `~/.codex/skills/{adversarial-review,agent-code-review-loop,frontend-design,gh-ci,gh-comments,gh-pr-body,handoff,improve-codebase-architecture,linear-claim-work,notion-knowledge-capture,notion-read,programming,sql-read,ultragoal}`
 - `~/.codex/AGENTS.md`
 - `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
@@ -182,10 +182,10 @@ Managed agent files include:
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
 - `~/.claude/commands/{handle-pr-checks.md,handle-pr-comments.md,pr.md}`
-- `~/.claude/skills/{agent-code-review-loop,atlas,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,notion-read,programming,sql-read}`
+- `~/.claude/skills/{agent-code-review-loop,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,notion-read,programming,sql-read}`
 - `~/.claude/{statusline-command.sh,tmux-notify.sh}`
 
-The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
+Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skills/atlas`. The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
 
 The work profile also applies a targeted merge to `~/.codex/config.toml` so Codex knows about the Notion remote MCP server:
 
@@ -202,7 +202,7 @@ That merge intentionally touches only those keys. Notion OAuth state remains loc
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
 Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
-Use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` when asked to add an image to a PR body. The prompt-gated MVP accepts exactly one PNG, JPEG, or GIF per invocation on same-repository PRs the authenticated account can update and uploads through an experimental, undocumented GitHub endpoint. Private and internal attachments are visible only to users with repository access.
+Use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` when asked to add an image to a PR body. The prompt-gated MVP accepts exactly one PNG, JPEG, or GIF per invocation on public, same-repository PRs the authenticated account can update and uploads through an experimental, undocumented GitHub endpoint. Private, internal, and fork-authored PRs are unsupported.
 
 Examples of intentionally unmanaged local state:
 

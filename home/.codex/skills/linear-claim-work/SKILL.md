@@ -7,7 +7,7 @@ description: Locate or create and safely claim the correct Linear issue before i
 
 Establish one verified Linear issue and clear ownership before downstream work begins. Preserve the remainder of the user's request as the downstream brief rather than absorbing implementation into this skill.
 
-Use the Linear app or MCP tools for semantic issue operations. If they are unavailable, ask the user to connect Linear and stop. Do not use browser automation as a fallback for Linear CRUD.
+Use `linear:linear` and its connected Linear app as the sole authority for semantic issue reads and writes. This skill adds the duplicate, ownership, and work-conflict policy around those operations; it does not define a second CRUD workflow. If the connected Linear tools are unavailable, ask the user to connect Linear and stop. Do not use browser automation or raw API calls as a fallback for Linear CRUD.
 
 ## Inputs and defaults
 

@@ -344,7 +344,7 @@ fn search_history(search_text: Option<&str>, limit: usize, today: bool) -> Resul
         .arg("-readonly")
         .arg("-separator")
         .arg("\t")
-        .arg(db_copy)
+        .arg(db_copy.path())
         .arg(query)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

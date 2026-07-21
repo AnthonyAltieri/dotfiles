@@ -12,21 +12,19 @@ Create or update a pull request with the GitHub CLI (`gh`), and use `gh-pr-image
 ## Inputs
 
 - `repo`: repository path (default `.`)
-- `base`: base branch for comparison (default `master`, fallback `main` if needed)
+- `base`: optional explicit comparison branch; otherwise use the existing PR's `baseRefName` or the repository's `defaultBranchRef.name`
 - `pr`: PR number, URL, or branch when the image target should not be inferred
 - optional image path and required accessible alt text for PR-body images
 - optional title/body hints from user
 
 ## Quick start
 
-1. Capture the branch diff and diff stat.
+1. Resolve the comparison base from the existing PR or `gh repo view --json defaultBranchRef`, then capture the branch diff and diff stat.
    - `git diff <base>...HEAD --stat > /tmp/pr.diffstat`
    - `git diff <base>...HEAD > /tmp/pr.diff`
-2. Use the installed summarizer helper when you need compact structure instead of raw diff context.
+2. Run the installed summarizer when you need compact structure, then use its JSON output plus `assets/pr-body-template.md` to draft the PR body.
    - `gh-manage-pr-summarize /tmp/pr.diffstat`
-3. Run the summarizer and use the JSON output plus `assets/pr-body-template.md` to draft the PR body.
-   - `gh-manage-pr-summarize /tmp/pr.diffstat`
-4. When asked to add an image to the PR body, use the prompt-gated image helper.
+3. When asked to add an image to the PR body, use the prompt-gated image helper.
    - `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]`
 
 ## Workflow
@@ -37,6 +35,8 @@ Create or update a pull request with the GitHub CLI (`gh`), and use `gh-pr-image
    - If no PR exists, prepare `gh pr create --draft` unless the user explicitly asks for a ready-for-review/open PR.
    - If PR exists, prepare `gh pr edit`.
 2. Analyze changes against base branch.
+   - For an existing PR, use its returned `baseRefName`.
+   - Otherwise use an explicitly requested base or fetch `defaultBranchRef.name` with `gh repo view --json defaultBranchRef`.
    - `git diff <base>...HEAD --stat`
    - `git diff <base>...HEAD`
    - Group changes by major feature/area.
@@ -55,8 +55,7 @@ Create or update a pull request with the GitHub CLI (`gh`), and use `gh-pr-image
 5. Add a requested image to the PR body.
    - You must use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` rather than constructing a separate upload or image-hosting workflow.
    - The current MVP accepts exactly one PNG, JPEG, or GIF per invocation.
-   - Use it only when the authenticated GitHub account can update the PR and its head and base are in the same repository. Public, private, and internal repositories are supported; fork-authored PRs are not.
-   - On private or internal repositories, GitHub limits attachment viewing to users with repository access.
+   - Use it only for public PRs that the authenticated GitHub account can update and whose head and base are in the same repository. Private, internal, and fork-authored PRs are unsupported.
    - The command is prompt-gated because it uploads bytes and updates GitHub state. Allow that approval flow; do not bypass it with lower-level commands.
    - The upload uses an experimental, undocumented GitHub endpoint. If the target is unsupported, report the limitation instead of silently selecting another backend.
 6. Return the final PR URL and a concise summary of what was updated.
@@ -90,7 +89,7 @@ For each major change area:
 - For mixed-feature branches, group by subsystem and user-visible capability instead of by commit order.
 - Keep the summary section outcome-focused; implementation details belong in later sections.
 - New PRs default to draft unless the user explicitly asks for a ready-for-review/open PR.
-- `gh-pr-image` is intentionally limited to one PNG, JPEG, or GIF per invocation on same-repository PRs that the authenticated GitHub account can update.
+- `gh-pr-image` is intentionally limited to one PNG, JPEG, or GIF per invocation on public, same-repository PRs that the authenticated GitHub account can update.
 - Treat a failure from its experimental, undocumented upload endpoint as a compatibility failure; do not fall back to browser cookies, third-party hosting, or repository-backed assets without a separate user decision.
 
 ## Output Format
@@ -105,6 +104,6 @@ For each major change area:
 ## Bundled Resources
 
 - `gh-manage-pr-summarize` - Installed helper that converts `git diff --stat` output into compact JSON grouped by subsystem.
-- `gh-pr-image` - Prompt-gated helper that adds one supported image to the body of a same-repository PR through an experimental GitHub upload endpoint.
+- `gh-pr-image` - Prompt-gated helper that adds one supported image to the body of a public, same-repository PR through an experimental GitHub upload endpoint.
 - `scripts/summarize_diff.rs` - Converts `git diff --stat` output into compact JSON grouped by subsystem, with exact top-level insertion/deletion totals and per-section change magnitude.
 - `assets/pr-body-template.md` - Reusable PR body structure with placeholders for summary and implementation sections.

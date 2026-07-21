@@ -1,6 +1,6 @@
 # Deepening
 
-How to deepen a cluster of shallow modules safely, given its dependencies. Assumes the vocabulary in [LANGUAGE.md](LANGUAGE.md) — **module**, **interface**, **seam**, **adapter**.
+How to deepen a cluster of shallow modules safely, given its dependencies. Use the **module**, **interface**, **seam**, and **adapter** vocabulary loaded directly from `SKILL.md`.
 
 ## Dependency categories
 
@@ -8,11 +8,11 @@ When assessing a candidate for deepening, classify its dependencies. The categor
 
 ### 1. In-process
 
-Pure computation, in-memory state, no I/O. Always deepenable — merge the modules and test through the new interface directly. No adapter needed.
+Pure computation, in-memory state, no I/O. Often deepenable without an adapter when consolidation improves locality and the deletion test supports it. Test through the new interface directly.
 
 ### 2. Local-substitutable
 
-Dependencies that have local test stand-ins (PGLite for Postgres, in-memory filesystem). Deepenable if the stand-in exists. The deepened module is tested with the stand-in running in the test suite. The seam is internal; no port at the module's external interface.
+Dependencies that have faithful local test stand-ins (PGLite for Postgres, an in-memory filesystem). A stand-in makes deepening practical when its behavior covers the contract the module relies on. Test the deepened module with the stand-in. Keep the seam internal; do not expose a port at the module's external interface only for tests.
 
 ### 3. Remote but owned (Ports & Adapters)
 

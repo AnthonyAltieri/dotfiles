@@ -1,0 +1,6 @@
+interface:
+  display_name: "GitHub Comments"
+  short_description: "Inspect and act on GitHub PR comments"
+  icon_small: "./assets/github-small.svg"
+  icon_large: "./assets/github.png"
+  default_prompt: "Use $gh-comments to fetch and summarize the unresolved review threads for the current pull request."

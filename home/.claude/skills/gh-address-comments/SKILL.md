@@ -59,12 +59,12 @@ If no PR exists for the current branch, report this and stop.
      - Nitpick: style/preferences
 5. Process each file's unresolved threads.
    - Inspect file-specific diff context:
-     - `gh pr diff -- <filepath>`
+     - `git diff <baseRefName>...HEAD -- <filepath>`
    - Read the full thread before acting.
    - Triage false positives vs legitimate issues.
    - For legitimate issues, apply cohesive fixes file-by-file.
    - Check for similar issues in related code paths:
-     - `git diff main...HEAD`
+     - `git diff <baseRefName>...HEAD`
      - `git diff`
 6. Commit strategy.
    - If the user asks for commits, make one commit per thread (or cohesive thread group).
@@ -96,9 +96,9 @@ If no PR exists for the current branch, report this and stop.
    - Do NOT resolve question threads — leave open for the reviewer.
    - `resolve-thread` is idempotent through GitHub's mutation behavior — already-resolved threads won't error.
 8. Re-run focused checks/tests relevant to touched files and summarize results.
-9. Update PR description.
-   - After all comments are addressed and committed, update the PR description to reflect the **current state** of the PR (not the history of steps taken).
-   - Follow the **gh-manage-pr** skill workflow to regenerate and apply the updated description.
+9. Report the review result.
+   - Summarize addressed, deferred, and still-open threads plus focused verification.
+   - Update the PR title or description only when the user explicitly requests that separate operation.
 
 ## Gotchas
 
