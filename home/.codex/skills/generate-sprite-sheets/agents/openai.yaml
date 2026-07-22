@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate Sprite Sheets"
+  short_description: "Generate detailed sprite sheets in four-frame batches"
+  default_prompt: "Use $generate-sprite-sheets to create a detailed aligned sprite sheet in batches of no more than four frames."
