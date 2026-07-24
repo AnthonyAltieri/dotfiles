@@ -20,7 +20,7 @@ NEOTREE_SPEC="$ROOT_DIR/home/.config/nvim/lua/aalt/lazy/neotree.lua"
 
 NVIM_LOG_FILE="$TMP_DIR/nvim.log" nvim --clean --headless -i NONE \
 	+"lua package.path = '$TMP_DIR/lua/?.lua;$TMP_DIR/lua/?/init.lua;' .. package.path" \
-	+"lua local ok, err = xpcall(function() local spec = dofile('$NEOTREE_SPEC'); spec.config(); assert(_G.neotree_options.window.mappings['<LeftMouse>'] == 'open', 'single left click must use Neo-tree open') end, debug.traceback); if not ok then io.stderr:write(err .. '\n'); vim.cmd('cquit') end" \
+	+"lua local ok, err = xpcall(function() local spec = dofile('$NEOTREE_SPEC'); spec.config(); assert(_G.neotree_options.window.mappings['<2-LeftMouse>'] == 'open', 'double left click must use Neo-tree open'); assert(_G.neotree_options.window.mappings['<LeftMouse>'] == nil, 'single left click must not use Neo-tree open') end, debug.traceback); if not ok then io.stderr:write(err .. '\n'); vim.cmd('cquit') end" \
 	+qa
 
-echo "ok Neo-tree opens files and toggles folders on one left click"
+echo "ok Neo-tree opens files and toggles folders on double left click"
