@@ -22,7 +22,7 @@ claude_handler="home/.claude/skills/gh-address-comments/SKILL.md"
 
 assert_contains "$summary_skill" "# Github Summarize Comments"
 assert_contains "$summary_skill" "Keep this workflow read-only"
-assert_contains "$summary_ui" 'display_name: "Github Summarize Comments"'
+assert_contains "$summary_ui" 'display_name: "gh-comments"'
 
 assert_contains "$codex_policy" "## GitHub Review Comment Handling"
 assert_contains "$codex_policy" '$github:gh-address-comments'

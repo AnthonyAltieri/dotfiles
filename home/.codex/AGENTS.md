@@ -86,6 +86,10 @@ When given a bug report, fix it end-to-end.
 - For substantive coding, refactoring, debugging, and design-review tasks, use `$programming`.
 - `$programming` owns the default application-code style: validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.
 ---
+## Codex Skill Metadata
+- For every repo-managed Codex skill with `agents/openai.yaml`, set `interface.display_name` exactly equal to the `SKILL.md` frontmatter `name`.
+- Preserve lowercase, hyphens, namespaces, and other machine-specific naming. Do not replace the canonical skill name with a human-readable title unless explicitly requested.
+---
 ## GitHub Review Comment Handling
 - When using `$github:gh-address-comments`, treat a request to handle or address PR comments as authorization to reply on GitHub and resolve every successfully handled review thread by default.
 - Treat `no write`, `no GitHub writes`, `read-only`, `dry run`, `draft only`, or equivalent as an instruction not to post replies, resolve threads, submit reviews, or make other GitHub mutations. In that mode, return drafted replies and intended resolution states instead.

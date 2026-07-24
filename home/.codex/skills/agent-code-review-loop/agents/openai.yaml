@@ -1,5 +1,5 @@
 interface:
-  display_name: "Agent Code Review Loop (Deprecated)"
+  display_name: "agent-code-review-loop"
   short_description: "Legacy alias for adversarial code review"
   default_prompt: "Use the deprecated $agent-code-review-loop alias to route this code review through $adversarial-review and authorized fixes through $programming."
 policy:

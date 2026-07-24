@@ -1,5 +1,5 @@
 interface:
-  display_name: "Github Summarize Comments"
+  display_name: "gh-comments"
   short_description: "Summarize GitHub PR review comments"
   icon_small: "./assets/github-small.svg"
   icon_large: "./assets/github.png"
