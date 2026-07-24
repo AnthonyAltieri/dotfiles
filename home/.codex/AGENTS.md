@@ -86,6 +86,17 @@ When given a bug report, fix it end-to-end.
 - For substantive coding, refactoring, debugging, and design-review tasks, use `$programming`.
 - `$programming` owns the default application-code style: validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.
 ---
+## GitHub Review Comment Handling
+- When using `$github:gh-address-comments`, treat a request to handle or address PR comments as authorization to reply on GitHub and resolve every successfully handled review thread by default.
+- Treat `no write`, `no GitHub writes`, `read-only`, `dry run`, `draft only`, or equivalent as an instruction not to post replies, resolve threads, submit reviews, or make other GitHub mutations. In that mode, return drafted replies and intended resolution states instead.
+- Reply before resolving. If the reply fails, do not resolve the thread.
+- Resolve feedback only after the requested change or explanation is complete and supported by focused verification.
+- Leave ambiguous, conflicting, regressive, failed-verification, and clarification-dependent threads open.
+- Do not submit a formal PR review or add a top-level summary comment unless explicitly requested.
+- In the final response, include one entry per in-scope thread with the reviewer and location when available, a concise `Comment` summary, `Our response (posted)` or `Our response (draft)`, `Outcome`, and `Verification`.
+- For each code-changing thread, include a small labeled `Code change` diff or source snippet showing only the essential lines. Omit the snippet for no-code responses.
+- Finish with totals for handled, resolved, and still-open threads.
+---
 ## Notion Defaults
 - For read-only Notion document, page, database, or URL tasks, use `$notion-read` (NotionRead).
 - If the task is reading and not updating/writing, prefer fetching or exporting the Notion content into a local temp file and analyzing that file instead of reading chunks through the MCP.

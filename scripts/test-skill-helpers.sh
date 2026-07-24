@@ -27,4 +27,5 @@ run cargo test --offline --manifest-path home/.claude/skills/gh-address-comments
 run cargo test --offline --manifest-path home/.claude/skills/gh-fix-ci/scripts/Cargo.toml
 run cargo test --offline --manifest-path home/.claude/skills/gh-manage-pr/scripts/Cargo.toml
 
+run bash scripts/test-github-skill-contracts.sh
 run scripts/test-shared-skills-sync.sh

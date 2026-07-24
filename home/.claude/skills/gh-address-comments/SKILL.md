@@ -1,17 +1,24 @@
 ---
 name: gh-address-comments
-description: Use when a user asks to review and address GitHub PR comments on the current branch; fetch review threads with gh, triage unresolved items, and apply focused fixes.
+description: Handle actionable GitHub pull request review feedback end-to-end by fetching unresolved threads, implementing and verifying fixes, replying on GitHub, and resolving handled threads by default. Use for requests to address, fix, or handle PR review comments; honor no-write, read-only, dry-run, draft-only, or equivalent requests by making no GitHub mutations.
 metadata:
-  short-description: Address GitHub PR review comments
+  short-description: Fix, reply to, and resolve PR feedback
 ---
 
-# PR Comment Handler
+# Github Handle Comments
 
 Use the `gh` CLI to fetch PR comments for the current branch and address actionable feedback.
 
 The active Nix profile puts the Rust helper commands on `PATH`, so call them directly.
 
 If no PR exists for the current branch, report this and stop.
+
+## Write mode
+
+- Default to GitHub writes enabled. Reply to every successfully handled review thread, then resolve it.
+- Treat `no write`, `no GitHub writes`, `do not post`, `do not reply or resolve`, `dry run`, `draft only`, or equivalent as no-GitHub-write mode. Local changes remain allowed when the user requested implementation.
+- Treat `read-only` or an explicit request not to change local files as both no-GitHub-write mode and no-local-edit mode.
+- In no-GitHub-write mode, return drafted replies and intended resolution states without posting or resolving anything.
 
 ## Inputs
 
@@ -71,13 +78,13 @@ If no PR exists for the current branch, report this and stop.
    - Use conventional commit types (`fix`, `refactor`, `style`, `docs`, `test`).
    - Link commit body to the specific PR comment URL.
 7. Reply and resolve threads.
-   - For each processed thread, reply and optionally resolve using the thread `id` from step 2.
+   - For each successfully processed thread, reply and resolve by default using the thread `id` from step 2.
    - **Reply rules:**
      | Classification | Reply | Resolve? |
      |----------------|-------|----------|
      | False positive | `FROM CLAUDE: <explanation>` | Yes |
      | Addressed | `FROM CLAUDE: Addressed in <sha> — <description>` | Yes |
-     | Question | `FROM CLAUDE: <answer>` | No |
+     | Question | `FROM CLAUDE: <answer or clarification request>` | Yes when answered conclusively; otherwise no |
    - **Reply helper:**
      ```bash
      create-thread-reply --thread-id "{thread_id}" --body "{reply_body}"
@@ -93,11 +100,14 @@ If no PR exists for the current branch, report this and stop.
      resolve-thread --thread-id "{thread_id}"
      ```
    - Always reply BEFORE resolving.
-   - Do NOT resolve question threads — leave open for the reviewer.
+   - If the reply fails, do not resolve the thread.
+   - Resolve a question thread when the answer is conclusive. Leave it open when the response asks the reviewer for clarification or a decision.
+   - Leave ambiguous, conflicting, regressive, failed-verification, and still-relevant outdated feedback open until it is genuinely handled.
+   - Skip all reply and resolve commands in no-GitHub-write mode.
    - `resolve-thread` is idempotent through GitHub's mutation behavior — already-resolved threads won't error.
 8. Re-run focused checks/tests relevant to touched files and summarize results.
 9. Report the review result.
-   - Summarize addressed, deferred, and still-open threads plus focused verification.
+   - Use the required output format below rather than replacing per-thread entries with an aggregate list.
    - Update the PR title or description only when the user explicitly requests that separate operation.
 
 ## Gotchas
@@ -111,12 +121,20 @@ If no PR exists for the current branch, report this and stop.
 - Keep the reply text agent-specific (`FROM CLAUDE:` etc.); the helper adds only the robot emoji prefix.
 - If any helper command is missing, reapply the profile so the packaged helpers are rebuilt and activated.
 
-## Output Format
+## Required output format
 
-1. Code Examples
-   - Before/after snippets grouped by file
-2. Summary Table
-   - File, line, reviewer, type, comment, resolution, commit (if any)
+Include one entry for every in-scope review thread. Group exact duplicates only when every thread remains identifiable.
+
+For each thread, include:
+
+- `Comment`: a concise summary of the reviewer's feedback.
+- `Our response (posted)` or `Our response (draft)`: the response text verbatim when available, otherwise a faithful concise paraphrase.
+- `Outcome`: `resolved` or `open`, followed by the reason.
+- `Verification`: the focused evidence supporting the disposition, or `not applicable`.
+
+Label the entry with the reviewer and file location when available. When the thread caused a code change, always add `Code change` with a fenced `diff` or source snippet showing the essential few lines. Omit `Code change` entirely for unchanged code, explanation-only responses, and false positives.
+
+Finish with totals for handled, resolved, and still-open threads.
 
 ## Notes
 
