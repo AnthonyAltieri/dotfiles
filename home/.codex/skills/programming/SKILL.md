@@ -10,7 +10,7 @@ Use this skill to shape application code. Follow the caller's instructions for p
 ## Operating Contract
 
 - Inspect the repository before designing. Find its canonical domain types, schemas, constructors, factories, composition roots, lifecycle owners, error conventions, and test patterns.
-- Preserve existing behavior, public contracts, and canonical domain language unless the task explicitly changes them.
+- Preserve existing behavior—including transaction, lock, resource, concurrency, retry, and effect-ordering boundaries—public contracts, and canonical domain language unless the task explicitly changes them. Report suspected defects separately.
 - Reuse an appropriate existing validation, type, dependency-construction, or error-modeling path instead of creating a parallel system.
 - Make the smallest change that preserves correctness, clarity, and invariants.
 - Keep the solution proportional to the requested behavior. Do not invent lifecycle managers, telemetry APIs, dependency containers, result frameworks, or adjacent infrastructure when direct composition or existing hooks suffice.
@@ -26,6 +26,7 @@ Read every matching reference completely before designing, editing, debugging, o
 | Situation | Required reference | Focus |
 | --- | --- | --- |
 | The task changes or evaluates a multi-step workflow, branching control flow, effect ordering, helper extraction, composition, or orchestration readability | [Orchestration and locality](references/orchestration-and-locality.md) | Locality, explicit dataflow, commands, and proportional extraction |
+| The task changes or evaluates nested expressions, collection transformations, fluent chains, staged abstractions, or value-flow visibility | [Visible dataflow](references/visible-dataflow.md) | Named-stage value flow, honest topology, evidence, and production failure boundaries |
 | The task constructs, shares, scopes, caches, or cleans up a dependency or resource; changes an entrypoint/composition root; or involves ambient configuration or a stateful collaborator | [Dependency lifetimes](references/dependency-lifetimes.md) | Construction, identity, sharing, ownership, and cleanup |
 | TypeScript or TSX is in scope | [TypeScript defaults](references/typescript.md) | TypeScript validation, brands, inference, literals, unions, and files |
 | Python is in scope | [Python defaults](references/python.md) | Python boundary validation and type modeling |
@@ -62,7 +63,7 @@ Skip the orchestration reference for a leaf transformation, isolated local fix, 
 ## Structure, Ownership, And Effects
 
 - Make top-level business workflows read like pseudocode: a topologically ordered sequence of domain-named values and commands.
-- Prefer named, single-assignment intermediate values over nested expressions and mutable accumulator state.
+- Prefer named, single-assignment intermediate values and ordinary function calls over method chains, nested expressions, and mutable accumulator state.
 - Make dependencies visible through inputs and outputs.
 - Keep one-use logic inline when it remains locally understandable and information-dense.
 - Extract a function only when reuse, branching, invariants, semantic compression, effects, or lifecycle justify the indirection.

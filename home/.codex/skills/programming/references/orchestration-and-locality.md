@@ -58,7 +58,7 @@ Avoid helper confetti, premature deduplication of merely similar code, generic n
 - Name values with domain nouns and effects with precise verbs.
 - Keep orchestration at one conceptual level without extracting every readable expression.
 - Let branches and merges remain visible when they carry domain meaning.
-- Avoid generic pipeline, step-runner, or builder abstractions that hide types, dependencies, or control flow.
+- Avoid generic step runners, middleware chains, or builders that hide types, dependencies, or control flow.
 
 Prefer this flow when the domain permits it:
 
@@ -89,7 +89,7 @@ Prefer this flow when the domain permits it:
 
 - Run operations concurrently—for example with `Promise.all` or `asyncio.gather`—only when they are independent in data, ordering, capacity, cancellation, and failure semantics.
 - Keep discriminated branches explicit; extract only branch bodies that interrupt the main scan.
-- Model loops and state machines directly instead of forcing them into a fake linear pipeline.
+- Model loops and state machines directly instead of forcing them into a fake linear sequence.
 - Keep named dataflow inside required transaction, lock, or framework callbacks.
 - Allow local mutation when a stateful algorithm is clearer or measured performance requires it.
 - Treat framework-required mutation, such as span attributes or response headers, as an explicit edge effect.
