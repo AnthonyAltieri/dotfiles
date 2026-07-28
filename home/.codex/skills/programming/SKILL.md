@@ -66,6 +66,7 @@ Before designing, editing, debugging, or reviewing, read every matching referenc
 ## Tests
 
 - For implemented behavior changes, add the minimum sufficient tests for critical paths, business invariants, boundary contracts, and regression-prone behavior. During review or diagnosis, report missing coverage without changing it unless requested.
+- Don’t add configurability solely to make tests convenient. Introduce a dependency seam only when the dependency represents meaningful behavior that may vary; otherwise test through the real boundary.
 - Prefer durable behavior/contract tests over helper-layout coupling. Test integrations where parsing, serialization, persistence, or third-party behavior can fail.
 - Prefer compile-time guarantees when they fully replace representability tests; types never replace runtime or semantic verification.
 - Do not expand test scope to hypothetical lifecycle/failure permutations the change does not own. When asked for test seams, identify injectable boundaries without adding a test matrix unless requested.
