@@ -1,108 +1,75 @@
 ---
 name: programming
-description: Write, refactor, debug, and review application code with validated boundaries, canonical domain types, explicit dependency lifetimes, pseudocode-like orchestration, local code over gratuitous helpers, deliberate effects and observability, and minimal critical-path tests. Use for substantive business logic, data modeling, state and error flows, API/CLI/env/queue/persistence/file/third-party boundaries, and design-focused code review.
+description: Write, refactor, debug, or review substantive application code involving business logic, data/state/error modeling, API/CLI/environment/queue/persistence/file/third-party boundaries, or design-focused code review. Apply validated boundaries, canonical domain types, explicit dependency lifetimes, visible orchestration, local code over gratuitous helpers, deliberate effects/observability, and minimal critical-path tests.
 ---
 
 # Programming
 
-Use this skill to shape application code. Follow the caller's instructions for planning, task tracking, verification, and git workflow.
+Follow the caller's planning, task-tracking, verification, and git instructions.
 
-## Operating Contract
+## Contract
 
-- Inspect the repository before designing. Find its canonical domain types, schemas, constructors, factories, composition roots, lifecycle owners, error conventions, and test patterns.
-- Preserve existing behavior—including transaction, lock, resource, concurrency, retry, and effect-ordering boundaries—public contracts, and canonical domain language unless the task explicitly changes them. Report suspected defects separately.
-- Reuse an appropriate existing validation, type, dependency-construction, or error-modeling path instead of creating a parallel system.
-- Make the smallest change that preserves correctness, clarity, and invariants.
-- Keep the solution proportional to the requested behavior. Do not invent lifecycle managers, telemetry APIs, dependency containers, result frameworks, or adjacent infrastructure when direct composition or existing hooks suffice.
-- Match the requested fidelity. For a sketch, review, or proposal, show only the decisive code and assumptions; mention hardening concerns separately instead of implementing them.
-- Treat possible edge cases as risks to assess, not automatic authorization to build adjacent behavior.
-- For a sketch, review, or proposal without necessary repository context, use narrow placeholders for existing infrastructure instead of fabricating it. For implementation, inspect further or surface the missing context instead of committing an invented seam.
-- Treat these rules as defaults beneath explicit task requirements and established contracts. Surface a material conflict instead of silently forcing a preference.
+- Before designing, inspect the repository's canonical domain types, schemas, constructors/factories, composition roots, lifecycle owners, error conventions, and test patterns.
+- Unless explicitly changed, preserve behavior—especially transaction, lock, resource, concurrency, retry, and effect-ordering boundaries—public contracts, and canonical domain language. Report suspected defects separately.
+- Reuse canonical validation, type, dependency-construction, and error-modeling paths. Make the smallest proportional change that preserves correctness, clarity, and invariants.
+- Treat edge cases as risks, not authority for adjacent work. Do not invent lifecycle managers, telemetry APIs, dependency containers, result frameworks, or infrastructure when direct composition or existing hooks suffice.
+- For sketches, reviews, and proposals, show only decisive code and assumptions; mention hardening separately. Without repository context, use narrow placeholders for existing infrastructure. For implementation, inspect further or surface the gap instead of inventing a seam.
+- Explicit requirements and established contracts override these defaults; surface material conflicts.
 
 ## Required References
 
-Read every matching reference completely before designing, editing, debugging, or reviewing. Match references by the concern actually in scope; a task being substantive does not by itself select orchestration or dependency-lifetime guidance. Read multiple references when multiple rows match.
+Before designing, editing, debugging, or reviewing, read every matching reference completely; combine matches. Substantive work alone selects none.
 
-| Situation | Required reference | Focus |
+| Situation | Reference | Focus |
 | --- | --- | --- |
-| The task changes or evaluates a multi-step workflow, branching control flow, effect ordering, helper extraction, composition, or orchestration readability | [Orchestration and locality](references/orchestration-and-locality.md) | Locality, explicit dataflow, commands, and proportional extraction |
-| The task changes or evaluates nested expressions, collection transformations, fluent chains, staged abstractions, or value-flow visibility | [Visible dataflow](references/visible-dataflow.md) | Named-stage value flow, honest topology, evidence, and production failure boundaries |
-| The task constructs, shares, scopes, caches, or cleans up a dependency or resource; changes an entrypoint/composition root; or involves ambient configuration or a stateful collaborator | [Dependency lifetimes](references/dependency-lifetimes.md) | Construction, identity, sharing, ownership, and cleanup |
-| TypeScript or TSX is in scope | [TypeScript defaults](references/typescript.md) | TypeScript validation, brands, inference, literals, unions, and files |
-| Python is in scope | [Python defaults](references/python.md) | Python boundary validation and type modeling |
-
-Skip the orchestration reference for a leaf transformation, isolated local fix, or type/schema-only change with no control-flow or locality decision. Skip the dependency-lifetime reference when the task constructs, shares, owns, and cleans up no dependency or resource. During review, load only the references matching the concerns being evaluated.
+| Task changes or evaluates multi-step or branching workflows, effect order, helper extraction, composition, or orchestration readability. Skip leaf transforms, isolated local fixes, and type/schema-only work without control-flow or locality decisions. | [Orchestration and locality](references/orchestration-and-locality.md) | Locality, explicit dataflow, commands, proportional extraction |
+| Task changes or evaluates nested expressions, collection transformations, fluent chains, staged abstractions, or value-flow visibility | [Visible dataflow](references/visible-dataflow.md) | Named stages, honest topology, evidence, production semantics |
+| Task constructs, shares, scopes, caches, or cleans up dependencies/resources; changes entrypoints or composition roots; or involves ambient config or stateful collaborators. Skip when no dependency, resource, configuration, or stateful-collaborator concern exists. | [Dependency lifetimes](references/dependency-lifetimes.md) | Construction, identity, sharing, ownership, cleanup |
+| TypeScript or TSX is in scope | [TypeScript defaults](references/typescript.md) | Validation, brands, inference, literals, unions, files |
+| Python is in scope | [Python defaults](references/python.md) | Boundary validation, type modeling |
 
 ## Decision Order
 
-1. Understand the existing contract and domain language.
-2. Make the problem smaller.
-3. Establish trust at every boundary.
-4. Decide who owns each dependency and how long it lives.
-5. Encode domain invariants and expected failures in types.
-6. Arrange the workflow as explicit dataflow and commands.
-7. Add only the observability and tests that buy meaningful safety.
-8. Delete incidental structure that does not improve those guarantees.
+1. Understand the contract and domain language.
+2. Shrink the problem.
+3. Establish trust at each boundary.
+4. Assign dependency owners and lifetimes.
+5. Encode invariants and expected failures in types.
+6. Arrange explicit dataflow and commands.
+7. Add only valuable observability and tests.
+8. Remove structure that preserves no guarantee.
 
 ## Trust And Domain Modeling
 
-- Treat external and deserialized values as untrusted until parsed.
-- Include HTTP input, CLI arguments, environment values, cross-schema database rows, queues, events, caches, local storage, files, feature flags, and third-party results.
-- Parse once at each trust transition with the repository's canonical runtime schema, parser, constructor, or guard.
-- Convert parsed values immediately into canonical internal domain types.
-- Keep transport schemas and DTOs out of deep business logic.
-- Keep validation failures explicit and close to the boundary.
-- Make illegal states unrepresentable.
-- Reuse existing branded, opaque, and nominal types with their canonical construction path.
-- Do not replace a canonical domain type with a primitive alias, duplicate schema, parallel helper type, or unsafe cast.
-- Introduce a branded or otherwise constrained type when it prevents a concrete confusion or preserves an invariant across a meaningful boundary, and when it fits the repository's modeling approach.
-- Prefer discriminated unions, closed variants, explicit state transitions, and exhaustive matching over flags, loosely related optionals, and open-ended strings.
-- Follow the repository's result or error convention for expected failures. Reserve exceptions for paths callers cannot reasonably handle as ordinary control flow.
-- Prefer inference inside trusted code. Do not confuse strong typing with annotation ceremony.
+- Treat external or deserialized values as untrusted, including HTTP input, CLI arguments, environment values, cross-schema database rows, queues/events, caches/local storage, files, feature flags, and third-party results. At each trust transition, parse once through the canonical runtime schema, parser, constructor, or guard.
+- Immediately convert parsed values to canonical internal domain types. Keep transport schemas/DTOs out of deep business logic and validation failures explicit near the boundary.
+- Make illegal states unrepresentable. Reuse branded, opaque, or nominal types through canonical construction; never replace canonical types with primitive aliases, duplicate schemas, parallel helper types, or unsafe casts.
+- Add constrained types only when they fit the repository and either prevent concrete confusion or preserve an invariant across a meaningful boundary. Prefer discriminated unions, closed variants, explicit state transitions, and exhaustive matching over flags, loosely related optionals, or open strings.
+- Follow repository result/error conventions for expected failures; reserve exceptions for paths callers cannot reasonably handle as ordinary control flow.
+- Prefer inference in trusted code; avoid annotation ceremony.
 
 ## Structure, Ownership, And Effects
 
-- Make top-level business workflows read like pseudocode: a topologically ordered sequence of domain-named values and commands.
-- Prefer named, single-assignment intermediate values and ordinary function calls over method chains, nested expressions, and mutable accumulator state.
-- Make dependencies visible through inputs and outputs.
-- Keep one-use logic inline when it remains locally understandable and information-dense.
-- Extract a function only when reuse, branching, invariants, semantic compression, effects, or lifecycle justify the indirection.
-- Hide mechanics, not meaning. Avoid helper layers that erase domain language.
-- Prefer plain functions and objects. Use a class when an instance owns meaningful mutable state, resources, or lifecycle.
-- Give every constructed dependency an explicit identity-sharing scope and lifecycle owner.
-- Keep calculations pure when practical; localize commands, I/O, and mutation so their ordering and ownership remain obvious.
-- Delay mutation and irreversible effects as far as real dependencies allow.
-- Allow mutation when it expresses the domain operation, satisfies an external API, materially improves performance, or is the clearest language-specific choice.
-- Do not force a compute-then-commit shape when an effect's result is genuinely required by a later step.
+- Make top-level workflows read like pseudocode: topologically ordered, domain-named values and commands. Prefer named, single-assignment intermediates and ordinary calls over chains, nesting, or mutable accumulators; expose dependencies through inputs and outputs.
+- Keep one-use logic inline while locally clear and dense. Extract only for reuse, branching, invariants, semantic compression, effects, or lifecycle. Hide mechanics, not domain meaning.
+- Prefer plain functions and objects; use classes when instances own meaningful mutable state, resources, or lifecycle.
+- Give every constructed dependency an explicit identity-sharing scope, lifecycle owner, and cleanup boundary.
+- Keep calculations pure when practical; localize commands, I/O, and mutation so ordering and ownership stay obvious.
+- Delay mutation and irreversible effects as far as dependencies allow. Permit mutation when it expresses a domain operation, satisfies an external API, materially improves performance, or is the clearest language-specific choice. Do not force compute-then-commit when a later step requires an effect's result.
 
 ## Observability
 
-- Add or change telemetry only when the task owns it or changed behavior would make existing instrumentation incorrect. Preserve it otherwise and report material gaps during review.
-- When instrumentation is in scope, cover semantic state changes, consequential decisions, retries, external failure boundaries, and expensive operations.
-- Prefer structured events and meaningful spans over chatty string narration.
-- Preserve trace and correlation context across asynchronous and external boundaries.
-- Avoid secrets, sensitive payloads, uncontrolled cardinality, and logs that merely restate obvious control flow.
-- Make every hot-path signal justify its cost.
+- Add or change telemetry only when the task owns it or changed behavior invalidates existing instrumentation; otherwise preserve it and report material review gaps.
+- When in scope, cover semantic state changes, consequential decisions, retries, external failure boundaries, and expensive operations. Prefer structured events and meaningful spans over chatty narration. Preserve trace/correlation context across asynchronous and external boundaries.
+- Exclude secrets, sensitive payloads, uncontrolled cardinality, obvious-flow narration, and hot-path signals that do not justify their cost.
 
 ## Tests
 
-- When implementing changed behavior, add the minimum sufficient tests for critical paths, business invariants, boundary contracts, and regression-prone behavior. During review or diagnosis, report missing coverage without changing it unless requested.
-- Prefer durable behavior and contract tests over tests coupled to helper layout or incidental implementation.
-- Test boundary integrations where parsing, serialization, persistence, or third-party behavior can fail.
-- Prefer a compile-time guarantee when it fully replaces a representability test; do not use types as a substitute for runtime or semantic verification.
-- Do not expand test scope to hypothetical lifecycle or failure permutations that the change does not own.
-- When asked for test seams, identify injectable boundaries without producing a test matrix unless requested.
+- For implemented behavior changes, add the minimum sufficient tests for critical paths, business invariants, boundary contracts, and regression-prone behavior. During review or diagnosis, report missing coverage without changing it unless requested.
+- Prefer durable behavior/contract tests over helper-layout coupling. Test integrations where parsing, serialization, persistence, or third-party behavior can fail.
+- Prefer compile-time guarantees when they fully replace representability tests; types never replace runtime or semantic verification.
+- Do not expand test scope to hypothetical lifecycle/failure permutations the change does not own. When asked for test seams, identify injectable boundaries without adding a test matrix unless requested.
 
 ## Review Pass
 
-Before finishing, verify:
-
-- Parse every untrusted value before treating it as a domain value.
-- Reuse canonical schemas, types, constructors, and ownership paths.
-- Give every dependency the correct owner, lifetime, and cleanup boundary.
-- Make the main workflow readable as named data dependencies and explicit commands.
-- Make every extracted helper pay for its indirection.
-- Keep effects and mutation localized and visible.
-- Keep telemetry sparse and meaningful.
-- Test critical behavior rather than type holes or helper structure.
-- Remove code or abstraction that does not preserve a useful guarantee.
+Before finishing, verify every untrusted value is parsed before domain use and canonical paths are reused; dependency owners, lifetimes, and cleanup; visible workflows and justified helpers; effects and mutation are localized and visible; sparse, safe telemetry; critical-behavior tests; and no abstraction without a useful guarantee.
