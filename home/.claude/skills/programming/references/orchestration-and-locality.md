@@ -15,6 +15,16 @@ Treat arguments as dataflow edges and returned values as facts. Keep useful, imm
 
 Judge complexity by required mental simulation, not line count. Extract callbacks whose control flow interrupts the caller's behavioral scan; testability alone does not earn extraction. Avoid helper confetti, premature deduplication of merely similar code, generic names that hide policy, and ambient mutable capture.
 
+## Avoid Pass-Through Abstractions
+
+Require each function boundary to reduce reader context by enforcing an invariant; owning branching, state, lifecycle, failure, retry, or resource mechanics; isolating an external or serialization boundary; semantically compressing a stable domain operation; or supporting same-reason reuse.
+
+Suspect a boundary that forwards most of an input object unchanged, adds only one derived field or wrapper, reconstructs a nearly identical parameter object, forms a one-caller/one-callee chain of thin helpers, or forces navigation without hiding mechanics.
+
+Collapse adjacent single-use layers into their caller or lifecycle owner. Capture stable dependencies and narrowly scoped context once at their narrowest shared safe lifecycle owner; pass only varying operation facts and derive duplicated metadata from one canonical value. Never widen captured lifetimes or replace explicit facts with a broad context bag. Preserve boundaries that genuinely own effects, failure isolation, validation, telemetry, serialization, or lifecycle.
+
+Do not disguise pass-through structure with a larger context object, generic pipeline, builder, class, currying, or ambient state.
+
 ## Shape Entrypoints As Named Dataflow
 
 - Validate or extract boundary input first. Define immutable facts in dependency order and pass them explicitly.

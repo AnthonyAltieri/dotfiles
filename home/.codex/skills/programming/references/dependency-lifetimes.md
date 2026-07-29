@@ -32,6 +32,8 @@ An instance must not outlive any resource, credential, mutable state, provider, 
 - **Use-owned:** construct at the lowest common actual-use point; inline when clear, otherwise bind for reuse, cleanup, or readability.
 - Interpret “highest” and “lowest” through ownership and control flow, not directory depth, lexical nesting, or architectural prestige.
 
+Treat repeated forwarding of stable dependencies as a misplaced-owner signal. Capture them at the narrowest shared safe scope that dominates their consumers while keeping operation-specific facts explicit. Never widen a dependency beyond the lifetime of captured resources, credentials, identity, or state, and never replace explicit inputs with a broad context bag or ambient access.
+
 Choose ownership before eager/lazy timing. Cost alone never justifies widening scope; use scope-local laziness or memoization instead. Share a safe pool, transport, provider, or immutable substrate while keeping context-bearing wrappers scoped. Separate long-lived providers from short-lived snapshots, resolving dynamic flags, rotating credentials, and reloadable config where a consistent view is required.
 
 ## Runtime, Cleanup, And Tests
