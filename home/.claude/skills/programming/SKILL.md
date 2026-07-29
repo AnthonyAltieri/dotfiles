@@ -73,4 +73,4 @@ Before designing, editing, debugging, or reviewing, read every matching referenc
 
 ## Review Pass
 
-Before finishing, verify every untrusted value is parsed before domain use and canonical paths are reused; dependency owners, lifetimes, and cleanup; visible workflows and justified helpers; effects and mutation are localized and visible; sparse, safe telemetry; critical-behavior tests; and no abstraction without a useful guarantee.
+Before finishing, verify every untrusted value is parsed before domain use and canonical paths are reused; dependency owners, lifetimes, and cleanup; visible workflows and justified helpers; effects and mutation are localized and visible; sparse, safe telemetry; critical-behavior tests; and no abstraction without a useful guarantee. For each helper, name the guarantee it preserves; if it forwards most context and preserves no independent invariant, collapse it into its caller or lifecycle owner.
