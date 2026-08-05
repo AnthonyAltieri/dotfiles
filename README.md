@@ -187,6 +187,8 @@ Managed agent files include:
 
 Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skills/atlas`. The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
 
+The official namespaced `github:` Codex plugin remains externally managed and is not copied into this repo. Durable behavior preferences for `github:gh-address-comments` live in `home/.codex/AGENTS.md`; the repo-managed Claude counterpart lives in `home/.claude/skills/gh-address-comments`.
+
 The work profile also applies a targeted merge to `~/.codex/config.toml` so Codex knows about the Notion remote MCP server:
 
 ```toml

@@ -1,4 +1,4 @@
 interface:
-  display_name: "SQL Read"
+  display_name: "sql-read"
   short_description: "Inspect Postgres or SQLite in read-only mode"
   default_prompt: "Use $sql-read to inspect a configured Postgres or SQLite target with a narrow read-only query."

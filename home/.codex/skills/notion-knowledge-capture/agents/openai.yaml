@@ -1,5 +1,5 @@
 interface:
-  display_name: "Notion Knowledge Capture"
+  display_name: "notion-knowledge-capture"
   short_description: "Capture knowledge in Notion with bounded writes"
   icon_small: "./assets/notion-small.svg"
   icon_large: "./assets/notion.png"

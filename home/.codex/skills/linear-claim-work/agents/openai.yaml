@@ -1,5 +1,5 @@
 interface:
-  display_name: "Linear Claim Work"
+  display_name: "linear-claim-work"
   short_description: "Locate and safely claim Linear work"
   default_prompt: "Use $linear-claim-work to locate or create the right Linear issue, safely establish ownership, and return grounded execution context."
 
