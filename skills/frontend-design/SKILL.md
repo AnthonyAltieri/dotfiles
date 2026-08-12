@@ -19,9 +19,7 @@ Create distinctive, production-grade frontend interfaces that avoid generic AI a
 
 - Preserve an established product design system when one exists; this skill supplies art direction when the visual direction is genuinely open.
 - Use `programming` for substantive application state, data modeling, business rules, API boundaries, and error flows. Compose it with this skill when the UI includes those concerns.
-- Use `sites:sites-building` for projects containing `.openai/hosting.json` and for Sites-specific build workflows.
-- Use `visualize:visualize` for in-conversation charts, simulations, maps, or interactive explanatory tools.
-- Use `imagegen` for new raster imagery or bitmap edits; keep repo-native HTML, CSS, SVG, and component work here.
+- When a dedicated skill for the surface is available, defer to it: hosted-site build workflows (for example projects containing `.openai/hosting.json`), in-conversation charts, simulations, maps, or interactive explanatory tools, and new raster imagery or bitmap edits. Keep repo-native HTML, CSS, SVG, and component work here.
 
 ## Workflow
 

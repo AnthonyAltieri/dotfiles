@@ -38,4 +38,4 @@ Each alternative must include:
 
 Present the alternatives sequentially, then compare their depth, locality, seam placement, caller burden, migration risk, and test surface. Recommend the strongest design and explain why. Propose a hybrid only when it preserves a coherent interface instead of accumulating features from every option.
 
-Remain read-only. If the user chooses a design and requests implementation, return to `SKILL.md` and hand the agreed design to `$programming`.
+Remain read-only. If the user chooses a design and requests implementation, return to `SKILL.md` and hand the agreed design to the `programming` skill.

@@ -1,6 +1,6 @@
 ---
 name: improve-codebase-architecture
-description: Conduct read-only, codebase-wide architecture discovery for deepening opportunities, tightly coupled module consolidation, test-surface improvement, and alternative interfaces for a selected candidate. Use when the user explicitly asks for architecture-wide analysis or deep-module design. Do not use for a localized implementation, general code review, or a passing mention of architecture; hand implementation to `$programming`.
+description: Conduct read-only, codebase-wide architecture discovery for deepening opportunities, tightly coupled module consolidation, test-surface improvement, and alternative interfaces for a selected candidate. Use when the user explicitly asks for architecture-wide analysis or deep-module design. Do not use for a localized implementation, general code review, or a passing mention of architecture; hand implementation to the programming skill.
 ---
 
 # Improve Codebase Architecture
@@ -26,7 +26,7 @@ Use the architecture vocabulary in architecture reports. Do not export its prefe
 - Keep discovery, candidate analysis, and interface exploration read-only. Inspect source, tests, configuration, `CONTEXT.md`, and ADRs, but do not edit them during discovery.
 - Treat `CONTEXT.md` and ADRs as canonical inputs when present. If either is absent, continue from source evidence and state the limitation instead of inventing project doctrine.
 - Require explicit user authorization before creating or updating `CONTEXT.md`, an ADR, or any other documentation. Candidate selection alone is not write authorization.
-- Do not change application code under this skill. Once the user selects a design and asks for implementation, hand the agreed design, constraints, and verification goals to `$programming`.
+- Do not change application code under this skill. Once the user selects a design and asks for implementation, hand the agreed design, constraints, and verification goals to the `programming` skill.
 - Preserve repository instructions and existing public contracts. Mark proposals that require a contract or ADR change instead of hiding the conflict.
 
 ## Process
@@ -74,4 +74,4 @@ During the conversation, propose domain-language or ADR changes when they would 
 
 ### 5. Hand off implementation
 
-When the user asks to implement the chosen design, invoke `$programming`. Pass the selected candidate, agreed interface and invariants, affected contracts, migration constraints, test strategy, and unresolved decisions. Keep architecture discovery distinct from implementation and its verification.
+When the user asks to implement the chosen design, invoke the `programming` skill. Pass the selected candidate, agreed interface and invariants, affected contracts, migration constraints, test strategy, and unresolved decisions. Keep architecture discovery distinct from implementation and its verification.
