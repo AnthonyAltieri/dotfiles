@@ -158,11 +158,11 @@ Managed examples:
 - `~/.config/zsh`
 - `~/.config/starship.toml`
 - `~/.vimrc`
-- shared `~/.codex/skills/*`, excluding work-only skills
+- `~/.codex/skills/*` and `~/.claude/skills/*`, copied from the repo's canonical `skills/` tree (excluding work-only skills)
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- selected Claude commands, `~/.claude/CLAUDE.md`, and shared skills, including `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, and `notion-read`
-- selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
+- `~/.claude/CLAUDE.md`
+- the managed `~/.codex/rules/base.rules` baseline and `~/.codex/AGENTS.md`
 
 Darwin profiles additionally manage the `atlas` skill for both Codex and Claude. The work profile also manages the `observe` skill for both agents.
 It applies a targeted merge to `~/.codex/config.toml` for Codex's Notion remote MCP connection:

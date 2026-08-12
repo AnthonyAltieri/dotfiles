@@ -2,95 +2,34 @@
 
 These are user-level preferences that apply across repos.
 
-## Workflow Orchestration
-### 1) Plan Mode Default
-Use planning before doing work when the task is non-trivial.
-- Enter plan mode for **any** non-trivial task (3+ steps, multiple files, or architectural decisions).
-- If something goes sideways: **stop**, re-plan immediately, and proceed with the revised plan (do not “push through”).
-- Use plan mode for **verification steps**, not just for building.
-- Write detailed specs up front to reduce ambiguity and rework.
-**Plan should include:**
-- Goal + success criteria
-- Assumptions / constraints
-- Steps (checklist)
-- Risks / edge cases
-- Verification plan
----
-### 2) Subagent Strategy
-Use subagents to keep the main thread focused and the context window clean.
-- Use subagents liberally for research, exploration, and parallel analysis.
-- For complex problems, delegate pieces and/or “throw more compute” at it via multiple subagents.
-- Keep **one task per subagent** to maintain focus and clear outcomes.
-**Good subagent tasks:**
-- “Scan logs/tests and summarize failure causes.”
-- “Propose 2–3 architectural options with tradeoffs.”
-- “Draft a migration plan and verification checklist.”
----
-### 3) Self-Improvement Loop
-Treat mistakes as inputs to a repeatable improvement process.
-- After **any** correction from the user, update `tasks/lessons.md` with:
-  - what went wrong
-  - why it happened
-  - the prevention rule / guardrail
-- Write rules for yourself that prevent the same mistake.
-- Ruthlessly iterate on these lessons until the mistake rate drops.
-- Review relevant lessons at session start for the project you’re working on.
----
-### 4) Verification Before Done
-Never consider work finished until it is demonstrated correct.
-- Do not mark a task complete without proving it works.
-- If you changed behavior, **diff** main vs. your changes (or before vs. after) when relevant.
-- Ask: **“Would a staff engineer approve this?”**
-- Run tests, check logs, and demonstrate correctness.
-**Definition of Done (minimum):**
-- Builds/tests pass (or a documented reason why not)
-- Key flows verified (manual or automated)
-- No new warnings/errors introduced (or explicitly documented)
-- Clear summary of changes and outcomes
----
-### 5) Demand Elegance (Balanced)
-Prefer clean solutions without over-engineering.
-- For non-trivial changes, pause and ask: **“Is there a more elegant way?”**
-- If a fix feels hacky: implement the solution you’d choose **knowing everything you know now**.
-- Skip “elegance push” for simple, obvious fixes—don’t over-engineer.
-- Challenge your own work before presenting it.
----
-### 6) Autonomous Bug Fixing
-When given a bug report, fix it end-to-end.
-- Don’t ask for hand-holding—investigate and resolve.
-- Start from evidence: logs, errors, failing tests.
-- Require **zero** context switching from the user.
-- Fix failing CI tests without being told how.
-**Bug-fix loop:**
-1. Reproduce (or isolate) the failure
-2. Identify root cause
-3. Implement the minimal correct fix
-4. Add/adjust tests where appropriate
-5. Verify locally and in CI signals
-6. Document what changed and why
----
 ## Task Management
-1. **Plan First**: Write the plan to `tasks/todo.md` with checkable items.
-2. **Verify Plan**: Check the plan before starting implementation.
-3. **Track Progress**: Mark items complete as you go.
-4. **Explain Changes**: Provide a high-level summary at each step.
-5. **Document Results**: Add a review section to `tasks/todo.md`.
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections.
----
+
+1. **Plan first**: for non-trivial work (3+ steps, multiple files, or architectural decisions), write the plan to `tasks/todo.md` with checkable items and verify it before implementing. If something goes sideways, stop and re-plan instead of pushing through.
+2. **Track progress**: mark items complete as you go and add a review section to `tasks/todo.md` when done.
+3. **Capture lessons**: after any correction from the user, update `tasks/lessons.md` with what went wrong, why it happened, and the prevention rule. Review relevant lessons at session start.
+
+## Definition of Done
+
+- Builds/tests pass, or a documented reason why not.
+- Key flows verified (manual or automated); no new warnings/errors introduced, or explicitly documented.
+- Clear summary of changes and outcomes. Never mark a task complete without demonstrating it works.
+
 ## Core Principles
-- **Simplicity First**: Make every change as simple as possible. Minimize impact and code surface area.
-- **No Laziness**: Find root causes. No temporary fixes. Hold to senior developer standards.
-- **Minimal Impact**: Touch only what’s necessary. Avoid introducing new bugs.
+
+- **Simplicity first**: make every change as simple as possible; minimize impact and code surface area.
+- **No laziness**: find root causes; no temporary fixes.
 
 ## Programming Defaults
+
 - For substantive coding, refactoring, debugging, and design-review tasks, use `$programming`.
 - `$programming` owns the default application-code style: validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.
----
+
 ## Notion Defaults
+
 - For read-only Notion document, page, database, or URL tasks, use `$notion-read` (NotionRead).
 - If the task is reading and not updating/writing, prefer fetching or exporting the Notion content into a local temp file and analyzing that file instead of reading chunks through the MCP.
 - For creates, updates, comments, property changes, relation changes, or any other write, use the normal Notion write workflow.
----
+
 ## Branch Creation Policy
 
 - If I ask for a new branch, always base it on the latest `origin/main`.
@@ -103,22 +42,15 @@ git switch -c <branch-name> origin/main
 ```
 
 - If branch creation fails due to uncommitted changes or conflicts, stop and report the blocker.
----
+
 ## PR Creation Policy
 
-- When creating a new PR, default to a draft PR unless I explicitly ask for a ready-for-review/open PR.
-- Use `gh pr create --draft ...` for the default create path.
-- Do not convert an existing PR to draft or ready-for-review unless I explicitly ask.
+- Default to a draft PR (`gh pr create --draft ...`) unless I explicitly ask for a ready-for-review/open PR.
+- Do not convert an existing PR between draft and ready-for-review unless I explicitly ask.
+- To add an image to a PR body, follow the `gh-pr-body` skill and its prompt-gated `gh-pr-image` helper; never bypass its approval gate or substitute another upload path.
 
-### PR Body Images
-
-- When asked to add an image to a PR body, you must use `gh-pr-image`.
-- Run `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` and allow its prompt-gated GitHub mutation rather than bypassing the approval gate.
-- The current MVP accepts exactly one PNG, JPEG, or GIF per invocation and supports only public, same-repository PRs that the authenticated GitHub account can update. Private, internal, and fork-authored PRs are unsupported.
-- The helper uploads through an experimental, undocumented GitHub endpoint. If the request is outside the supported scope, stop and explain the limitation instead of silently selecting another image host or upload path.
-
----
 ## Focused Testing (Speed)
+
 - When debugging **one** failing test, **do not** run the full test suite.
 - Run only the **specific test file** and/or the **specific test** inside that file.
 
@@ -128,10 +60,11 @@ Examples (Vitest):
 
 Examples (Cypress):
 - Single spec: `cd apps/webapp && npx cypress run --browser chrome --headless --spec cypress/tests/e2e/some-test.e2e.spec.ts`
----
-## Lint After Every Edit
-- After modifying a file, immediately run lint **targeted to that file** before moving on.
-- Prefer the repo's configured linter; if none is configured ignore linting
 
-Examples (ESLint):
+## Lint After Every Edit
+
+- After modifying a file, immediately run lint **targeted to that file** before moving on.
+- Prefer the repo's configured linter; if none is configured ignore linting.
+
+Example (ESLint):
 - Single file: `cd apps/webapp && yarn lint path/to/file.tsx --max-warnings 0`

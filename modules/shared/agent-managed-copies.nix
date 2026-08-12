@@ -29,7 +29,7 @@ let
     };
 
   sharedSkillNames = [
-    "agent-code-review-loop"
+    "adversarial-review"
     "frontend-design"
     "handoff"
     "improve-codebase-architecture"
@@ -40,7 +40,6 @@ let
   ];
 
   codexOnlySkillNames = [
-    "adversarial-review"
     "generate-sprite-sheets"
     "gh-ci"
     "gh-pr-body"
@@ -63,19 +62,18 @@ let
     "atlas"
   ];
 
-  agentSkillCopies = agentName: sourceRoot: skillNames:
+  agentSkillCopies = agentName: skillNames:
     map (
       skillName:
-      managedDirectory ".${agentName}/skills/${skillName}" (sourceRoot + "/${skillName}")
+      managedDirectory ".${agentName}/skills/${skillName}" (../../skills + "/${skillName}")
     ) skillNames;
 
-  codexSkillCopies = agentSkillCopies "codex" ../../home/.codex/skills;
-  claudeSkillCopies = agentSkillCopies "claude" ../../home/.claude/skills;
+  codexSkillCopies = agentSkillCopies "codex";
+  claudeSkillCopies = agentSkillCopies "claude";
 
   sharedAgentManagedCopies =
     [
       (managedFile ".codex/AGENTS.md" ../../home/.codex/AGENTS.md)
-      (managedDirectory ".codex/prompts" ../../home/.codex/prompts)
       (managedFile ".codex/rules/base.rules" ../../home/.codex/rules/base.rules)
     ]
     ++ codexSkillCopies sharedSkillNames
@@ -87,7 +85,6 @@ let
       (managedFile ".claude/CLAUDE.md" ../../home/.claude/CLAUDE.md)
       (managedFile ".claude/README.md" ../../home/.claude/README.md)
       (managedFile ".claude/settings.json" ../../home/.claude/settings.json)
-      (managedDirectory ".claude/commands" ../../home/.claude/commands)
     ]
     ++ claudeSkillCopies sharedSkillNames
     ++ claudeSkillCopies claudeOnlySkillNames

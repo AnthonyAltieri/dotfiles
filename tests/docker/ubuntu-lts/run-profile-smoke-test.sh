@@ -136,7 +136,7 @@ assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expec
 assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != null' "Expected Codex linear-claim-work skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
-assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") == null' "Did not expect Claude adversarial-review skill to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") != null' "Expected Claude adversarial-review skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/atlas") == null' "Did not expect Claude Atlas skill on Linux"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-address-comments") != null' "Expected Claude GitHub address-comments skill to remain managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-fix-ci") != null' "Expected Claude GitHub fix-CI skill to remain managed"
@@ -256,7 +256,7 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
     "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
     "$HOME/.claude/settings.json" \
-    "$HOME/.claude/commands/pr.md"
+    "$HOME/.claude/skills/adversarial-review/SKILL.md"
   do
     if [[ ! -e "$path" ]]; then
       echo "Expected copied agent file to exist: ${path}" >&2
