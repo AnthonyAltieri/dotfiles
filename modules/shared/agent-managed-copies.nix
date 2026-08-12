@@ -41,9 +41,7 @@ let
 
   codexOnlySkillNames = [
     "generate-sprite-sheets"
-    "gh-ci"
     "gh-pr-body"
-    "gh-comments"
     "linear-claim-work"
     "ultragoal"
   ];
