@@ -16,6 +16,7 @@ Apply for TypeScript or TSX; defer to deliberate repository conventions.
 - Prefer string-literal unions and `as const` objects to enums unless an external contract or repository convention requires one.
 - Model closed variants as discriminated unions with exhaustive `switch`/`never` checks. Use `unknown` at boundaries and `never` for impossible states; avoid `any`.
 - Use `satisfies` to check shape while preserving literal precision. Model expected failures with results/unions when callers must branch.
+- Give functions taking more than one value a single destructured object parameter — call sites stay self-describing and parameters can be added or reordered without breaking callers. Use positional parameters when the function is on a critical path and performance is a primary concern, or when it takes one obvious value.
 - Name files in lowercase kebab-case.
 
 ## Compact Pattern

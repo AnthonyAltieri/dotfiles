@@ -59,17 +59,20 @@ Use module scope only when config is a process snapshot, process-wide reuse is i
 ### Scope-Owned Transaction
 
 ```ts
-const handleCommand = async (
-  ctx: RequestContext,
-  deps: ProcessDependencies,
-) => {
+const handleCommand = async ({
+  ctx,
+  deps,
+}: {
+  ctx: RequestContext;
+  deps: ProcessDependencies;
+}) => {
   const command = parseCommand(ctx.request);
-  const actor = await authenticate(ctx, deps.auth);
+  const actor = await authenticate({ ctx, auth: deps.auth });
 
   return deps.database.transaction(async (transaction) => {
-    const current = await loadCurrent(transaction, command.id);
-    const change = decideChange(command, actor, current);
-    const saved = await saveChange(transaction, change);
+    const current = await loadCurrent({ transaction, id: command.id });
+    const change = decideChange({ command, actor, current });
+    const saved = await saveChange({ transaction, change });
     return present(saved);
   });
 };

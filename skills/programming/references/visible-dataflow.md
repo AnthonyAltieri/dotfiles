@@ -34,8 +34,8 @@ Prefer:
 
 ```ts
 const order = parseOrder(input);
-const pricedOrder = priceOrder(order, priceBook);
-const acceptedOrder = acceptOrder(pricedOrder, clock.now());
+const pricedOrder = priceOrder({ order, priceBook });
+const acceptedOrder = acceptOrder({ pricedOrder, at: clock.now() });
 ```
 
 over:
