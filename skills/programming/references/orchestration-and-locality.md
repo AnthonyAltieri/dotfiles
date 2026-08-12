@@ -25,6 +25,20 @@ Collapse adjacent single-use layers into their caller or lifecycle owner. Captur
 
 Do not disguise pass-through structure with a larger context object, generic pipeline, builder, class, currying, or ambient state.
 
+```ts
+// Pass-through: forwards the caller's context and guards nothing. Delete it —
+// the call site is already the clearest expression.
+const chargeForOrder = (order: Order, deps: Dependencies) =>
+  deps.payments.charge(order.payment, order.total);
+
+// Earns its boundary: owns an invariant (at-most-once charging) the caller
+// would otherwise have to remember.
+const chargeOnce = (order: Order, payments: Payments) =>
+  payments.charge(order.payment, order.total, {
+    idempotencyKey: chargeKeyFrom(order.id),
+  });
+```
+
 ## Shape Entrypoints As Named Dataflow
 
 - Validate or extract boundary input first. Define immutable facts in dependency order and pass them explicitly.
