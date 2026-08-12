@@ -123,9 +123,9 @@ assert_jq '.xdgFiles | index("starship.toml") != null' "Expected starship config
 assert_jq '.agentManagedTargets | index(".codex/AGENTS.md") != null' "Expected Codex config to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/adversarial-review") != null' "Expected Codex adversarial-review skill to be managed"
 assert_jq '[.agentManagedCopies[] | select(.target == ".codex/skills/adversarial-review")] | length == 1' "Expected exactly one Codex adversarial-review managed copy"
-assert_jq '.agentManagedTargets | index(".codex/skills/gh-ci") != null' "Expected Codex GitHub CI skill to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/gh-ci") == null' "Did not expect removed Codex GitHub CI skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-pr-body") != null' "Expected Codex GitHub PR body skill to be managed"
-assert_jq '.agentManagedTargets | index(".codex/skills/gh-comments") != null' "Expected Codex GitHub comments skill to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/gh-comments") == null' "Did not expect removed Codex GitHub comments skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-ci-log-tools") == null' "Did not expect renamed Codex GitHub CI log tools skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-review-thread-actions") == null' "Did not expect renamed Codex GitHub review thread actions skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-address-comments") == null' "Did not expect legacy Codex GitHub address-comments skill"
@@ -136,7 +136,7 @@ assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expec
 assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != null' "Expected Codex linear-claim-work skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
-assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") == null' "Did not expect Claude adversarial-review skill to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") != null' "Expected Claude adversarial-review skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/atlas") == null' "Did not expect Claude Atlas skill on Linux"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-address-comments") != null' "Expected Claude GitHub address-comments skill to remain managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-fix-ci") != null' "Expected Claude GitHub fix-CI skill to remain managed"
@@ -250,13 +250,11 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
     "$HOME/.codex/AGENTS.md" \
     "$HOME/.codex/skills/adversarial-review/SKILL.md" \
     "$HOME/.codex/skills/adversarial-review/agents/openai.yaml" \
-    "$HOME/.codex/skills/gh-ci/SKILL.md" \
     "$HOME/.codex/skills/gh-pr-body/SKILL.md" \
-    "$HOME/.codex/skills/gh-comments/SKILL.md" \
     "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
     "$HOME/.claude/settings.json" \
-    "$HOME/.claude/commands/pr.md"
+    "$HOME/.claude/skills/adversarial-review/SKILL.md"
   do
     if [[ ! -e "$path" ]]; then
       echo "Expected copied agent file to exist: ${path}" >&2

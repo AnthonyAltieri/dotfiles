@@ -15,16 +15,9 @@ run() {
   "$@"
 }
 
-run cargo test --offline --manifest-path home/.codex/skills/atlas/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.codex/skills/sql-read/scripts/Cargo.toml
+run cargo test --offline --manifest-path pkgs/atlas-cli/Cargo.toml
+run cargo test --offline --manifest-path pkgs/sql-read/Cargo.toml
 run tests/sql-read-state-migration-smoke.sh
-run cargo test --offline --manifest-path home/.codex/skills/gh-comments/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.codex/skills/gh-ci/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.codex/skills/gh-pr-body/scripts/Cargo.toml
-
-run cargo test --offline --manifest-path home/.claude/skills/sql-read/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.claude/skills/gh-address-comments/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.claude/skills/gh-fix-ci/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.claude/skills/gh-manage-pr/scripts/Cargo.toml
-
-run scripts/test-shared-skills-sync.sh
+run cargo test --offline --manifest-path pkgs/gh-comment-tools/Cargo.toml
+run cargo test --offline --manifest-path pkgs/gh-ci-tools/Cargo.toml
+run cargo test --offline --manifest-path pkgs/gh-pr-tools/Cargo.toml

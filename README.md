@@ -172,17 +172,16 @@ DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 
 This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
+All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `frontend-design`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, `notion-read`, `programming`, `sql-read`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `linear-claim-work`, and `ultragoal` (PR-comment and CI work on Codex is owned by the `github@openai-curated` plugin), while Claude additionally gets `gh-address-comments`, `gh-fix-ci`, and `gh-manage-pr`.
+
 Managed agent files include:
 
-- `~/.codex/skills/{adversarial-review,agent-code-review-loop,frontend-design,generate-sprite-sheets,gh-ci,gh-comments,gh-pr-body,handoff,improve-codebase-architecture,linear-claim-work,notion-knowledge-capture,notion-read,programming,sql-read,ultragoal}`
+- `~/.codex/skills/*` and `~/.claude/skills/*` from the canonical `skills/` tree
 - `~/.codex/AGENTS.md`
-- `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
 - `~/.claude/CLAUDE.md`
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- `~/.claude/commands/{handle-pr-checks.md,handle-pr-comments.md,pr.md}`
-- `~/.claude/skills/{agent-code-review-loop,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,notion-read,programming,sql-read}`
 - `~/.claude/{statusline-command.sh,tmux-notify.sh}`
 
 Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skills/atlas`. The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
@@ -201,8 +200,7 @@ That merge intentionally touches only those keys. Notion OAuth state remains loc
 
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
-Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
-Use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` when asked to add an image to a PR body. The prompt-gated MVP accepts exactly one PNG, JPEG, or GIF per invocation on public, same-repository PRs the authenticated account can update and uploads through an experimental, undocumented GitHub endpoint. Private, internal, and fork-authored PRs are unsupported.
+Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from the crates in `pkgs/` and exposed on `PATH` by the active profile. The `gh-pr-image` usage rules live in the `gh-manage-pr` and `gh-pr-body` skills.
 
 Examples of intentionally unmanaged local state:
 
