@@ -172,7 +172,7 @@ DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 
 This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
-All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `frontend-design`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, `notion-read`, `programming`, `sql-read`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `linear-claim-work`, and `ultragoal` (PR-comment and CI work on Codex is owned by the `github@openai-curated` plugin), while Claude additionally gets `gh-address-comments`, `gh-fix-ci`, and `gh-manage-pr`.
+All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `frontend-design`, `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, `notion-read`, `programming`, `sql-read`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `linear-claim-work`, `spawn-orchestrator`, and `ultragoal` (PR-comment and CI work on Codex is owned by the `github@openai-curated` plugin), while Claude additionally gets `gh-address-comments`, `gh-fix-ci`, and `gh-manage-pr`.
 
 Managed agent files include:
 

@@ -43,6 +43,7 @@ let
     "generate-sprite-sheets"
     "gh-pr-body"
     "linear-claim-work"
+    "spawn-orchestrator"
     "ultragoal"
   ];
 
