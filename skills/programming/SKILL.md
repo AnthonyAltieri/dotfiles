@@ -13,6 +13,9 @@ Follow the caller's planning, task-tracking, verification, and git instructions.
 - Preserve existing behavior, public contracts, and canonical domain language unless the task explicitly changes them. Be especially careful with transaction, lock, resource, concurrency, retry, and effect-ordering boundaries. If you suspect a defect, report it separately instead of silently fixing it.
 - Reuse the canonical paths for validation, types, dependency construction, and error modeling rather than creating parallel ones. Make the smallest change proportional to the task that preserves correctness, clarity, and invariants.
 - An edge case is a risk to handle, not a license to expand into adjacent work. Do not invent infrastructure — lifecycle managers, telemetry APIs, dependency containers, result frameworks — when direct composition or an existing hook suffices.
+- Harden only against the task's stated threat model. Defend against untrusted inputs and actors the ticket names; treat process-owned files, the project's own stores, and trusted peers as trusted unless the ticket says otherwise. A reviewer's stronger threat model is a follow-up ticket, not a reason to add defenses.
+- Stop and ask before writing low-level mechanics: raw `os.open`/`os.close`, `dir_fd`, `O_NOFOLLOW`, `fcntl`, manual fsync/rename atomicity protocols, hand-rolled locking or lease clocks, custom serialization or hashing schemes. Prefer the standard primitive (temp file plus `os.replace`, the SDK's transfer call, the repository's existing lock or claim helper) and name the requirement that forces anything more.
+- Treat size as a signal. A new module past roughly 400 lines, or a change that grows one past 600, or a test file larger than the module it tests, means the abstraction is wrong or the ticket is too big: split, simplify, or report before continuing.
 - In sketches, reviews, and proposals, show only the decisive code and assumptions; mention hardening separately. When repository context is missing, sketches may use narrow placeholders for existing infrastructure, but implementation must inspect further or surface the gap instead of inventing a seam.
 - Explicit requirements and established contracts override these defaults; surface material conflicts.
 
@@ -81,4 +84,6 @@ Before finishing, verify:
 - effects and mutation are localized and visible;
 - telemetry is sparse and safe;
 - critical behavior is tested;
-- no abstraction remains without a useful guarantee.
+- no abstraction remains without a useful guarantee;
+- no defense exists for a threat outside the stated threat model, and no low-level mechanic exists where a standard primitive would do;
+- module and test sizes stay proportional to the requirement.

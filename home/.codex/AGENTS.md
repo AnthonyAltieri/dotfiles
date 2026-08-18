@@ -4,9 +4,18 @@ These are user-level preferences that apply across repos.
 
 ## Task Management
 
-1. **Plan first**: for non-trivial work (3+ steps, multiple files, or architectural decisions), write the plan to `tasks/todo.md` with checkable items and verify it before implementing. If something goes sideways, stop and re-plan instead of pushing through.
-2. **Track progress**: mark items complete as you go and add a review section to `tasks/todo.md` when done.
-3. **Capture lessons**: after any correction from the user, update `tasks/lessons.md` with what went wrong, why it happened, and the prevention rule. Review relevant lessons at session start.
+1. **Size the ticket first**: one abstraction or ownership model per PR, at most about three trust boundaries, roughly 15 changed files and 1,500–2,000 production lines. If a ticket is bigger, split it (in Linear, with blocked-by relations) before writing code and report the split.
+2. **Write the ticket contract** before implementation, in the ticket (Linear description or the tickets doc) — about ten lines:
+   - acceptance criteria, each mapped to the test or check that will demonstrate it;
+   - threat model: trusted vs untrusted inputs, actors, files, stores, peers; which failure classes are in scope;
+   - non-goals;
+   - invariants to preserve, named by abstraction family (descriptor ownership, lease clock, schema authority, …);
+   - resource owners, effect ordering, and locks/clocks/retries/cancellation when the change is stateful.
+   Reviews are judged against this contract; anything outside it becomes follow-up work, not remediation.
+3. **Plan in `tasks/todo.md`**: for non-trivial work write checkable steps there and verify the plan before implementing. `tasks/todo.md` is per-task scratch and is not committed; it holds only the ticket in flight. If something goes sideways, stop and re-plan instead of pushing through.
+4. **Evidence lives on the PR and the ticket, not in commits**: verification results, review ledgers, and completion notes go in the PR description, PR comments, or Linear comments against the final reviewed SHA. Never add evidence-only or worklog-only commits. Do not commit `tasks/todo.md` churn.
+5. **Capture lessons as guardrails**: after a user correction, add one line to `tasks/lessons.md` under the matching section — the guardrail only, in the imperative, with the why in a clause. Prefer converting the lesson into a lint rule, fixture, shared helper, or regression test and linking it; delete prose once the guardrail is enforced by code. Read the sections of `tasks/lessons.md` relevant to the ticket at session start, not the whole file.
+6. **Verify cheaply, then expensively**: targeted lint/tests while editing; one full affected gate before review; targeted tests during remediation; one final full gate on the final head.
 
 ## Definition of Done
 
@@ -18,6 +27,7 @@ These are user-level preferences that apply across repos.
 
 - **Simplicity first**: make every change as simple as possible; minimize impact and code surface area.
 - **No laziness**: find root causes; no temporary fixes.
+- **Proportional hardening**: defend against the ticket's threat model, not every imaginable one. Root-causing a bug is mandatory; adopting a stronger threat model mid-ticket is a scope change that needs a decision.
 
 ## Programming Defaults
 
