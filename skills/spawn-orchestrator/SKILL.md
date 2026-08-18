@@ -7,7 +7,7 @@ description: Orchestrate waves of separate Codex app threads (tasks) that each i
 
 Work a backlog in parallel: one separate Codex app thread per unblocked issue, each in its own worktree, each ending in a PR and a completion message back to this thread. This thread stays the orchestrator — it plans waves, creates and monitors child threads, and never implements issues itself.
 
-## Children Are App Threads, Never Subagents
+## Children Are App Threads
 
 The children of this workflow are first-class Codex app threads (the app calls them tasks or sessions), created and driven with the app's thread tools:
 
@@ -18,7 +18,7 @@ The children of this workflow are first-class Codex app threads (the app calls t
 
 Invoking this skill **is** the user's explicit request to create separate tasks, which is the condition `create_thread` requires. Do not ask again per child.
 
-Do **not** use subagents (`spawn_agent`, "delegate to agents", custom agents under `.codex/agents/`) for implementation. Subagents run inside this thread's workspace and lifetime: parallel write-heavy work conflicts, their output does not surface as separate reviewable tasks, and they cannot be messaged or archived as threads. If the thread tools are unavailable in this context (find them through tool search first), stop and report that — never fall back to subagents or headless `codex exec`. Subagents are acceptable only for read-only phases: backlog triage or reviewing a finished child's diff.
+Subagents are fine in general — this thread may use them for backlog triage or reviewing a finished child's diff, and a child may use them inside its own worktree — but they are never the unit of orchestration. Every issue in a wave gets its own app thread created with `create_thread`, not a subagent (`spawn_agent`, "delegate to agents", custom agents under `.codex/agents/`): subagents run inside the parent thread's workspace and lifetime, so parallel implementation conflicts, the work does not surface as a separate reviewable task in the app, and they cannot be messaged or archived as threads. If the thread tools are unavailable in this context (find them through tool search first), stop and report that — never substitute subagents or headless `codex exec` for the child threads.
 
 ## Inputs and Defaults
 
