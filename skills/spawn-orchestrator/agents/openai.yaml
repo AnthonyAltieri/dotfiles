@@ -1,6 +1,6 @@
 interface:
   display_name: "Spawn Orchestrator"
-  short_description: "Waves of parallel Codex sessions over a backlog"
-  default_prompt: "Use $spawn-orchestrator to work the unblocked issues under <epic> in parallel waves: one Codex session per issue in its own worktree off <base>, draft PR back, report, archive, advance."
+  short_description: "Waves of separate Codex app threads over a backlog"
+  default_prompt: "Use $spawn-orchestrator to work the unblocked issues under <epic> in parallel waves: create one separate Codex app thread (create_thread, worktree off <base>) per issue (subagents are fine for triage or inside a child, but never as the unit of orchestration); each opens a draft PR, messages this thread, and gets archived; then advance to the next wave."
 policy:
   allow_implicit_invocation: false
