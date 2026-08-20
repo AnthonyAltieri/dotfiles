@@ -186,17 +186,9 @@ Managed agent files include:
 
 Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skills/atlas`. The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
 
-The work profile also applies a targeted merge to `~/.codex/config.toml` so Codex knows about the Notion remote MCP server:
+Declared remote MCP servers (`dotfiles.agentMcpServers`) are merged into both agents' otherwise-unmanaged configs at activation. Personal and work declare `linear` (`https://mcp.linear.app/mcp`); work additionally declares `notion` (`https://mcp.notion.com/mcp`); sandbox declares none. For Codex the merge writes `[mcp_servers.<name>].url` plus `features.rmcp_client = true` into `~/.codex/config.toml`; for Claude it writes `mcpServers.<name>` (an `http` server) into `~/.claude/.claude.json`, the same file `claude mcp add -s user` writes.
 
-```toml
-[features]
-rmcp_client = true
-
-[mcp_servers.notion]
-url = "https://mcp.notion.com/mcp"
-```
-
-That merge intentionally touches only those keys. Notion OAuth state remains local; on a new machine, run `codex mcp login notion` after applying the work profile.
+The merges intentionally touch only those keys — other servers, settings, and OAuth state stay local. On a new machine, authenticate once per agent: `codex mcp login <name>`, and `/mcp` in Claude Code.
 
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
@@ -204,7 +196,7 @@ Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-
 
 Examples of intentionally unmanaged local state:
 
-- `~/.codex/config.toml`, except for the work profile's targeted Notion MCP merge
+- `~/.codex/config.toml` and `~/.claude/.claude.json`, except for the targeted MCP server merges above
 - `~/.codex/auth.json`
 - `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`

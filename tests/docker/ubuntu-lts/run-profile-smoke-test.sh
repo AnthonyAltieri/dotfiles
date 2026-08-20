@@ -73,14 +73,16 @@ assert_jq() {
   fi
 }
 
-assert_work_notion_mcp_enabled() {
-  assert_jq '.activationEntries | index("workCodexNotionMcp") != null' "Expected work Notion MCP activation entry"
-  assert_jq '.workCodexNotionMcpScript | contains("https://mcp.notion.com/mcp")' "Expected Notion MCP URL in work activation entry"
-  assert_jq '.workCodexNotionMcpScript | contains("rmcp_client")' "Expected rmcp_client in work activation entry"
+assert_agent_mcp_servers() {
+  assert_jq '.activationEntries | index("dotfilesAgentMcpServers") != null' "Expected agent MCP servers activation entry"
+  assert_jq '.agentMcpServersScript | contains("merge-codex-mcp-servers.py")' "Expected Codex MCP merge in agent MCP activation entry"
+  assert_jq '.agentMcpServersScript | contains("merge-claude-mcp-servers.py")' "Expected Claude MCP merge in agent MCP activation entry"
+  assert_jq '.agentMcpServers.linear == "https://mcp.linear.app/mcp"' "Expected Linear MCP server to be declared"
 }
 
-assert_work_notion_mcp_disabled() {
-  assert_jq '.activationEntries | index("workCodexNotionMcp") == null' "Did not expect work Notion MCP activation entry"
+assert_no_agent_mcp_servers() {
+  assert_jq '.activationEntries | index("dotfilesAgentMcpServers") == null' "Did not expect agent MCP servers activation entry"
+  assert_jq '.agentMcpServers == {}' "Did not expect declared agent MCP servers"
 }
 
 cd /work
@@ -100,7 +102,8 @@ in {
   files = builtins.attrNames cfg.home.file;
   xdgFiles = builtins.attrNames cfg.xdg.configFile;
   activationEntries = builtins.attrNames cfg.home.activation;
-  workCodexNotionMcpScript = cfg.home.activation.workCodexNotionMcp.data or "";
+  agentMcpServersScript = cfg.home.activation.dotfilesAgentMcpServers.data or "";
+  agentMcpServers = cfg.dotfiles.agentMcpServers;
   agentManagedCopies = map (entry: {
     target = entry.target;
     kind = entry.kind;
@@ -185,7 +188,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for personal"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal"
-    assert_work_notion_mcp_disabled
+    assert_agent_mcp_servers
+    assert_jq '.agentMcpServers | has("notion") | not' "Did not expect Notion MCP server for personal"
     ;;
   work)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
@@ -195,7 +199,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for work"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work"
-    assert_work_notion_mcp_enabled
+    assert_agent_mcp_servers
+    assert_jq '.agentMcpServers.notion == "https://mcp.notion.com/mcp"' "Expected Notion MCP server for work"
     ;;
   sandbox)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
@@ -206,7 +211,7 @@ case "$profile" in
     assert_jq '.packages | index("rustc") == null' "Did not expect rustc in home.packages for sandbox"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox"
-    assert_work_notion_mcp_disabled
+    assert_no_agent_mcp_servers
     ;;
   personal-linux|personal-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
@@ -216,7 +221,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for personal-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal-linux"
-    assert_work_notion_mcp_disabled
+    assert_agent_mcp_servers
+    assert_jq '.agentMcpServers | has("notion") | not' "Did not expect Notion MCP server for personal-linux"
     ;;
   work-linux|work-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
@@ -226,7 +232,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for work-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work-linux"
-    assert_work_notion_mcp_enabled
+    assert_agent_mcp_servers
+    assert_jq '.agentMcpServers.notion == "https://mcp.notion.com/mcp"' "Expected Notion MCP server for work-linux"
     ;;
   sandbox-x86_64-linux|sandbox-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
@@ -237,7 +244,7 @@ case "$profile" in
     assert_jq '.packages | index("rustc") == null' "Did not expect rustc in home.packages for sandbox Linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox Linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox Linux"
-    assert_work_notion_mcp_disabled
+    assert_no_agent_mcp_servers
     ;;
 esac
 
