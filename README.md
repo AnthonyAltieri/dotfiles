@@ -146,7 +146,7 @@ nix flake update
 
 ## Package strategy
 
-- **Darwin** uses Homebrew through `modules/platforms/darwin/homebrew.nix`.
+- **Darwin** uses Homebrew through `modules/platforms/darwin/system/homebrew.nix`.
 - **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
 - **Sandbox** stays lean and avoids desktop-specific settings.
 - Repo-local packages that are not present in pinned `nixpkgs`, such as `observe`, are defined under `pkgs/` and exposed through flake `packages`.

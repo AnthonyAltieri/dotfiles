@@ -36,9 +36,9 @@ let
   skillNamesIn = dir:
     lib.attrNames (lib.filterAttrs (_name: kind: kind == "directory") (builtins.readDir dir));
 
-  sharedSkillNames = skillNamesIn ../../skills/shared;
-  claudeOnlySkillNames = skillNamesIn ../../skills/claude;
-  codexOnlySkillNames = skillNamesIn ../../skills/codex;
+  sharedSkillNames = skillNamesIn ../../../skills/shared;
+  claudeOnlySkillNames = skillNamesIn ../../../skills/claude;
+  codexOnlySkillNames = skillNamesIn ../../../skills/codex;
 
   # Gating axes orthogonal to audience: these names deploy only for the
   # matching role or platform, wherever they live in the skills tree.
@@ -56,28 +56,28 @@ let
     ) (lib.filter skillEnabled skillNames);
 
   codexSkillCopies =
-    agentSkillCopies "codex" ../../skills/shared sharedSkillNames
-    ++ agentSkillCopies "codex" ../../skills/codex codexOnlySkillNames;
+    agentSkillCopies "codex" ../../../skills/shared sharedSkillNames
+    ++ agentSkillCopies "codex" ../../../skills/codex codexOnlySkillNames;
 
   claudeSkillCopies =
-    agentSkillCopies "claude" ../../skills/shared sharedSkillNames
-    ++ agentSkillCopies "claude" ../../skills/claude claudeOnlySkillNames;
+    agentSkillCopies "claude" ../../../skills/shared sharedSkillNames
+    ++ agentSkillCopies "claude" ../../../skills/claude claudeOnlySkillNames;
 
   sharedAgentManagedCopies =
     [
-      (managedFile ".codex/AGENTS.md" ../../home/.codex/AGENTS.md)
-      (managedFile ".codex/rules/base.rules" ../../home/.codex/rules/base.rules)
+      (managedFile ".codex/AGENTS.md" ../../../home/.codex/AGENTS.md)
+      (managedFile ".codex/rules/base.rules" ../../../home/.codex/rules/base.rules)
     ]
     ++ codexSkillCopies
     ++ [
-      (managedFile ".claude/CLAUDE.md" ../../home/.claude/CLAUDE.md)
-      (managedFile ".claude/README.md" ../../home/.claude/README.md)
-      (managedFile ".claude/settings.json" ../../home/.claude/settings.json)
+      (managedFile ".claude/CLAUDE.md" ../../../home/.claude/CLAUDE.md)
+      (managedFile ".claude/README.md" ../../../home/.claude/README.md)
+      (managedFile ".claude/settings.json" ../../../home/.claude/settings.json)
     ]
     ++ claudeSkillCopies
     ++ [
-      (managedExecutableFile ".claude/statusline-command.sh" ../../home/.claude/statusline-command.sh)
-      (managedExecutableFile ".claude/tmux-notify.sh" ../../home/.claude/tmux-notify.sh)
+      (managedExecutableFile ".claude/statusline-command.sh" ../../../home/.claude/statusline-command.sh)
+      (managedExecutableFile ".claude/tmux-notify.sh" ../../../home/.claude/tmux-notify.sh)
     ];
 
   targetIsSafe = target:
@@ -165,7 +165,7 @@ in
         if [ -n "''${DRY_RUN_CMD:-}" ]; then
           echo "Would migrate legacy SQL Read target state into ${config.xdg.stateHome}/sql-read/targets.json"
         else
-          ${pkgs.bash}/bin/bash ${../../scripts/migrate-sql-read-state.sh} \
+          ${pkgs.bash}/bin/bash ${../../../scripts/migrate-sql-read-state.sh} \
             ${pkgs.jq}/bin/jq \
             "${config.xdg.stateHome}/sql-read/targets.json" \
             "$legacy_codex" \

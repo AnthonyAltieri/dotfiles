@@ -34,33 +34,33 @@ let
 
   ghAddressCommentsTools = buildRustHelper {
     pname = "gh-address-comments-tools";
-    src = ../../pkgs/gh-comment-tools;
-    lockFile = ../../pkgs/gh-comment-tools/Cargo.lock;
+    src = ../../../pkgs/gh-comment-tools;
+    lockFile = ../../../pkgs/gh-comment-tools/Cargo.lock;
   };
 
   ghFixCiTools = buildRustHelper {
     pname = "gh-fix-ci-tools";
-    src = ../../pkgs/gh-ci-tools;
-    lockFile = ../../pkgs/gh-ci-tools/Cargo.lock;
+    src = ../../../pkgs/gh-ci-tools;
+    lockFile = ../../../pkgs/gh-ci-tools/Cargo.lock;
   };
 
   sqlReadTools = buildRustHelper {
     pname = "sql-read-tools";
-    src = ../../pkgs/sql-read;
-    lockFile = ../../pkgs/sql-read/Cargo.lock;
+    src = ../../../pkgs/sql-read;
+    lockFile = ../../../pkgs/sql-read/Cargo.lock;
   };
 
   ghManagePrTools = buildRustHelper {
     pname = "gh-manage-pr-tools";
-    src = ../../pkgs/gh-pr-tools;
-    lockFile = ../../pkgs/gh-pr-tools/Cargo.lock;
+    src = ../../../pkgs/gh-pr-tools;
+    lockFile = ../../../pkgs/gh-pr-tools/Cargo.lock;
     nativeCheckInputs = [ pkgs.jq ];
   };
 
   atlasCli = buildRustHelper {
     pname = "atlas-cli";
-    src = ../../pkgs/atlas-cli;
-    lockFile = ../../pkgs/atlas-cli/Cargo.lock;
+    src = ../../../pkgs/atlas-cli;
+    lockFile = ../../../pkgs/atlas-cli/Cargo.lock;
   };
 in
 {

@@ -9,13 +9,13 @@
 let
   lib = inputs.nixpkgs.lib;
   profiles = import ./profiles.nix { inherit lib; };
-in
-inputs.nix-darwin.lib.darwinSystem {
-  inherit system;
   specialArgs = {
     inherit inputs role system username homeDirectory overwriteHomeManagerBackups;
     platform = "darwin";
   };
+in
+inputs.nix-darwin.lib.darwinSystem {
+  inherit system specialArgs;
   modules =
     profiles.darwinSystemModules
     ++ [
@@ -39,10 +39,7 @@ inputs.nix-darwin.lib.darwinSystem {
         home-manager.useUserPackages = true;
         home-manager.backupFileExtension =
           if overwriteHomeManagerBackups then null else "hm-backup";
-        home-manager.extraSpecialArgs = {
-          inherit inputs role system username homeDirectory overwriteHomeManagerBackups;
-          platform = "darwin";
-        };
+        home-manager.extraSpecialArgs = specialArgs;
         home-manager.users.${username}.imports = profiles.mkHomeModules {
           inherit role;
           platform = "darwin";

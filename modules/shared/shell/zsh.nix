@@ -18,6 +18,6 @@ in {
     enableCompletion = true;
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
-    initContent = lib.mkOrder 1000 (brewShellInit + builtins.readFile ../../home/.zshrc);
+    initContent = lib.mkOrder 1000 (brewShellInit + builtins.readFile ../../../home/.zshrc);
   };
 }

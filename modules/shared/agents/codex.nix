@@ -4,10 +4,6 @@ let
   defaultRules = "${rulesDir}/default.rules";
   backupRules = "${defaultRules}.hm-backup";
 in {
-  home.sessionVariables = {
-    CODEX_HOME = "$HOME/.codex";
-  };
-
   home.activation.codexLocalDefaultRules =
     lib.hm.dag.entryAfter [ "dotfilesAgentManagedCopies" ] ''
       rules_dir="${rulesDir}"
