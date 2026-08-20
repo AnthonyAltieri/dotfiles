@@ -3,6 +3,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+export NVIM_LOG_FILE="$TMP_DIR/nvim.log"
 LSP_CONFIG="${ROOT_DIR}/home/.config/nvim/lua/aalt/lazy/lsp.lua"
 MASON_PACKAGES="${ROOT_DIR}/home/.config/nvim/lua/aalt/mason_packages.lua"
 
