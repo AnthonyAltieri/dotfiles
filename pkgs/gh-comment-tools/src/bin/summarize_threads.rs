@@ -1,3 +1,4 @@
+use serde_json::json;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
@@ -76,45 +77,37 @@ fn summarize_compact_threads(input: &str) -> Result<String, String> {
         return Err("No unresolved compact thread rows found in input.".to_string());
     }
 
-    let mut json = String::new();
-    json.push_str("{\"thread_count\":");
-    json.push_str(&total_threads.to_string());
-    json.push_str(",\"by_path\":[");
+    let by_path: Vec<serde_json::Value> = groups
+        .iter()
+        .map(|(path, stats)| {
+            let threads: Vec<serde_json::Value> = stats
+                .threads
+                .iter()
+                .map(|thread| {
+                    json!({
+                        "thread_id": thread.thread_id,
+                        "reviewer": thread.reviewer,
+                        "review_state": thread.review_state,
+                        "line": thread.line,
+                        "preview": thread.preview,
+                    })
+                })
+                .collect();
 
-    for (index, (path, stats)) in groups.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
-        }
-        json.push_str("{\"path\":\"");
-        json.push_str(&escape_json(path));
-        json.push_str("\",\"unresolved\":");
-        json.push_str(&stats.unresolved.to_string());
-        json.push_str(",\"blocking\":");
-        json.push_str(&stats.blocking.to_string());
-        json.push_str(",\"threads\":[");
+            json!({
+                "path": path,
+                "unresolved": stats.unresolved,
+                "blocking": stats.blocking,
+                "threads": threads,
+            })
+        })
+        .collect();
 
-        for (thread_index, thread) in stats.threads.iter().enumerate() {
-            if thread_index > 0 {
-                json.push(',');
-            }
-            json.push_str("{\"thread_id\":\"");
-            json.push_str(&escape_json(&thread.thread_id));
-            json.push_str("\",\"reviewer\":\"");
-            json.push_str(&escape_json(&thread.reviewer));
-            json.push_str("\",\"review_state\":\"");
-            json.push_str(&escape_json(&thread.review_state));
-            json.push_str("\",\"line\":\"");
-            json.push_str(&escape_json(&thread.line));
-            json.push_str("\",\"preview\":\"");
-            json.push_str(&escape_json(&thread.preview));
-            json.push_str("\"}");
-        }
-
-        json.push_str("]}");
-    }
-
-    json.push_str("]}");
-    Ok(json)
+    Ok(json!({
+        "thread_count": total_threads,
+        "by_path": by_path,
+    })
+    .to_string())
 }
 
 fn read_input() -> Result<String, String> {
@@ -128,21 +121,6 @@ fn read_input() -> Result<String, String> {
         .read_to_string(&mut buffer)
         .map_err(|err| err.to_string())?;
     Ok(buffer)
-}
-
-fn escape_json(value: &str) -> String {
-    let mut escaped = String::new();
-    for ch in value.chars() {
-        match ch {
-            '\\' => escaped.push_str("\\\\"),
-            '"' => escaped.push_str("\\\""),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
 }
 
 #[cfg(test)]

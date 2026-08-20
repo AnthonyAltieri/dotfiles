@@ -1,3 +1,4 @@
+use serde_json::json;
 use std::env;
 use std::fs;
 use std::io::{self, Read};
@@ -93,7 +94,7 @@ fn classify_log(input: &str) -> Result<String, String> {
         return Err("CI log input is empty.".to_string());
     }
 
-    let mut counts = [0usize; 5];
+    let mut counts = vec![0usize; BUCKETS.len()];
     let mut matches: Vec<MatchRecord> = Vec::new();
 
     for (index, line) in lines.iter().enumerate() {
@@ -156,54 +157,30 @@ fn context_window(lines: &[&str], center: usize) -> String {
     lines[start..end].join("\\n")
 }
 
-fn render_json(bucket: &str, counts: &[usize; 5], matches: &[MatchRecord]) -> String {
-    let mut json = String::new();
-    json.push_str("{\"bucket\":\"");
-    json.push_str(bucket);
-    json.push_str("\",\"counts\":{");
+fn render_json(bucket: &str, counts: &[usize], matches: &[MatchRecord]) -> String {
+    let counts_by_bucket: serde_json::Map<String, serde_json::Value> = BUCKETS
+        .iter()
+        .zip(counts)
+        .map(|(bucket_pattern, count)| (bucket_pattern.bucket.to_string(), json!(count)))
+        .collect();
 
-    for (index, bucket_pattern) in BUCKETS.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
-        }
-        json.push('"');
-        json.push_str(bucket_pattern.bucket);
-        json.push_str("\":");
-        json.push_str(&counts[index].to_string());
-    }
+    let match_records: Vec<serde_json::Value> = matches
+        .iter()
+        .map(|item| {
+            json!({
+                "line": item.line,
+                "marker": item.marker,
+                "snippet": item.snippet,
+            })
+        })
+        .collect();
 
-    json.push_str("},\"matches\":[");
-
-    for (index, item) in matches.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
-        }
-        json.push_str("{\"line\":");
-        json.push_str(&item.line.to_string());
-        json.push_str(",\"marker\":\"");
-        json.push_str(&escape_json(item.marker));
-        json.push_str("\",\"snippet\":\"");
-        json.push_str(&escape_json(&item.snippet));
-        json.push_str("\"}");
-    }
-
-    json.push_str("]}");
-    json
-}
-
-fn escape_json(value: &str) -> String {
-    let mut escaped = String::new();
-    for ch in value.chars() {
-        match ch {
-            '\\' => escaped.push_str("\\\\"),
-            '"' => escaped.push_str("\\\""),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
+    json!({
+        "bucket": bucket,
+        "counts": counts_by_bucket,
+        "matches": match_records,
+    })
+    .to_string()
 }
 
 #[cfg(test)]
@@ -220,7 +197,10 @@ mod tests {
         let json: Value = serde_json::from_str(&output).expect("valid json");
 
         assert_eq!(json.get("bucket").and_then(Value::as_str), Some("build"));
-        assert_eq!(json.pointer("/counts/build").and_then(Value::as_u64), Some(2));
+        assert_eq!(
+            json.pointer("/counts/build").and_then(Value::as_u64),
+            Some(2)
+        );
         assert_eq!(
             json.pointer("/matches/0/marker").and_then(Value::as_str),
             Some("error[e")

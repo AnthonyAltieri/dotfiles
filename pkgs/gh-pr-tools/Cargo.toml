@@ -16,7 +16,7 @@ libc = "0.2"
 
 [[bin]]
 name = "gh-manage-pr-summarize"
-path = "summarize_diff.rs"
+path = "src/bin/summarize_diff.rs"
 
 [[bin]]
 name = "gh-pr-image"

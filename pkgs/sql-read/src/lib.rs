@@ -128,8 +128,7 @@ struct ExecutionPlan {
 
 #[derive(Clone, Debug, PartialEq)]
 struct QueryResult {
-    engine: &'static str,
-    target_mode: &'static str,
+    engine: Engine,
     target_name: String,
     columns: Vec<String>,
     rows: Vec<Vec<Value>>,
@@ -847,13 +846,7 @@ fn execute_postgres(plan: &ExecutionPlan) -> Result<QueryResult, String> {
         .rollback()
         .map_err(|err| format!("Failed to roll back Postgres transaction: {err}"))?;
 
-    Ok(finalize_result(
-        "postgres",
-        plan,
-        columns,
-        values,
-        start.elapsed(),
-    ))
+    Ok(finalize_result(plan, columns, values, start.elapsed()))
 }
 
 fn execute_sqlite(plan: &ExecutionPlan) -> Result<QueryResult, String> {
@@ -901,17 +894,10 @@ fn execute_sqlite(plan: &ExecutionPlan) -> Result<QueryResult, String> {
         values.push(rendered_row);
     }
 
-    Ok(finalize_result(
-        "sqlite",
-        plan,
-        columns,
-        values,
-        start.elapsed(),
-    ))
+    Ok(finalize_result(plan, columns, values, start.elapsed()))
 }
 
 fn finalize_result(
-    engine: &'static str,
     plan: &ExecutionPlan,
     columns: Vec<String>,
     mut rows: Vec<Vec<Value>>,
@@ -923,8 +909,7 @@ fn finalize_result(
     }
 
     QueryResult {
-        engine,
-        target_mode: "named-target",
+        engine: plan.engine,
         target_name: plan.target_name.clone(),
         columns,
         rows,
@@ -1007,9 +992,9 @@ fn render_output(result: &QueryResult, format: OutputFormat) -> Result<String, S
 
 fn render_json(result: &QueryResult) -> String {
     json!({
-        "engine": result.engine,
+        "engine": result.engine.as_str(),
         "target": {
-            "mode": result.target_mode,
+            "mode": "named-target",
             "name": result.target_name,
         },
         "columns": result.columns,
