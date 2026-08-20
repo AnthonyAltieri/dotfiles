@@ -31,6 +31,7 @@ let
   sharedSkillNames = [
     "adversarial-review"
     "frontend-design"
+    "gh-pr-description"
     "handoff"
     "improve-codebase-architecture"
     "notion-knowledge-capture"

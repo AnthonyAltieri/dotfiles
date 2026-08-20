@@ -27,15 +27,15 @@ For a large diffstat, `gh-manage-pr-summarize` can produce compact JSON grouped 
 
 ## Draft the body
 
-Start from `assets/pr-body-template.md`.
+Draft per the `gh-pr-description` skill: discover the repo's PR template and
+PR-lint rules first (headings, title grammar, labels, size ceilings), then
+write a Why-first, code-snippet-heavy body against them. The repo contract
+wins over any default template. Preserve unrelated user-authored sections
+unless the requested update clearly replaces them.
 
-- Keep Summary bullets outcome-focused.
-- Group implementation details by subsystem or capability, not commit order.
-- Include rationale and only the code examples or tables that clarify the current state.
-- Do not narrate the implementation process or preserve stale claims from the previous body.
-- Preserve unrelated user-authored sections unless the requested update clearly replaces them.
-
-Apply an authorized update with `gh pr edit --title ... --body-file ...`, then read the PR back and verify the exact title/body.
+Apply an authorized update with `gh pr edit --title ... --body-file ...`, then
+read the PR back, verify the exact title/body, and confirm any PR lint verdict
+re-ran clean.
 
 ## Add an image
 
@@ -59,4 +59,4 @@ Return the PR URL, final title, changed body sections, image result when applica
 
 - `gh-pr-image` validates the image, preserves a recovery journal, updates a managed attachment block idempotently, and verifies the final body.
 - `gh-manage-pr-summarize` compacts a diffstat when needed.
-- `assets/pr-body-template.md` defines the reusable body structure.
+- The `gh-pr-description` skill owns the body-writing method and the default template.

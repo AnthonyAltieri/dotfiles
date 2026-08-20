@@ -27,10 +27,10 @@ Create or update a pull request with the GitHub CLI (`gh`), and use `gh-pr-image
    - Use the existing PR's `baseRefName`, an explicitly requested base, or `gh repo view --json defaultBranchRef`.
    - `git diff <base>...HEAD --stat` and `git diff <base>...HEAD`
    - For large diffs, run `gh-manage-pr-summarize` on the saved diffstat so compact JSON grouped by subsystem arrives instead of the full diff. Pull exact snippets back only for sections that need examples.
-3. Draft an information-dense PR description, starting from `assets/pr-body-template.md`.
-   - **Summary section:** bullets only, outcome-focused — what users/developers can do now that they could not before. Implementation details belong in later sections.
-   - **Implementation sections:** one per major change area, grouped by subsystem or user-visible capability (not commit order), with concise rationale, focused code examples in fenced blocks with language tags, and tables for before/after, APIs, config options, or behavior deltas.
-   - Describe the current state of the branch; do not narrate the implementation process.
+3. Draft the description per the `gh-pr-description` skill: discover the
+   repo's PR template and PR-lint rules first (headings, title grammar,
+   labels, size ceilings), then write a Why-first, code-snippet-heavy body
+   against them. The repo contract wins over any default template.
 4. Apply the PR update.
    - Create: `gh pr create --draft --title "<title>" --body-file <tmpfile>`
    - Update: `gh pr edit <pr> --title "<title>" --body-file <tmpfile>`
@@ -39,7 +39,9 @@ Create or update a pull request with the GitHub CLI (`gh`), and use `gh-pr-image
    - Accepts exactly one PNG, JPEG, or GIF per invocation, on public PRs that the authenticated GitHub account can update and whose head and base are in the same repository. Private, internal, and fork-authored PRs are unsupported.
    - The command is prompt-gated because it uploads bytes and updates GitHub state; allow that approval flow rather than bypassing it with lower-level commands.
    - The upload uses an experimental, undocumented GitHub endpoint. If the target is unsupported or the upload fails, report the limitation — do not fall back to browser cookies, third-party hosting, or repository-backed assets without a separate user decision.
-6. Return the final PR URL and a concise summary of what was updated.
+6. If a PR lint job posts a verdict (sticky comment or check), confirm it
+   re-ran clean against the new title/body and required labels.
+7. Return the final PR URL and a concise summary of what was updated.
 
 ## Output Format
 
@@ -52,4 +54,4 @@ Create or update a pull request with the GitHub CLI (`gh`), and use `gh-pr-image
 
 - `gh-manage-pr-summarize` - Installed helper that converts `git diff --stat` output into compact JSON grouped by subsystem.
 - `gh-pr-image` - Prompt-gated helper that adds one supported image to a PR body.
-- `assets/pr-body-template.md` - Reusable PR body structure with placeholders for summary and implementation sections.
+- The `gh-pr-description` skill owns the body-writing method and the default template.
