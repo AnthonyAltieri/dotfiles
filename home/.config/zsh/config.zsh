@@ -3,11 +3,6 @@ if [[ "$(uname)" == "Darwin" ]]; then
 fi
 
 # load other .zsh files
-for f in ~/.config/zsh/features/*.zsh(N); do
-  if [[ -r ${f} ]] ; then
-    source "${f}"
-  fi
-done
 for f in ~/.config/zsh/functions/*.zsh(N); do
   if [[ -r ${f} ]] ; then
     source "${f}"
@@ -23,7 +18,6 @@ if (( $+commands[nvim] )); then
   alias vim=nvim
   alias vi=nvim
 fi
-export VISUAL="${EDITOR}"
 
 alias gcb=git-current-branch
 alias g=git
