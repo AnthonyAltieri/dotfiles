@@ -1,5 +1,5 @@
 interface:
-  display_name: "NotionRead"
+  display_name: "notion-read"
   short_description: "Analyze current Notion content without writes"
   default_prompt: "Use $notion-read to fetch this Notion content once, analyze it locally, and clean up temporary data."
 

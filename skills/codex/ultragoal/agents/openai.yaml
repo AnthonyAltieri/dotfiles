@@ -1,4 +1,4 @@
 interface:
-  display_name: "Ultragoal"
+  display_name: "ultragoal"
   short_description: "Durable goals with verifiers"
   default_prompt: "Use $ultragoal to design, critique, or activate a durable goal for this objective as requested."

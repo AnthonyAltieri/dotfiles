@@ -1,4 +1,4 @@
 interface:
-  display_name: "Programming"
+  display_name: "programming"
   short_description: "Write explicit, lifecycle-aware application code"
   default_prompt: "Use $programming to shape this code around validated boundaries, canonical domain types, explicit dependency lifetimes, pseudocode-like dataflow, local code over gratuitous helpers, isolated effects, and critical-path verification."
