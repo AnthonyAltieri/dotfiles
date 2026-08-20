@@ -32,9 +32,9 @@ in
         if [ -n "''${DRY_RUN_CMD:-}" ]; then
           echo "Would merge MCP servers ($servers_json) into $codex_config_file and $claude_config_file"
         else
-          "${codexTomlPython}/bin/python" ${../../scripts/merge-codex-mcp-servers.py} \
+          "${codexTomlPython}/bin/python" ${../../../scripts/merge-codex-mcp-servers.py} \
             "$codex_config_file" "$servers_json"
-          "${pkgs.python3}/bin/python" ${../../scripts/merge-claude-mcp-servers.py} \
+          "${pkgs.python3}/bin/python" ${../../../scripts/merge-claude-mcp-servers.py} \
             "$claude_config_file" "$servers_json"
         fi
       '';

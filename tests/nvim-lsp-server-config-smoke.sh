@@ -3,6 +3,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+export NVIM_LOG_FILE="$TMP_DIR/nvim.log"
 LSP_CONFIG="${ROOT_DIR}/home/.config/nvim/lua/aalt/lazy/lsp.lua"
 MASON_PACKAGES="${ROOT_DIR}/home/.config/nvim/lua/aalt/mason_packages.lua"
 
@@ -16,8 +19,8 @@ grep -q 'tsgo = true' "$LSP_CONFIG"
 grep -q '<F2>' "$LSP_CONFIG"
 grep -q '<C-M-o>' "$LSP_CONFIG"
 grep -q 'tsgo = "tsgo"' "$MASON_PACKAGES"
-grep -q "cquit_if_missing()" "${ROOT_DIR}/modules/shared/neovim.nix"
-grep -q "Would verify Neovim Mason tools" "${ROOT_DIR}/modules/shared/neovim.nix"
+grep -q "cquit_if_missing()" "${ROOT_DIR}/modules/shared/editors/neovim.nix"
+grep -q "Would verify Neovim Mason tools" "${ROOT_DIR}/modules/shared/editors/neovim.nix"
 
 nvim --clean --headless -i NONE \
   +"set rtp+=${ROOT_DIR}/home/.config/nvim" \

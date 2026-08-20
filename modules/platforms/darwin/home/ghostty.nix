@@ -1,7 +1,7 @@
 { config, lib, overwriteHomeManagerBackups ? false, pkgs, ... }:
 let
-  ghosttySource = ../../../home/.config/ghostty;
-  detectBerkeleyMonoFont = ../../../scripts/detect-berkeley-mono-font.sh;
+  ghosttySource = ../../../../home/.config/ghostty;
+  detectBerkeleyMonoFont = ../../../../scripts/detect-berkeley-mono-font.sh;
   overwriteExisting = if overwriteHomeManagerBackups then "1" else "0";
 in
 {

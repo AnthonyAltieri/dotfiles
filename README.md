@@ -95,6 +95,16 @@ On the first real nix-darwin apply, bootstrap may also find unmanaged `/etc/bash
 Without `--overwrite`, bootstrap backs those files up to `*.before-nix-darwin` automatically and continues.
 With `--overwrite`, bootstrap shows a diff for each conflicting file and asks for confirmation before replacing it.
 
+Once you no longer need those backups, clean them up with:
+
+```bash
+./scripts/clean-bootstrap-backups.sh --dry-run   # preview
+./scripts/clean-bootstrap-backups.sh             # remove .hm-backup files in $HOME
+./scripts/clean-bootstrap-backups.sh --include-etc  # also remove /etc backups (sudo)
+```
+
+The script derives its candidates from the active Home Manager generation, so it only removes backups of files this repo manages. Note that the `/etc` backups also block the next bootstrap that hits an `/etc` conflict, which refuses to overwrite an existing backup.
+
 The deeper explanation of what bootstrap does and how the flake composes roles and platforms lives in [`docs/nix/README.md`](docs/nix/README.md).
 
 ## Day-to-day usage
@@ -146,7 +156,7 @@ nix flake update
 
 ## Package strategy
 
-- **Darwin** uses Homebrew through `modules/platforms/darwin/homebrew.nix`.
+- **Darwin** uses Homebrew through `modules/platforms/darwin/system/homebrew.nix`.
 - **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
 - **Sandbox** stays lean and avoids desktop-specific settings.
 - Repo-local packages that are not present in pinned `nixpkgs`, such as `observe`, are defined under `pkgs/` and exposed through flake `packages`.

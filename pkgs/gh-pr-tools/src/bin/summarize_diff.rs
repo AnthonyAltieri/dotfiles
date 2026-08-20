@@ -1,3 +1,4 @@
+use serde_json::json;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
@@ -66,41 +67,25 @@ fn summarize_input(input: &str) -> Result<String, String> {
         return Err("No diffstat file entries found in input.".to_string());
     }
 
-    let mut json = String::new();
-    json.push_str("{\"total_files\":");
-    json.push_str(&total_files.to_string());
-    json.push_str(",\"insertions\":");
-    json.push_str(&total_insertions.to_string());
-    json.push_str(",\"deletions\":");
-    json.push_str(&total_deletions.to_string());
-    json.push_str(",\"sections\":[");
+    let sections: Vec<serde_json::Value> = groups
+        .iter()
+        .map(|(name, stats)| {
+            json!({
+                "name": name,
+                "file_count": stats.file_count,
+                "change_units": stats.change_units,
+                "files": stats.files,
+            })
+        })
+        .collect();
 
-    for (index, (name, stats)) in groups.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
-        }
-        json.push_str("{\"name\":\"");
-        json.push_str(&escape_json(name));
-        json.push_str("\",\"file_count\":");
-        json.push_str(&stats.file_count.to_string());
-        json.push_str(",\"change_units\":");
-        json.push_str(&stats.change_units.to_string());
-        json.push_str(",\"files\":[");
-
-        for (file_index, file) in stats.files.iter().enumerate() {
-            if file_index > 0 {
-                json.push(',');
-            }
-            json.push('"');
-            json.push_str(&escape_json(file));
-            json.push('"');
-        }
-
-        json.push_str("]}");
-    }
-
-    json.push_str("]}");
-    Ok(json)
+    Ok(json!({
+        "total_files": total_files,
+        "insertions": total_insertions,
+        "deletions": total_deletions,
+        "sections": sections,
+    })
+    .to_string())
 }
 
 fn read_input() -> Result<String, String> {
@@ -145,21 +130,6 @@ fn leading_number(value: &str) -> usize {
     digits.parse().unwrap_or(0)
 }
 
-fn escape_json(value: &str) -> String {
-    let mut escaped = String::new();
-    for ch in value.chars() {
-        match ch {
-            '\\' => escaped.push_str("\\\\"),
-            '"' => escaped.push_str("\\\""),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,10 +139,29 @@ mod tests {
         let input =
             " src/lib.rs | 4 ++--\n README.md | 2 +-\n 2 files changed, 3 insertions(+), 3 deletions(-)\n";
         let summary = summarize_input(input).expect("summary");
+        let parsed: serde_json::Value = serde_json::from_str(&summary).expect("valid json");
 
         assert_eq!(
-            summary,
-            "{\"total_files\":2,\"insertions\":3,\"deletions\":3,\"sections\":[{\"name\":\"README.md\",\"file_count\":1,\"change_units\":2,\"files\":[\"README.md\"]},{\"name\":\"src\",\"file_count\":1,\"change_units\":4,\"files\":[\"src/lib.rs\"]}]}"
+            parsed,
+            json!({
+                "total_files": 2,
+                "insertions": 3,
+                "deletions": 3,
+                "sections": [
+                    {
+                        "name": "README.md",
+                        "file_count": 1,
+                        "change_units": 2,
+                        "files": ["README.md"],
+                    },
+                    {
+                        "name": "src",
+                        "file_count": 1,
+                        "change_units": 4,
+                        "files": ["src/lib.rs"],
+                    },
+                ],
+            })
         );
     }
 

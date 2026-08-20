@@ -36,11 +36,6 @@ let
   );
 in
 {
-  home.packages =
-    lib.optionals (platform == "linux" || role == "sandbox") [
-      pkgs.neovim
-    ];
-
   home.activation.dotfilesPrewarmNeovim = lib.hm.dag.entryAfter [
     "linkGeneration"
     "installPackages"

@@ -3,6 +3,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+export NVIM_LOG_FILE="$TMP_DIR/nvim.log"
 TELESCOPE_SPEC="$ROOT_DIR/home/.config/nvim/lua/aalt/lazy/telescope.lua"
 LOCKFILE="$ROOT_DIR/home/.config/nvim/lazy-lock.json"
 TELESCOPE_COMMIT="84b9ba066d1860f7a586ce9cd732fd6c4f77d1d9"

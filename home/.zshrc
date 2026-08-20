@@ -52,12 +52,10 @@ unset pnpm_home_default
 export PATH
 # pnpm end
 
-# bun completions
-[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
-
 # bun
 export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+path=("$BUN_INSTALL/bin" "${(@)path:#$BUN_INSTALL/bin}")
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 # Load ~/.env if it exists and has valid syntax
 if [[ -f "${HOME}/.env" ]]; then
@@ -69,6 +67,3 @@ if [[ -f "${HOME}/.env" ]]; then
     echo "[.zshrc] Warning: ~/.env has invalid syntax, skipping"
   fi
 fi
-
-# WarpStream
-export PATH="$HOME/.warpstream:$PATH"
