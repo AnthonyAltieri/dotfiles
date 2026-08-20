@@ -28,78 +28,57 @@ let
       kind = "directory";
     };
 
-  sharedSkillNames = [
-    "adversarial-review"
-    "frontend-design"
-    "gh-pr-description"
-    "handoff"
-    "improve-codebase-architecture"
-    "notion-knowledge-capture"
-    "notion-read"
-    "programming"
-    "sql-read"
-  ];
+  # The skills tree is the source of truth for which agent gets a skill:
+  # skills/shared deploys to both agents, skills/claude and skills/codex to
+  # one. A name present in both skills/claude and skills/codex is a per-agent
+  # variant deployed under the same skill name. Adding a skill is mkdir +
+  # commit; there is no name list here to keep in sync.
+  skillNamesIn = dir:
+    lib.attrNames (lib.filterAttrs (_name: kind: kind == "directory") (builtins.readDir dir));
 
-  codexOnlySkillNames = [
-    "generate-sprite-sheets"
-    "gh-pr-body"
-    "linear-claim-work"
-    "spawn-orchestrator"
-    "ultragoal"
-  ];
+  sharedSkillNames = skillNamesIn ../../skills/shared;
+  claudeOnlySkillNames = skillNamesIn ../../skills/claude;
+  codexOnlySkillNames = skillNamesIn ../../skills/codex;
 
-  claudeOnlySkillNames = [
-    "gh-address-comments"
-    "gh-fix-ci"
-    "gh-manage-pr"
-  ];
+  # Gating axes orthogonal to audience: these names deploy only for the
+  # matching role or platform, wherever they live in the skills tree.
+  workOnlySkillNames = [ "observe" ];
+  darwinOnlySkillNames = [ "atlas" ];
 
-  workOnlySkillNames = [
-    "observe"
-  ];
+  skillEnabled = skillName:
+    (!(lib.elem skillName workOnlySkillNames) || role == "work")
+    && (!(lib.elem skillName darwinOnlySkillNames) || platform == "darwin");
 
-  darwinOnlySkillNames = [
-    "atlas"
-  ];
-
-  agentSkillCopies = agentName: skillNames:
+  agentSkillCopies = agentName: audienceDir: skillNames:
     map (
       skillName:
-      managedDirectory ".${agentName}/skills/${skillName}" (../../skills + "/${skillName}")
-    ) skillNames;
+      managedDirectory ".${agentName}/skills/${skillName}" (audienceDir + "/${skillName}")
+    ) (lib.filter skillEnabled skillNames);
 
-  codexSkillCopies = agentSkillCopies "codex";
-  claudeSkillCopies = agentSkillCopies "claude";
+  codexSkillCopies =
+    agentSkillCopies "codex" ../../skills/shared sharedSkillNames
+    ++ agentSkillCopies "codex" ../../skills/codex codexOnlySkillNames;
+
+  claudeSkillCopies =
+    agentSkillCopies "claude" ../../skills/shared sharedSkillNames
+    ++ agentSkillCopies "claude" ../../skills/claude claudeOnlySkillNames;
 
   sharedAgentManagedCopies =
     [
       (managedFile ".codex/AGENTS.md" ../../home/.codex/AGENTS.md)
       (managedFile ".codex/rules/base.rules" ../../home/.codex/rules/base.rules)
     ]
-    ++ codexSkillCopies sharedSkillNames
-    ++ codexSkillCopies codexOnlySkillNames
-    ++ lib.optionals (platform == "darwin") (
-      codexSkillCopies darwinOnlySkillNames
-    )
+    ++ codexSkillCopies
     ++ [
       (managedFile ".claude/CLAUDE.md" ../../home/.claude/CLAUDE.md)
       (managedFile ".claude/README.md" ../../home/.claude/README.md)
       (managedFile ".claude/settings.json" ../../home/.claude/settings.json)
     ]
-    ++ claudeSkillCopies sharedSkillNames
-    ++ claudeSkillCopies claudeOnlySkillNames
-    ++ lib.optionals (platform == "darwin") (
-      claudeSkillCopies darwinOnlySkillNames
-    )
+    ++ claudeSkillCopies
     ++ [
       (managedExecutableFile ".claude/statusline-command.sh" ../../home/.claude/statusline-command.sh)
       (managedExecutableFile ".claude/tmux-notify.sh" ../../home/.claude/tmux-notify.sh)
     ];
-
-  workOnlyAgentManagedCopies = lib.optionals (role == "work") (
-    codexSkillCopies workOnlySkillNames
-    ++ claudeSkillCopies workOnlySkillNames
-  );
 
   targetIsSafe = target:
     let
@@ -113,7 +92,7 @@ let
       && !(lib.elem "." segments)
       && !(lib.elem ".." segments);
 
-  rawAgentManagedCopies = sharedAgentManagedCopies ++ workOnlyAgentManagedCopies;
+  rawAgentManagedCopies = sharedAgentManagedCopies;
 
   unsafeTargets = lib.filter (entry: !(targetIsSafe entry.target)) rawAgentManagedCopies;
 
