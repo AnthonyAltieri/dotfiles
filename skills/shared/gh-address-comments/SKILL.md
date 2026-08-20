@@ -1,6 +1,6 @@
 ---
 name: gh-address-comments
-description: Use when the user asks to read/fetch GitHub PR review comments and work through them end-to-end — skeptically validate each comment against the code, push commits fixing confirmed issues, reply to/answer the review threads with evidence and commit links, and resolve the threads. Triggers include "address PR comments", "read PR comments", "push fixes", "answer threads", "respond to review", "resolve comments/threads".
+description: Use when the user asks to read/fetch GitHub PR review comments and work through them end-to-end — skeptically validate each comment against the code, push commits fixing confirmed issues, reply to/answer the review threads with evidence and commit links, and resolve the threads. Triggers include "handle comments", "handle PR comments", "address PR comments", "read PR comments", "push fixes", "answer threads", "respond to review", "resolve comments/threads".
 metadata:
   short-description: Validate, fix, answer, and resolve PR review threads
 ---
@@ -57,13 +57,13 @@ Classify the outcome: **Confirmed** (proof the comment is correct, or that a clo
 4. Reply on the thread explaining what was wrong, how the commit addresses it, and link the fix. Get `owner/repo` from `gh repo view --json nameWithOwner -q .nameWithOwner`, then link:
    - the commit: `https://github.com/<owner>/<repo>/commit/<sha>`
    - or, when a specific line tells the story better, the line at that commit: `https://github.com/<owner>/<repo>/blob/<sha>/<path>#L<line>`
-   - `create-thread-reply --thread-id "<thread_id>" --body "FROM CLAUDE: Confirmed and fixed in <link> — <what was wrong and how the fix addresses it>."`
+   - `create-thread-reply --thread-id "<thread_id>" --body "FROM <AGENT>: Confirmed and fixed in <link> — <what was wrong and how the fix addresses it>."`
 5. Resolve: `resolve-thread --thread-id "<thread_id>"`
 
 **Refuted → reply with the investigation, resolve:**
 
 1. Reply on the thread stating (a) the claim as understood, (b) what was checked — the code paths traced, tests run, inputs tried, (c) why the evidence says the code is correct as written.
-   - `create-thread-reply --thread-id "<thread_id>" --body "FROM CLAUDE: Investigated — <claim>. Checked <evidence gathered>. <Why the code is correct as written>."`
+   - `create-thread-reply --thread-id "<thread_id>" --body "FROM <AGENT>: Investigated — <claim>. Checked <evidence gathered>. <Why the code is correct as written>."`
 2. Resolve: `resolve-thread --thread-id "<thread_id>"`. The written investigation is what earns the resolution — the reviewer can reopen if they disagree with the evidence.
 
 **Question → answer, resolve:** reply with the evidence-backed answer (link the relevant code) and resolve.
@@ -78,7 +78,7 @@ Classify the outcome: **Confirmed** (proof the comment is correct, or that a clo
 - Keep GraphQL fetching in `gh`; the helpers only post-process saved thread metadata.
 - `create-comment` targets the current branch PR by default and accepts `--pr` for an explicit target; use it only for top-level comments outside any review thread.
 - `create-thread-reply` expects a review thread ID, not a comment ID.
-- Both posting helpers automatically prefix the final body with `🤖 `; keep the reply text itself agent-specific (`FROM CLAUDE:`).
+- Both posting helpers automatically prefix the final body with `🤖 `; keep the reply text itself agent-specific — replace `<AGENT>` with the agent actually running (`FROM CLAUDE:` from Claude, `FROM CODEX:` from Codex).
 - `resolve-thread` is idempotent; already-resolved threads won't error.
 - Always reply **before** resolving — a resolution with no explanation reads as dismissal.
 - If any helper command is missing, reapply the profile so the packaged helpers are rebuilt and activated.
