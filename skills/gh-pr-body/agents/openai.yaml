@@ -1,4 +1,0 @@
-interface:
-  display_name: "GitHub PR Body"
-  short_description: "Update an existing PR body or image"
-  default_prompt: "Use $gh-pr-body to update the existing pull request description or add the requested image, then verify the final body."

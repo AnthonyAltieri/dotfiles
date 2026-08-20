@@ -1,6 +1,0 @@
-interface:
-  display_name: "Adversarial Review"
-  short_description: "Fresh-context review that tries to break work"
-  default_prompt: "Use $adversarial-review to challenge the current task result with independent fresh-context reviewers."
-policy:
-  allow_implicit_invocation: false
