@@ -55,9 +55,14 @@ in
       brewfile = true;
     };
 
+    # nix-darwin 25.05 predates typed Homebrew trust options, so declare the
+    # formula directly until the flake inputs move to a newer release.
+    extraConfig = ''
+      brew "oven-sh/bun/bun", trusted: true
+    '';
+
     brews = [
       "bat"
-      "oven-sh/bun/bun"
       "fd"
       "fzf"
       "gh"
