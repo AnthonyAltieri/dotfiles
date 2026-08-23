@@ -195,7 +195,4 @@ nvim --clean --headless -i NONE \
 	+"luafile $TMP_DIR/mouse-hover-smoke.lua" \
 	+qa!
 
-rg -Fq 'xterm-ghostty:hyperlinks:cstyle' "$ROOT_DIR/home/.config/tmux/tmux.conf"
-rg -Fq 'xterm-256color:hyperlinks:cstyle' "$ROOT_DIR/home/.config/tmux/tmux.conf"
-
-echo "ok cursor shapes are explicit in Neovim and propagated by tmux"
+echo "ok cursor shapes are explicit in Neovim"

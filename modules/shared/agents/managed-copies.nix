@@ -77,7 +77,7 @@ let
     ++ claudeSkillCopies
     ++ [
       (managedExecutableFile ".claude/statusline-command.sh" ../../../home/.claude/statusline-command.sh)
-      (managedExecutableFile ".claude/tmux-notify.sh" ../../../home/.claude/tmux-notify.sh)
+      (managedExecutableFile ".claude/hooks/herdr-agent-state.sh" ../../../home/.claude/hooks/herdr-agent-state.sh)
     ];
 
   targetIsSafe = target:

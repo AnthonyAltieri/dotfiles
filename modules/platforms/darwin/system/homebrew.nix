@@ -62,6 +62,7 @@ in
       "fzf"
       "gh"
       "git"
+      "herdr"
       "jq"
       "neovim"
       "nvm"
@@ -70,7 +71,6 @@ in
       "starship"
       "tree-sitter"
       "tree-sitter-cli"
-      "tmux"
       "uv"
       "vim"
     ];

@@ -114,12 +114,12 @@ in {
   ohMyZsh = cfg.programs.zsh."oh-my-zsh".enable or false;
   sessionVariables = cfg.home.sessionVariables;
   packages = map packageName cfg.home.packages;
-  tmuxEnabled = cfg.programs.tmux.enable or false;
   zshEnabled = cfg.programs.zsh.enable or false;
 }')"
 
 assert_jq '.zshEnabled == true' "Expected zsh to be enabled"
-assert_jq '.tmuxEnabled == true' "Expected tmux to be enabled"
+assert_jq '.packages | index("herdr") != null' "Expected herdr to be installed from its flake"
+assert_jq '.xdgFiles | index("herdr/config.toml") != null' "Expected ~/.config/herdr/config.toml to be managed"
 assert_jq '.xdgFiles | index("zsh") != null' "Expected ~/.config/zsh to be managed"
 assert_jq '.xdgFiles | index("nvim") != null' "Expected ~/.config/nvim to be managed"
 assert_jq '.xdgFiles | index("starship.toml") != null' "Expected starship config to be managed"

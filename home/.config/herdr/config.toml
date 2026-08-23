@@ -1,0 +1,35 @@
+# herdr configuration (managed by Home Manager from home/.config/herdr).
+# Reference: https://herdr.dev/docs/configuration/
+
+onboarding = false
+
+[keys]
+# Same prefix the previous tmux setup used.
+prefix = "ctrl+space"
+
+# Prefix + v/s split panes; new panes follow the current working directory
+# through [terminal] new_cwd = "follow" (the default).
+split_vertical = "prefix+v"
+split_horizontal = "prefix+s"
+
+# Ghostty delivers Ctrl+Shift+Q and Ctrl+Shift+, as CSI-u chords, so herdr
+# can bind them directly without a prefix.
+close_pane = ["prefix+x", "ctrl+shift+q"]
+rename_tab = ["prefix+shift+t", "ctrl+shift+comma"]
+
+# Ctrl+1..9 jumps straight to a tab (Ghostty no longer translates these).
+switch_tab = ["prefix+1..9", "ctrl+1..9"]
+
+# Pane focus. Neovim owns plain Ctrl+h/j/k/l and calls `herdr pane focus`
+# when it hits a window edge (see home/.config/nvim/lua/aalt/lazy/herdr_navigator.lua);
+# shell panes use the prefix or the terminal-safe ctrl+alt chords.
+focus_pane_left = ["prefix+h", "ctrl+alt+h"]
+focus_pane_down = ["prefix+j", "ctrl+alt+j"]
+focus_pane_up = ["prefix+k", "ctrl+alt+k"]
+focus_pane_right = ["prefix+l", "ctrl+alt+l"]
+
+[ui]
+# Show the outer terminal which workspace/tab is focused.
+window_title = "{workspace}: {tab}"
+# Distinguish blocked/working/idle by shape as well as color.
+status_indicators = "symbols"

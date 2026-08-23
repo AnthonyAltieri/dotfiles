@@ -40,7 +40,6 @@ The user-bound outputs resolve the current login user at evaluation time. `boots
 ├── docs/
 ├── home/
 │   ├── .zshrc
-│   ├── .tmux.conf
 │   ├── .vimrc
 │   ├── .config/
 │   ├── .codex/
@@ -161,6 +160,7 @@ nix flake update
 - **Sandbox** stays lean and avoids desktop-specific settings.
 - Repo-local packages that are not present in pinned `nixpkgs`, such as `observe`, are defined under `pkgs/` and exposed through flake `packages`.
 - Work-only private Homebrew taps and casks are supplied through local env state, not tracked files.
+- The terminal multiplexer is [herdr](https://herdr.dev): Homebrew on Darwin, the `herdr` flake input on Linux and sandbox profiles (it is not in nixpkgs). Its config is `home/.config/herdr/config.toml`, linked to `~/.config/herdr/config.toml` by `modules/shared/shell/herdr.nix`, which also runs `herdr server reload-config` on change.
 
 Current hidden runtime dependencies are also declared, including `jq`.
 
@@ -192,7 +192,7 @@ Managed agent files include:
 - `~/.claude/CLAUDE.md`
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- `~/.claude/{statusline-command.sh,tmux-notify.sh}`
+- `~/.claude/statusline-command.sh` and `~/.claude/hooks/herdr-agent-state.sh`
 
 Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skills/atlas`. The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
 

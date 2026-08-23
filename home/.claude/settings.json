@@ -7,32 +7,14 @@
     "command": "bash ~/.claude/statusline-command.sh"
   },
   "hooks": {
-    "Stop": [
+    "SessionStart": [
       {
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/tmux-notify.sh on"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/tmux-notify.sh on"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/tmux-notify.sh off"
+            "command": "bash ~/.claude/hooks/herdr-agent-state.sh session",
+            "timeout": 10
           }
         ]
       }

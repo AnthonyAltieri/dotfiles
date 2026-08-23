@@ -7,7 +7,7 @@ in
 {
   imports = [
     ./zsh.nix
-    ./tmux.nix
+    ./herdr.nix
   ];
 
   home.packages = lib.optionals useNixPackages [

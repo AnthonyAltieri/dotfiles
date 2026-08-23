@@ -1,6 +1,6 @@
 source ~/.config/zsh/config.zsh
 
-# Free Ctrl+S/Ctrl+Q for terminal apps such as Neovim and tmux instead of
+# Free Ctrl+S/Ctrl+Q for terminal apps such as Neovim and herdr instead of
 # letting the TTY line discipline treat them as XON/XOFF flow control.
 if [[ -o interactive ]] && [[ -t 0 ]]; then
   stty -ixon 2>/dev/null
