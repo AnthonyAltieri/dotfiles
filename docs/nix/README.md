@@ -89,7 +89,6 @@ flowchart TD
 │   ├── .config/
 │   ├── .claude/
 │   ├── .codex/
-│   ├── .tmux.conf
 │   ├── .vimrc
 │   └── .zshrc
 ├── lib/
@@ -118,7 +117,7 @@ Use these placement rules:
 
 - `base.nix` sets `home.username`, `home.homeDirectory`, `home.stateVersion`, base session variables, and Linux target wiring.
 - `files.nix` links the managed payloads from `home/`.
-- `shell/` owns the interactive shell stack: `zsh.nix`, `tmux.nix`, and the starship package.
+- `shell/` owns the interactive shell stack: `zsh.nix`, `herdr.nix` (the terminal multiplexer: Homebrew on Darwin, the herdr flake elsewhere), and the starship package.
 - `editors/` owns the editor stack: `neovim.nix` plus the neovim/vim packages on platforms that do not get them from Homebrew.
 - `agents/` owns everything agent-related: `managed-copies.nix`, `mcp-servers.nix`, `claude.nix`, `codex.nix`, and `skill-helpers.nix` (the Rust-backed helper commands on `PATH`).
 

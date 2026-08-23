@@ -1,34 +1,23 @@
-# Claude Code Tmux Notifications
+# Claude Code + herdr
 
-Adds `!` to the tmux window name when Claude Code needs your attention (task complete, plan approval, questions, etc.), so you can see at a glance which tab needs attention. The `!` clears automatically when you switch to that window or submit a new prompt.
+Claude Code runs inside [herdr](https://herdr.dev), which detects the agent's
+state (working, blocked, idle, done) from the pane itself and surfaces it in
+the sidebar and tab bar. No custom notification hooks are needed for that.
 
-## How it works
+## Session identity hook
 
-### Hooks (`settings.json`)
+`hooks/herdr-agent-state.sh` is herdr's Claude Code integration asset, vendored
+here so the hook can be declared in the managed `settings.json` rather than
+installed by `herdr integration install claude` (which would edit a file Home
+Manager owns).
 
-Claude Code fires three hooks:
+| Hook           | Command |
+|----------------|---------|
+| `SessionStart` | `herdr-agent-state.sh session` — reports the Claude session id and transcript path to the local herdr socket so herdr can resume the session after a server restart. |
 
-| Event               | Action                        |
-|---------------------|-------------------------------|
-| `Stop`              | `tmux-notify.sh on` — append `!` (task complete) |
-| `Notification`      | `tmux-notify.sh on` — append `!` (plan approval, questions, etc.) |
-| `UserPromptSubmit`  | `tmux-notify.sh off` — remove `!` from the window name |
+The script exits silently unless it is running inside a herdr pane
+(`HERDR_ENV=1`, `HERDR_SOCKET_PATH`, `HERDR_PANE_ID`), so it is harmless in a
+plain terminal.
 
-### Window targeting (`$TMUX_PANE`)
-
-When Claude Code invokes hooks, `$TMUX_PANE` is set to the pane where Claude is running. The script passes `-t "$TMUX_PANE"` to all tmux commands so it always modifies the correct window — even if you're focused on a different one.
-
-### Mark-as-read (`@claude-notify`)
-
-The `on` command sets a tmux window user option `@claude-notify` as a marker. An `after-select-window` hook in `tmux.conf` runs `tmux-notify.sh off-if-claude` whenever you switch windows, which only clears the `!` if `@claude-notify` is present. This means:
-
-- Switching to a Claude window clears its `!` (mark as read)
-- Other programs that use `!` in window names are left untouched
-
-### Script commands (`tmux-notify.sh`)
-
-| Command         | Description |
-|-----------------|-------------|
-| `on`            | Append `!` to window name, set `@claude-notify` marker |
-| `off`           | Remove `!` from window name, unset `@claude-notify` marker |
-| `off-if-claude` | Same as `off`, but only if `@claude-notify` is set on the window |
+When bumping herdr, refresh the script from
+`src/integration/assets/claude/herdr-agent-state.sh` in the matching release.
