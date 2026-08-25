@@ -11,8 +11,8 @@ if (( $+commands[starship] )); then
   eval "$(starship init zsh)"
 fi
 
-# Load nvm. Prefer the Homebrew install on macOS, but keep the legacy
-# per-user layout as a fallback until all machines converge on Nix.
+# Load nvm as the interactive Node owner. Prefer Homebrew on macOS and retain
+# the standard per-user layout as a fallback on machines without Homebrew.
 export NVM_DIR="$HOME/.nvm"
 if command -v brew >/dev/null 2>&1; then
   NVM_PREFIX="$(brew --prefix nvm 2>/dev/null || true)"
@@ -26,6 +26,52 @@ if command -v brew >/dev/null 2>&1; then
 elif [[ -s "$NVM_DIR/nvm.sh" ]]; then
   . "$NVM_DIR/nvm.sh"
   [[ -s "$NVM_DIR/bash_completion" ]] && . "$NVM_DIR/bash_completion"
+fi
+
+if (( $+functions[nvm] )); then
+  autoload -Uz add-zsh-hook
+
+  _dotfiles_find_node_version_file() {
+    local search_dir="$PWD"
+
+    while [[ -n "$search_dir" ]]; do
+      if [[ -f "$search_dir/.nvmrc" ]]; then
+        print -r -- "$search_dir/.nvmrc"
+        return 0
+      fi
+
+      if [[ -f "$search_dir/.node-version" ]]; then
+        print -r -- "$search_dir/.node-version"
+        return 0
+      fi
+
+      [[ "$search_dir" == "/" ]] && break
+      search_dir="${search_dir:h}"
+    done
+
+    return 1
+  }
+
+  _dotfiles_use_project_node() {
+    local version_file requested_version
+
+    version_file="$(_dotfiles_find_node_version_file)" || return 0
+    if [[ "${version_file:t}" == ".nvmrc" ]]; then
+      nvm use --silent
+      return
+    fi
+
+    IFS= read -r requested_version < "$version_file"
+    if [[ -z "$requested_version" ]]; then
+      print -u2 -- "nvm: $version_file is empty"
+      return 1
+    fi
+
+    nvm use --silent "$requested_version"
+  }
+
+  add-zsh-hook chpwd _dotfiles_use_project_node
+  _dotfiles_use_project_node
 fi
 
 
