@@ -132,7 +132,7 @@ assert_jq '.agentManagedTargets | index(".codex/skills/gh-comments") == null' "D
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-ci-log-tools") == null' "Did not expect renamed Codex GitHub CI log tools skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-review-thread-actions") == null' "Did not expect renamed Codex GitHub review thread actions skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-address-comments") != null' "Expected shared Codex GitHub address-comments skill to be managed"
-assert_jq '.agentManagedTargets | index(".codex/skills/gh-fix-ci") == null' "Did not expect legacy Codex GitHub fix-CI skill"
+assert_jq '.agentManagedTargets | index(".codex/skills/gh-fix-ci") != null' "Expected shared Codex GitHub fix-CI skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/gh-manage-pr") == null' "Did not expect legacy Codex GitHub manage-PR skill"
 assert_jq '.agentManagedTargets | index(".codex/skills/atlas") == null' "Did not expect Codex Atlas skill on Linux"
 assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expected Codex handoff skill to be managed"
@@ -142,7 +142,7 @@ assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expec
 assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") != null' "Expected Claude adversarial-review skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/atlas") == null' "Did not expect Claude Atlas skill on Linux"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-address-comments") != null' "Expected shared Claude GitHub address-comments skill to be managed"
-assert_jq '.agentManagedTargets | index(".claude/skills/gh-fix-ci") != null' "Expected Claude GitHub fix-CI skill to remain managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/gh-fix-ci") != null' "Expected shared Claude GitHub fix-CI skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-manage-pr") != null' "Expected Claude GitHub manage-PR skill to remain managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/handoff") != null' "Expected Claude handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/improve-codebase-architecture") != null' "Expected Claude improve-codebase-architecture skill to be managed"
@@ -172,6 +172,18 @@ fi
 
 if ! grep -Fq 'allow_implicit_invocation: false' "$adversarial_review_source/agents/openai.yaml"; then
   echo "Expected Codex adversarial-review source to require explicit invocation" >&2
+  exit 1
+fi
+
+codex_gh_fix_ci_source="$(jq -er '.agentManagedCopies[] | select(.target == ".codex/skills/gh-fix-ci") | .source' <<<"$summary")"
+claude_gh_fix_ci_source="$(jq -er '.agentManagedCopies[] | select(.target == ".claude/skills/gh-fix-ci") | .source' <<<"$summary")"
+if [[ "$codex_gh_fix_ci_source" != "$claude_gh_fix_ci_source" ]]; then
+  echo "Expected Codex and Claude gh-fix-ci targets to share one source payload" >&2
+  exit 1
+fi
+
+if [[ ! -f "$codex_gh_fix_ci_source/SKILL.md" ]] || ! grep -Fq 'name: gh-fix-ci' "$codex_gh_fix_ci_source/SKILL.md"; then
+  echo "Expected shared gh-fix-ci source payload and identity" >&2
   exit 1
 fi
 
@@ -257,11 +269,13 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
     "$HOME/.codex/AGENTS.md" \
     "$HOME/.codex/skills/adversarial-review/SKILL.md" \
     "$HOME/.codex/skills/adversarial-review/agents/openai.yaml" \
+    "$HOME/.codex/skills/gh-fix-ci/SKILL.md" \
     "$HOME/.codex/skills/gh-pr-body/SKILL.md" \
     "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
     "$HOME/.claude/settings.json" \
-    "$HOME/.claude/skills/adversarial-review/SKILL.md"
+    "$HOME/.claude/skills/adversarial-review/SKILL.md" \
+    "$HOME/.claude/skills/gh-fix-ci/SKILL.md"
   do
     if [[ ! -e "$path" ]]; then
       echo "Expected copied agent file to exist: ${path}" >&2
