@@ -20,6 +20,9 @@ rename_tab = ["prefix+shift+t", "ctrl+shift+comma"]
 # Ctrl+1..9 jumps straight to a tab (Ghostty no longer translates these).
 switch_tab = ["prefix+1..9", "ctrl+1..9"]
 
+# Ctrl+Shift+1..9 jumps straight to a workspace.
+switch_workspace = "ctrl+shift+1..9"
+
 # Pane focus. Neovim owns plain Ctrl+h/j/k/l and calls `herdr pane focus`
 # when it hits a window edge (see home/.config/nvim/lua/aalt/lazy/herdr_navigator.lua);
 # shell panes use the prefix or the terminal-safe ctrl+alt chords.
