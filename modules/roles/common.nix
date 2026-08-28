@@ -3,6 +3,7 @@
   home.packages = with pkgs; [
     awscli2
     docker
+    glow
     postgresql
     ripgrep
   ];
