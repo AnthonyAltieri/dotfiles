@@ -21,3 +21,4 @@ fi
 
 alias gcb=git-current-branch
 alias g=git
+alias h=herdr
