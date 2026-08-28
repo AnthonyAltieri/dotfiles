@@ -10,6 +10,7 @@ require("aalt.hover").setup_mouse_hover()
 require("aalt.external_file_merge").setup()
 require("aalt.debug_commands").setup()
 require("aalt.path_commands").setup()
+require("aalt.markdown_preview").setup()
 require("aalt.herdr_navigator").setup()
 
 -- Bootstrap Lazy plugin manager
