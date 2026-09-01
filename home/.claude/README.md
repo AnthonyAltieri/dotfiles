@@ -4,6 +4,15 @@ Claude Code runs inside [herdr](https://herdr.dev), which detects the agent's
 state (working, blocked, idle, done) from the pane itself and surfaces it in
 the sidebar and tab bar. No custom notification hooks are needed for that.
 
+## Codex implementation workers
+
+Managed settings use Fable for the Claude orchestration session and enable
+OpenAI's `codex@openai-codex` plugin. On Darwin, the `codex-threads` MCP server
+adds persistent Codex App thread lifecycle controls. The Claude
+`spawn-orchestrator` skill combines them by keeping an isolated Claude agent
+alive in the background while its inner Sol/xhigh Codex worker runs with
+`--wait`; this preserves both the worktree and the durable Codex thread.
+
 ## Session identity hook
 
 `hooks/herdr-agent-state.sh` is herdr's Claude Code integration asset, vendored

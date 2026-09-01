@@ -82,6 +82,7 @@ in
 
     casks = [
       "1password-cli"
+      "codex"
       "ghostty"
       "raycast"
     ] ++ privateWorkHomebrewCasks;

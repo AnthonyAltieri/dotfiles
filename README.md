@@ -198,11 +198,13 @@ Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skill
 
 Declared remote MCP servers (`dotfiles.agentMcpServers`) are merged into both agents' otherwise-unmanaged configs at activation. Personal and work declare `linear` (`https://mcp.linear.app/mcp`); work additionally declares `notion` (`https://mcp.notion.com/mcp`); sandbox declares none. For Codex the merge writes `[mcp_servers.<name>].url` plus `features.rmcp_client = true` into `~/.codex/config.toml`; for Claude it writes `mcpServers.<name>` (an `http` server) into `~/.claude/.claude.json`, the same file `claude mcp add -s user` writes.
 
+On Darwin, Claude also receives the local `codex-threads` stdio MCP server. It wraps the public Codex app-server protocol with persistent Sol/xhigh thread lifecycle tools while leaving worktree creation to Claude's outer agent. The managed Claude settings select Fable as the orchestrator model and enable OpenAI's `codex@openai-codex` plugin from the `openai/codex-plugin-cc` marketplace; Homebrew supplies the matching `codex` app and CLI.
+
 The merges intentionally touch only those keys — other servers, settings, and OAuth state stay local. On a new machine, authenticate once per agent: `codex mcp login <name>`, and `/mcp` in Claude Code.
 
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
-Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from the crates in `pkgs/` and exposed on `PATH` by the active profile. The `gh-pr-image` usage rules live in the `gh-manage-pr` and `gh-pr-body` skills.
+Packaged helper commands such as `atlas-cli`, `codex-thread-manager`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from `pkgs/` and exposed on `PATH` by the active profile. The `gh-pr-image` usage rules live in the `gh-manage-pr` and `gh-pr-body` skills.
 
 Examples of intentionally unmanaged local state:
 

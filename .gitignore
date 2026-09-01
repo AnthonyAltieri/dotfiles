@@ -2,6 +2,7 @@
 .dotfiles-private.env
 .nvimlog
 *.bak
+__pycache__/
 .nix-cache/
 tasks/
 target/

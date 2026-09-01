@@ -52,6 +52,7 @@
     forAllSystems = lib.genAttrs supportedSystems;
   in {
     overlays.default = final: prev: {
+      codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
 
@@ -65,6 +66,7 @@
         };
       in
       {
+        codex-thread-manager = pkgs.codex-thread-manager;
         observe = pkgs.observe;
       }
     );
