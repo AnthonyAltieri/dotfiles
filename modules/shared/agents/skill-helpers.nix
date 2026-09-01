@@ -73,5 +73,6 @@ in
     ]
     ++ lib.optionals (platform == "darwin") [
       atlasCli
+      pkgs.codex-thread-manager
     ];
 }
