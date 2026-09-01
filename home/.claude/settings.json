@@ -2,6 +2,9 @@
   "model": "opus[1m]",
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
+  "permissions": {
+    "defaultMode": "auto"
+  },
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
