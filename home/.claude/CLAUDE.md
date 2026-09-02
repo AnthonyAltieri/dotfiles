@@ -57,7 +57,7 @@ git switch -c <branch-name> origin/main
 
 - Default to a draft PR (`gh pr create --draft ...`) unless I explicitly ask for a ready-for-review/open PR.
 - Do not convert an existing PR between draft and ready-for-review unless I explicitly ask.
-- To add an image to a PR body, follow the `gh-manage-pr` skill and its prompt-gated image helper; never bypass its approval gate or substitute another upload path.
+- To add an image or video to a PR body, follow the `gh-manage-pr` skill and use `gh`'s built-in `--attach` flag; never substitute another upload path.
 
 ## Focused Testing (Speed)
 

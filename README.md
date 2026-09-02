@@ -204,7 +204,7 @@ The merges intentionally touch only those keys — other servers, settings, and 
 
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
-Packaged helper commands such as `atlas-cli`, `codex-thread-manager`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from `pkgs/` and exposed on `PATH` by the active profile. The `gh-pr-image` usage rules live in the `gh-manage-pr` and `gh-pr-body` skills.
+Packaged helper commands such as `atlas-cli`, `codex-thread-manager`, `fetch-comments`, `classify-ci-log`, and `sql-read` are built from `pkgs/` and exposed on `PATH` by the active profile. PR media uploads use `gh`'s built-in `--attach` flag (gh 2.99.0+) rather than a packaged helper.
 
 Examples of intentionally unmanaged local state:
 

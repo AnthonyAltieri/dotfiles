@@ -1,4 +1,4 @@
 interface:
   display_name: "gh-pr-body"
-  short_description: "Update an existing PR body or image"
-  default_prompt: "Use $gh-pr-body to update the existing pull request description or add the requested image, then verify the final body."
+  short_description: "Update an existing PR body or attach media"
+  default_prompt: "Use $gh-pr-body to update the existing pull request description or attach the requested image or video with gh --attach, then verify the final body."

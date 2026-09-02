@@ -14,7 +14,7 @@ Fetch the review threads on the current branch's PR and drive every unresolved t
 
 Never resolve a thread silently, never reply without evidence, and never "fix" something just to appease a comment you could not confirm.
 
-Use the `gh` CLI for all GitHub reads and the Rust helper commands (on `PATH` via the active Nix profile) for posting and resolving. If no PR exists for the current branch, report this and stop.
+Use the `gh` CLI for all GitHub reads and top-level comments, and the Rust helper commands (on `PATH` via the active Nix profile) for review-thread replies and resolution. If no PR exists for the current branch, report this and stop.
 
 ## Inputs
 
@@ -76,9 +76,9 @@ Classify the outcome: **Confirmed** (proof the comment is correct, or that a clo
 ## Gotchas
 
 - Keep GraphQL fetching in `gh`; the helpers only post-process saved thread metadata.
-- `create-comment` targets the current branch PR by default and accepts `--pr` for an explicit target; use it only for top-level comments outside any review thread.
+- For a top-level comment outside any review thread, use `gh pr comment [<pr>] --body "🤖 FROM <AGENT>: ..."`; add `--attach <file>` (gh 2.99.0+) when a screenshot or recording is the evidence.
 - `create-thread-reply` expects a review thread ID, not a comment ID.
-- Both posting helpers automatically prefix the final body with `🤖 `; keep the reply text itself agent-specific — replace `<AGENT>` with the agent actually running (`FROM CLAUDE:` from Claude, `FROM CODEX:` from Codex).
+- `create-thread-reply` automatically prefixes the final body with `🤖 `; keep the reply text itself agent-specific — replace `<AGENT>` with the agent actually running (`FROM CLAUDE:` from Claude, `FROM CODEX:` from Codex).
 - `resolve-thread` is idempotent; already-resolved threads won't error.
 - Always reply **before** resolving — a resolution with no explanation reads as dismissal.
 - If any helper command is missing, reapply the profile so the packaged helpers are rebuilt and activated.
@@ -93,6 +93,5 @@ Classify the outcome: **Confirmed** (proof the comment is correct, or that a clo
 
 - `fetch-comments --format compact` - Emits flattened tab-separated thread metadata that pipes cleanly into `summarize-threads`.
 - `summarize-threads` - Groups flattened thread metadata by file, reviewer, and resolution state into compact JSON.
-- `create-comment` - Creates a top-level PR comment.
 - `create-thread-reply` - Creates a review-thread reply.
 - `resolve-thread` - Resolves a review thread by thread ID.

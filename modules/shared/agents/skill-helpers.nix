@@ -22,10 +22,9 @@ let
     src,
     lockFile,
     meta ? { },
-    nativeCheckInputs ? [ ],
   }:
     pkgs.rustPlatform.buildRustPackage {
-      inherit pname meta nativeCheckInputs;
+      inherit pname meta;
       version = "0.1.0";
       src = cleanRustSource src;
       cargoLock.lockFile = lockFile;
@@ -50,13 +49,6 @@ let
     lockFile = ../../../pkgs/sql-read/Cargo.lock;
   };
 
-  ghManagePrTools = buildRustHelper {
-    pname = "gh-manage-pr-tools";
-    src = ../../../pkgs/gh-pr-tools;
-    lockFile = ../../../pkgs/gh-pr-tools/Cargo.lock;
-    nativeCheckInputs = [ pkgs.jq ];
-  };
-
   atlasCli = buildRustHelper {
     pname = "atlas-cli";
     src = ../../../pkgs/atlas-cli;
@@ -68,7 +60,6 @@ in
     [
       ghAddressCommentsTools
       ghFixCiTools
-      ghManagePrTools
       sqlReadTools
     ]
     ++ lib.optionals (platform == "darwin") [
