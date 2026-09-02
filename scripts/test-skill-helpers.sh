@@ -22,4 +22,3 @@ run cargo test --offline --manifest-path pkgs/sql-read/Cargo.toml
 run tests/sql-read-state-migration-smoke.sh
 run cargo test --offline --manifest-path pkgs/gh-comment-tools/Cargo.toml
 run cargo test --offline --manifest-path pkgs/gh-ci-tools/Cargo.toml
-run cargo test --offline --manifest-path pkgs/gh-pr-tools/Cargo.toml

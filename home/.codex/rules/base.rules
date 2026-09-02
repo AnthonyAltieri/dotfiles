@@ -113,7 +113,7 @@ prefix_rule(
         "fetch-comments --format json",
     ],
     not_match=[
-        "create-comment --body FROM CODEX: ready for another look.",
+        "create-thread-reply --thread-id PRRT_example --body FROM CODEX: ready for another look.",
     ],
 )
 
@@ -167,18 +167,6 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern=["create-comment"],
-    decision="prompt",
-    justification="Posting PR comments mutates GitHub state and should keep prompting.",
-    match=[
-        "create-comment --body FROM CODEX: ready for another look.",
-    ],
-    not_match=[
-        "fetch-comments --format json",
-    ],
-)
-
-prefix_rule(
     pattern=["create-thread-reply"],
     decision="prompt",
     justification="Replying to review threads mutates GitHub state and should keep prompting.",
@@ -199,17 +187,5 @@ prefix_rule(
     ],
     not_match=[
         "fetch-comments --format compact",
-    ],
-)
-
-prefix_rule(
-    pattern=["gh-pr-image", "add"],
-    decision="prompt",
-    justification="Uploading an image and updating a pull request body mutates GitHub state and uses an experimental endpoint, so it should stay approval-gated.",
-    match=[
-        "gh-pr-image add screenshot.png --alt settings --pr 123 -R owner/repo",
-    ],
-    not_match=[
-        "gh-manage-pr-summarize /tmp/pr.diffstat",
     ],
 )

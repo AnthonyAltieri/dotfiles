@@ -3,7 +3,6 @@ name: atlas
 description: "macOS-only AppleScript control for the ChatGPT Atlas desktop app. Use only when the user explicitly asks to control Atlas tabs/bookmarks/history on macOS and the \"ChatGPT Atlas\" app is installed; do not trigger for general browser tasks or non-macOS environments."
 ---
 
-
 # Atlas Control (macOS)
 
 Use the `atlas-cli` helper from the active Nix profile to control Atlas and inspect local browser data.
@@ -12,9 +11,7 @@ Use a browser-automation tool for DOM inspection, visible page interaction, and 
 
 ## Quick Start
 
-The active Nix profile puts `atlas-cli` on `PATH`, so call it directly.
-
-Then run:
+The active Nix profile puts `atlas-cli` on `PATH`, so call it directly:
 
 ```bash
 atlas-cli app-name

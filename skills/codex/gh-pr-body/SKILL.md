@@ -1,6 +1,6 @@
 ---
 name: gh-pr-body
-description: Update the title or body of an existing GitHub pull request and add a requested image through the prompt-gated `gh-pr-image` helper. Use for existing-PR description maintenance or supported PR-body attachments; do not use to create, commit, push, publish, review, or diagnose a pull request.
+description: Update the title or body of an existing GitHub pull request and attach requested images or videos through gh's built-in --attach flag. Use for existing-PR description maintenance or PR-body media; do not use to create, commit, push, publish, review, or diagnose a pull request.
 ---
 
 # GitHub PR Body
@@ -23,7 +23,7 @@ Maintain the current state description of an existing pull request. Use `github:
    git diff <baseRefName>...HEAD
    ```
 
-For a large diffstat, `gh-manage-pr-summarize` can produce compact JSON grouped by subsystem.
+For a large diff, read `git diff <baseRefName>...HEAD --dirstat=files,0` and the diffstat first, then pull hunks only for the sections that need snippets.
 
 ## Draft the body
 
@@ -37,26 +37,25 @@ Apply an authorized update with `gh pr edit --title ... --body-file ...`, then
 read the PR back, verify the exact title/body, and confirm any PR lint verdict
 re-ran clean.
 
-## Add an image
+## Attach an image or video
 
-When the user asks to add an image, use only:
+Use `gh`'s built-in `--attach` on the same `gh pr edit` call; never build a separate upload path (browser cookies, direct GraphQL mutations, third-party hosting, repository-committed assets, or undocumented endpoints).
 
 ```bash
-gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]
+gh pr edit <pr> --body-file <tmpfile> --attach './before.png#Login form before' --attach './after.png#Login form after'
 ```
 
-The helper is prompt-gated because it uploads bytes and changes GitHub state. Do not bypass it with browser cookies, direct GraphQL mutations, third-party hosting, or repository-backed assets.
+- Requires `gh` 2.99.0 or newer (`gh --version`). If the flag is missing, report that and ask the user to upgrade `gh`.
+- Reference each file's local path in the body Markdown so it lands where intended; `gh` uploads it and rewrites the reference in place, keeping the Markdown alt text. Images: `![<alt text>](./shot.png)`. Videos: `![](./demo.mp4)` alone in its own paragraph so it renders as a player. Videos have no alt text.
+- A file the body does not reference is appended to the end in flag order; give appended images alt text as `--attach './shot.png#<alt text>'`.
+- Repeat `--attach` per file, up to 50 per command, never the same file twice. Limits match web uploads: 10 MB per image or GIF; 10 MB per video on free plans and 100 MB on paid plans. The authenticated account needs push access to the repository.
 
-The current helper accepts exactly one PNG, JPEG, or GIF per invocation and supports only public, same-repository PRs that the authenticated viewer can update. Fork-authored, private, and internal PRs are unsupported. If its experimental upload endpoint fails, report the compatibility failure instead of selecting another backend.
-
-After the helper returns, read the PR body back and verify the managed attachment entry.
+After `gh` returns, read the PR body back and verify every local path was replaced with an uploaded URL.
 
 ## Output
 
-Return the PR URL, final title, changed body sections, image result when applicable, and readback verification.
+Return the PR URL, final title, changed body sections, attachments added when applicable, and readback verification.
 
-## Bundled resources
+## Related skills
 
-- `gh-pr-image` validates the image, preserves a recovery journal, updates a managed attachment block idempotently, and verifies the final body.
-- `gh-manage-pr-summarize` compacts a diffstat when needed.
 - The `gh-pr-description` skill owns the body-writing method and the default template.
