@@ -10,6 +10,8 @@ LSP_CONFIG="${ROOT_DIR}/home/.config/nvim/lua/aalt/lazy/lsp.lua"
 MASON_PACKAGES="${ROOT_DIR}/home/.config/nvim/lua/aalt/mason_packages.lua"
 
 grep -q 'rust_analyzer = {}' "$LSP_CONFIG"
+grep -q 'pyrefly = {}' "$LSP_CONFIG"
+! grep -q 'pyright = {}' "$LSP_CONFIG"
 grep -q 'tsgo = {' "$LSP_CONFIG"
 grep -q 'hoverVerbosityLevel = true' "$LSP_CONFIG"
 grep -q 'mason_packages.ensure_installed()' "$LSP_CONFIG"
@@ -24,7 +26,7 @@ grep -q "Would verify Neovim Mason tools" "${ROOT_DIR}/modules/shared/editors/ne
 
 nvim --clean --headless -i NONE \
   +"set rtp+=${ROOT_DIR}/home/.config/nvim" \
-  +"lua local ok, err = xpcall(function() local packages = require('aalt.mason_packages').ensure_installed(); local seen = {}; for _, package_name in ipairs(packages) do seen[package_name] = true end; for _, package_name in ipairs({ 'pyright', 'ruff', 'rust-analyzer', 'lua-language-server', 'tsgo', 'stylua', 'eslint_d', 'oxfmt', 'oxlint', 'prettierd' }) do assert(seen[package_name], package_name) end end, debug.traceback); if not ok then io.stderr:write(err .. '\n'); vim.cmd('cquit') end" \
+  +"lua local ok, err = xpcall(function() local packages = require('aalt.mason_packages').ensure_installed(); local seen = {}; for _, package_name in ipairs(packages) do seen[package_name] = true end; for _, package_name in ipairs({ 'pyrefly', 'ruff', 'rust-analyzer', 'lua-language-server', 'tsgo', 'stylua', 'eslint_d', 'oxfmt', 'oxlint', 'prettierd' }) do assert(seen[package_name], package_name) end; assert(not seen.pyright, 'pyright should not be installed') end, debug.traceback); if not ok then io.stderr:write(err .. '\n'); vim.cmd('cquit') end" \
   +qa
 
 echo "ok rust lsp parity configured"
