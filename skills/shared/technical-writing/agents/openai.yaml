@@ -1,0 +1,6 @@
+interface:
+  display_name: "technical-writing"
+  short_description: "Layered technical-writing standard for docs and PRs"
+  default_prompt: "Use $technical-writing to write or review docs, RFCs, readmes, PR descriptions, or commit messages."
+policy:
+  allow_implicit_invocation: false
