@@ -182,7 +182,13 @@ DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 
 This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
-All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `atlas`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-pr-description`, `handoff`, `improve-codebase-architecture`, `linear-claim-work`, `notion-knowledge-capture`, `notion-read`, `observe`, `programming`, `sql-read`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `spawn-orchestrator` (its own variant), and `ultragoal`, while Claude additionally gets `gh-manage-pr` and its own `spawn-orchestrator` variant.
+All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `atlas`, `bro`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-pr-description`, `handoff`, `how`, `improve-codebase-architecture`, `linear-claim-work`, `notion-knowledge-capture`, `notion-read`, `observe`, `programming`, `sql-read`, `teach`, `technical-writing`, `unslop`, `why`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `spawn-orchestrator` (its own variant), and `ultragoal`, while Claude additionally gets `gh-manage-pr` and its own `spawn-orchestrator` variant.
+
+### Skills vendored from pstack
+
+`bro`, `how`, `teach`, `technical-writing`, `unslop`, and `why` are copied from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack) plugin for Cursor, licensed under the MIT License, at [`cursor/plugins@93b00b8`](https://github.com/cursor/plugins/tree/93b00b89ef425a9c1bac0d0b317dfc49c930ac99/pstack/skills). Two local changes apply on top: an `agents/openai.yaml` per skill so Codex also requires explicit invocation, matching the `disable-model-invocation: true` frontmatter upstream sets for Claude, and the Grok defaults in `how` and `why` replaced with ChatGPT Sol at xhigh reasoning (`gpt-5.6-sol-xhigh`), dropping Grok from the `how` critics list. To refresh them, re-copy the six directories from upstream, reapply the model swap, and bump the pinned commit here.
+
+Their `how`, `why`, and `teach` skills describe subagents with Cursor's `subagent_type`, `model`, and `readonly` parameters. Claude Code and Codex map those onto their own subagent tools; the model names are Cursor defaults, not settings this repo manages.
 
 Managed agent files include:
 
