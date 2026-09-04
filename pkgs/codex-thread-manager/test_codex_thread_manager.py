@@ -7,11 +7,17 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from app_server import AppServerClient, AppServerError
+from app_server import (
+    CODEX_EXECUTABLE_ENV,
+    AppServerClient,
+    AppServerError,
+    codex_executable,
+)
 from codex_thread_manager import (
     WORKER_MODEL,
     canonical_working_directory,
     mcp,
+    thread_list_params,
     thread_start_params,
     turn_start_params,
 )
@@ -95,6 +101,36 @@ class ContractTests(unittest.TestCase):
             self.assertEqual(
                 Path(canonical_working_directory(directory)),
                 Path(directory).resolve(),
+            )
+
+    def test_thread_list_uses_the_interactive_source_filter(self) -> None:
+        # app-server persists our threads as source "vscode"; an explicit
+        # sourceKinds=["appServer"] filter silently returned nothing.
+        params = thread_list_params(50, False, None, None)
+        self.assertEqual(params, {"limit": 50, "archived": False})
+
+        with tempfile.TemporaryDirectory() as directory:
+            narrowed = thread_list_params(5, True, "probe", directory)
+        self.assertNotIn("sourceKinds", narrowed)
+        self.assertEqual(narrowed["searchTerm"], "probe")
+        self.assertEqual(Path(narrowed["cwd"]), Path(directory).resolve())
+
+    def test_prefers_the_desktop_codex_binary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundled = Path(directory) / "codex"
+            bundled.write_text("#!/bin/sh\n")
+            bundled.chmod(0o755)
+            missing = str(Path(directory) / "absent" / "codex")
+
+            self.assertEqual(
+                codex_executable({}, (missing, str(bundled))), str(bundled)
+            )
+            self.assertEqual(codex_executable({}, (missing,)), "codex")
+            self.assertEqual(
+                codex_executable(
+                    {CODEX_EXECUTABLE_ENV: "/opt/custom/codex"}, (str(bundled),)
+                ),
+                "/opt/custom/codex",
             )
 
     def test_registers_the_thread_lifecycle_tools(self) -> None:

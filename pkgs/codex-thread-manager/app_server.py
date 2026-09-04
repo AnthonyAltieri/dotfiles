@@ -4,7 +4,34 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+from pathlib import Path
 from typing import Any, Protocol
+
+CODEX_EXECUTABLE_ENV = "CODEX_THREAD_MANAGER_CODEX"
+
+# Codex Desktop ships its own app-server binary. Preferring it keeps this
+# bridge and the Desktop on one Codex version so both write the same thread
+# store format; a stale Homebrew `codex` on PATH is the fallback.
+DESKTOP_CODEX_CANDIDATES = (
+    "/Applications/ChatGPT.app/Contents/Resources/codex",
+    "/Applications/Codex.app/Contents/Resources/codex",
+)
+
+
+def codex_executable(
+    environ: os._Environ[str] | dict[str, str] | None = None,
+    candidates: tuple[str, ...] = DESKTOP_CODEX_CANDIDATES,
+) -> str:
+    """Pick the Codex binary: explicit override, Desktop bundle, then PATH."""
+    env = os.environ if environ is None else environ
+    override = env.get(CODEX_EXECUTABLE_ENV, "").strip()
+    if override:
+        return override
+    for candidate in candidates:
+        if Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return "codex"
 
 
 class AsyncLineWriter(Protocol):
@@ -35,7 +62,9 @@ class AppServerClient:
         self._reader_task = asyncio.create_task(self._read_messages())
 
     @classmethod
-    async def connect(cls, executable: str = "codex") -> AppServerClient:
+    async def connect(cls, executable: str | None = None) -> AppServerClient:
+        if executable is None:
+            executable = codex_executable()
         try:
             process = await asyncio.create_subprocess_exec(
                 executable,
