@@ -15,4 +15,7 @@
   };
 
   dotfiles.agentMcpServers.notion = "https://mcp.notion.com/mcp";
+
+  # Work Slack lives in Claude Code via Anthropic's official Slack plugin.
+  dotfiles.claudeEnabledPlugins."slack@claude-plugins-official" = true;
 }

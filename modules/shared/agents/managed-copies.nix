@@ -72,7 +72,7 @@ let
     ++ [
       (managedFile ".claude/CLAUDE.md" ../../../home/.claude/CLAUDE.md)
       (managedFile ".claude/README.md" ../../../home/.claude/README.md)
-      (managedFile ".claude/settings.json" ../../../home/.claude/settings.json)
+      (managedFile ".claude/settings.json" config.dotfiles.claudeSettingsSource)
     ]
     ++ claudeSkillCopies
     ++ [
