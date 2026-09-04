@@ -104,6 +104,8 @@ in {
   activationEntries = builtins.attrNames cfg.home.activation;
   agentMcpServersScript = cfg.home.activation.dotfilesAgentMcpServers.data or "";
   agentMcpServers = cfg.dotfiles.agentMcpServers;
+  claudeEnabledPlugins = cfg.dotfiles.claudeEnabledPlugins;
+  claudeSettings = builtins.fromJSON (builtins.readFile cfg.dotfiles.claudeSettingsSource);
   agentManagedCopies = map (entry: {
     target = entry.target;
     kind = entry.kind;
@@ -139,6 +141,8 @@ assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expec
 assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != null' "Expected Codex linear-claim-work skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
+assert_jq '.claudeSettings.enabledPlugins["codex@openai-codex"] == true' "Expected Codex plugin enabled in Claude settings"
+assert_jq '.claudeSettings.model == "fable"' "Expected Claude settings to keep the base model"
 assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") != null' "Expected Claude adversarial-review skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/atlas") == null' "Did not expect Claude Atlas skill on Linux"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-address-comments") != null' "Expected shared Claude GitHub address-comments skill to be managed"
@@ -202,6 +206,7 @@ case "$profile" in
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers | has("notion") | not' "Did not expect Notion MCP server for personal"
+    assert_jq '.claudeSettings.enabledPlugins | has("slack@claude-plugins-official") | not' "Did not expect Slack plugin for personal"
     ;;
   work)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
@@ -213,6 +218,7 @@ case "$profile" in
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers.notion == "https://mcp.notion.com/mcp"' "Expected Notion MCP server for work"
+    assert_jq '.claudeSettings.enabledPlugins["slack@claude-plugins-official"] == true' "Expected Slack plugin enabled for work"
     ;;
   sandbox)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
@@ -224,6 +230,7 @@ case "$profile" in
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox"
     assert_no_agent_mcp_servers
+    assert_jq '.claudeSettings.enabledPlugins | has("slack@claude-plugins-official") | not' "Did not expect Slack plugin for sandbox"
     ;;
   personal-linux|personal-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "personal"' "Expected DOTFILES_PROFILE=personal"
@@ -235,6 +242,7 @@ case "$profile" in
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal-linux"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers | has("notion") | not' "Did not expect Notion MCP server for personal-linux"
+    assert_jq '.claudeSettings.enabledPlugins | has("slack@claude-plugins-official") | not' "Did not expect Slack plugin for personal-linux"
     ;;
   work-linux|work-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "work"' "Expected DOTFILES_PROFILE=work"
@@ -246,6 +254,7 @@ case "$profile" in
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work-linux"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers.notion == "https://mcp.notion.com/mcp"' "Expected Notion MCP server for work-linux"
+    assert_jq '.claudeSettings.enabledPlugins["slack@claude-plugins-official"] == true' "Expected Slack plugin enabled for work-linux"
     ;;
   sandbox-x86_64-linux|sandbox-aarch64-linux)
     assert_jq '.sessionVariables.DOTFILES_PROFILE == "sandbox"' "Expected DOTFILES_PROFILE=sandbox"
@@ -257,6 +266,7 @@ case "$profile" in
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for sandbox Linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for sandbox Linux"
     assert_no_agent_mcp_servers
+    assert_jq '.claudeSettings.enabledPlugins | has("slack@claude-plugins-official") | not' "Did not expect Slack plugin for sandbox"
     ;;
 esac
 
