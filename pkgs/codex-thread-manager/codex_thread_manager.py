@@ -33,7 +33,9 @@ mcp = FastMCP(
     "codex-threads",
     instructions=(
         "Manage persistent Codex App threads. New implementation turns always "
-        "use gpt-5.6-sol with xhigh reasoning."
+        "use gpt-5.6-sol with xhigh reasoning. Threads appear in Codex Desktop "
+        "under chronological sort or search, not the by-project sidebar, and "
+        "only after the Desktop window regains focus."
     ),
     lifespan=lifespan,
 )
@@ -116,6 +118,23 @@ def turn_start_params(thread_id: str, prompt: str) -> dict[str, Any]:
     }
 
 
+def thread_list_params(
+    limit: int,
+    archived: bool,
+    search_term: str | None,
+    cwd: str | None,
+) -> dict[str, Any]:
+    # app-server records threads started by any stdio client as source
+    # "vscode", never "appServer", so the default interactive source filter
+    # is the one that finds our threads. Narrow by cwd or search term instead.
+    params: dict[str, Any] = {"limit": limit, "archived": archived}
+    if search_term:
+        params["searchTerm"] = search_term
+    if cwd:
+        params["cwd"] = canonical_working_directory(cwd)
+    return params
+
+
 def thread_id_from(result: dict[str, Any]) -> str:
     thread = result.get("thread")
     if not isinstance(thread, dict) or not isinstance(thread.get("id"), str):
@@ -161,18 +180,17 @@ async def codex_thread_list(
     limit: int = 50,
     archived: bool = False,
     search_term: str | None = None,
+    cwd: str | None = None,
 ) -> dict[str, Any]:
-    """List persistent Codex threads created through app-server."""
+    """List persistent Codex threads, optionally narrowed by cwd or search term.
+
+    Threads created here share the Desktop's interactive source, so this lists
+    Desktop threads too; pass the worktree cwd to see only that worktree's.
+    """
     if not 1 <= limit <= 100:
         raise ValueError("limit must be between 1 and 100")
     return await client_from(ctx).request(
-        "thread/list",
-        {
-            "limit": limit,
-            "archived": archived,
-            "searchTerm": search_term,
-            "sourceKinds": ["appServer"],
-        },
+        "thread/list", thread_list_params(limit, archived, search_term, cwd)
     )
 
 
@@ -293,7 +311,7 @@ async def codex_thread_unarchive(thread_id: str, ctx: Context) -> dict[str, Any]
 async def check() -> None:
     client = await AppServerClient.connect()
     try:
-        await client.request("thread/list", {"limit": 1, "sourceKinds": ["appServer"]})
+        await client.request("thread/list", {"limit": 1})
     finally:
         await client.close()
 

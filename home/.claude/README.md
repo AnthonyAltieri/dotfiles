@@ -13,6 +13,13 @@ adds persistent Codex App thread lifecycle controls. The Claude
 alive in the background while its inner Sol/xhigh Codex worker runs with
 `--wait`; this preserves both the worktree and the durable Codex thread.
 
+The MCP server runs the app-server binary bundled with Codex Desktop when it
+is installed, so the bridge and the Desktop share one Codex version and thread
+store format. Codex tags threads started this way with the Desktop's own
+interactive source, `vscode`, rather than `appServer`. In the Desktop they show
+up under chronological sort or search after the window regains focus; the
+by-project sidebar only groups threads the Desktop created itself.
+
 ## Session identity hook
 
 `hooks/herdr-agent-state.sh` is herdr's Claude Code integration asset, vendored
