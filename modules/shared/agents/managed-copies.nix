@@ -127,7 +127,7 @@ let
     }
   );
 
-  currentManifestFile = builtins.toFile "dotfiles-agent-managed-copies.tsv" (
+  currentManifestFile = pkgs.writeText "dotfiles-agent-managed-copies.tsv" (
     lib.concatStringsSep "\n" (
       map (
         entry:
@@ -142,7 +142,7 @@ let
     + "\n"
   );
 
-  currentPathsFile = builtins.toFile "dotfiles-agent-managed-copy-paths.txt" (
+  currentPathsFile = pkgs.writeText "dotfiles-agent-managed-copy-paths.txt" (
     lib.concatStringsSep "\n" (map (entry: entry.target) agentManagedCopies)
     + "\n"
   );
