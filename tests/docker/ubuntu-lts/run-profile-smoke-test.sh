@@ -105,7 +105,7 @@ in {
   agentMcpServersScript = cfg.home.activation.dotfilesAgentMcpServers.data or "";
   agentMcpServers = cfg.dotfiles.agentMcpServers;
   claudeEnabledPlugins = cfg.dotfiles.claudeEnabledPlugins;
-  claudeSettings = builtins.fromJSON (builtins.readFile cfg.dotfiles.claudeSettingsSource);
+  claudeSettings = cfg.dotfiles.claudeSettings;
   agentManagedCopies = map (entry: {
     target = entry.target;
     kind = entry.kind;

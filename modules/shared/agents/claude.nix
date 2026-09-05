@@ -31,6 +31,16 @@ in
     '';
   };
 
+  options.dotfiles.claudeSettings = lib.mkOption {
+    type = lib.types.attrs;
+    readOnly = true;
+    description = ''
+      Merged contents of the managed `~/.claude/settings.json`, exposed so
+      checks can inspect the payload without reading the generated file back
+      through import-from-derivation.
+    '';
+  };
+
   options.dotfiles.claudeSettingsSource = lib.mkOption {
     type = lib.types.path;
     readOnly = true;
@@ -38,6 +48,7 @@ in
   };
 
   config = {
+    dotfiles.claudeSettings = mergedSettings;
     dotfiles.claudeSettingsSource = settingsSource;
 
     home.sessionVariables = {
