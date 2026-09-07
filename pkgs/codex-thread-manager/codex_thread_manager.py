@@ -11,7 +11,7 @@ from typing import Any
 from app_server import AppServerClient
 from mcp.server.fastmcp import Context, FastMCP
 
-WORKER_MODEL = "gpt-5.6-sol"
+WORKER_MODEL = "gpt-6-astra"
 WORKER_EFFORT = "xhigh"
 
 
@@ -33,7 +33,7 @@ mcp = FastMCP(
     "codex-threads",
     instructions=(
         "Manage persistent Codex App threads. New implementation turns always "
-        "use gpt-5.6-sol with xhigh reasoning. Threads appear in Codex Desktop "
+        "use gpt-6-astra with xhigh reasoning. Threads appear in Codex Desktop "
         "under chronological sort or search, not the by-project sidebar, and "
         "only after the Desktop window regains focus."
     ),
@@ -159,7 +159,7 @@ async def codex_thread_start(
     ctx: Context,
     read_only: bool = False,
 ) -> dict[str, Any]:
-    """Create a persistent Codex thread and start a Sol xhigh turn."""
+    """Create a persistent Codex thread and start an Astra xhigh turn."""
     canonical_cwd = canonical_working_directory(cwd)
     require_nonempty(prompt, "prompt")
     require_nonempty(title, "title")
@@ -242,7 +242,7 @@ async def codex_thread_send(
     ctx: Context,
     read_only: bool = False,
 ) -> dict[str, Any]:
-    """Resume a Codex thread and start a new Sol xhigh turn."""
+    """Resume a Codex thread and start a new Astra xhigh turn."""
     require_nonempty(prompt, "prompt")
     client = client_from(ctx)
     await resume(client, thread_id, read_only)
