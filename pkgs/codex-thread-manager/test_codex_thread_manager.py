@@ -83,12 +83,12 @@ class AppServerClientTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ContractTests(unittest.TestCase):
-    def test_new_threads_are_persistent_sol_xhigh_workers(self) -> None:
+    def test_new_threads_are_persistent_astra_xhigh_workers(self) -> None:
         thread = thread_start_params("/tmp/worktree", False)
         turn = turn_start_params("thread-1", "implement it")
 
         self.assertFalse(thread["ephemeral"])
-        self.assertEqual(thread["model"], "gpt-5.6-sol")
+        self.assertEqual(thread["model"], "gpt-6-astra")
         self.assertEqual(thread["sandbox"], "workspace-write")
         self.assertEqual(turn["model"], WORKER_MODEL)
         self.assertEqual(turn["effort"], "xhigh")

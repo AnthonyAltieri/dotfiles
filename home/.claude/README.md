@@ -10,7 +10,7 @@ Managed settings use Fable for the Claude orchestration session and enable
 OpenAI's `codex@openai-codex` plugin. On Darwin, the `codex-threads` MCP server
 adds persistent Codex App thread lifecycle controls. The Claude
 `spawn-orchestrator` skill combines them by keeping an isolated Claude agent
-alive in the background while its inner Sol/xhigh Codex worker runs with
+alive in the background while its inner Astra/xhigh Codex worker runs with
 `--wait`; this preserves both the worktree and the durable Codex thread.
 
 The MCP server runs the app-server binary bundled with Codex Desktop when it

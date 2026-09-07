@@ -46,7 +46,7 @@ The right decomposition depends on the question. Use your judgment. Narrow quest
 Spawn all explorers in a single message:
 
 - `subagent_type`: `generalPurpose`
-- `model`: your configured how-explorer model (default `gpt-5.6-sol-xhigh`)
+- `model`: your configured how-explorer model (default `gpt-6-astra-xhigh`)
 - `readonly`: `true`
 
 Each explorer gets the same base prompt from `references/explorer-prompt.md` plus a specific exploration angle naming its slice. Each explorer should:

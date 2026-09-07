@@ -1,11 +1,11 @@
 ---
 name: spawn-orchestrator
-description: Use a Claude Code Fable session to orchestrate waves of persistent Codex App threads, each running a Sol xhigh implementation worker in an isolated git worktree and ending in a draft PR. Use only when the user explicitly asks to spawn parallel agents or waves over an epic or backlog; do not use for single-task delegation or read-only fan-out.
+description: Use a Claude Code Fable session to orchestrate waves of persistent Codex App threads, each running an Astra xhigh implementation worker in an isolated git worktree and ending in a draft PR. Use only when the user explicitly asks to spawn parallel agents or waves over an epic or backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
 
-Run the backlog from this Fable session while Codex Sol workers implement it. One issue gets one isolated Claude worktree, one persistent Codex App thread, one branch, and one draft PR. The Fable session plans waves, monitors threads, verifies outcomes, and never implements an issue itself.
+Run the backlog from this Fable session while Codex Astra workers implement it. One issue gets one isolated Claude worktree, one persistent Codex App thread, one branch, and one draft PR. The Fable session plans waves, monitors threads, verifies outcomes, and never implements an issue itself.
 
 ## Required Integration
 
@@ -26,7 +26,7 @@ Agent(
   isolation: "worktree",
   run_in_background: true,
   description: "<issue-key> <slug>",
-  prompt: "--wait --fresh --model gpt-5.6-sol --effort xhigh --task \"<self-contained brief>\""
+  prompt: "--wait --fresh --model gpt-6-astra --effort xhigh --task \"<self-contained brief>\""
 )
 ```
 
@@ -40,7 +40,7 @@ Invoking this skill is the user's explicit request to spawn the wave. Do not req
 - **Base branch:** an explicitly named base, else the repository default. Fetch before spawning so every worktree starts from the current remote base.
 - **Wave size:** 3 unless the user sets one; never exceed 5.
 - **Advancement:** discrete waves by default. Refill a slot immediately only when the user requests rolling execution.
-- **Worker model:** always `gpt-5.6-sol` with `xhigh` reasoning. Do not silently inherit either value from local Codex defaults.
+- **Worker model:** always `gpt-6-astra` with `xhigh` reasoning. Do not silently inherit either value from local Codex defaults.
 
 ## Plan the Backlog
 
