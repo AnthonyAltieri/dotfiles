@@ -173,12 +173,22 @@ url = "https://mcp.notion.com/mcp"
 
 That merge intentionally touches only those keys. Notion OAuth state remains local; on a new machine, run `codex mcp login notion` after applying the work profile.
 
+The personal profile applies a second targeted merge for Codex's workspace-write sandbox, declared through `dotfiles.codexWorkspaceWriteSandbox` in `modules/roles/personal.nix`. Relative `writableRoots` resolve against `config.home.homeDirectory`, so the rendered TOML is per-user:
+
+```toml
+[sandbox_workspace_write]
+network_access = true
+writable_roots = ["/Users/<user>/.cache/bazel", "/Users/<user>/.docker/run", "/var/run/docker.sock"]
+```
+
+Roots the user added locally are preserved and declared roots are appended once.
+
 The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, and `sql-read`. Adding an image or video to a PR body uses `gh`'s built-in `--attach` flag (gh 2.99.0+), as described in the `gh-manage-pr` and `gh-pr-body` skills.
 The managed `.codex` and `.claude` payloads are copied into place as regular files during activation rather than symlinked, which avoids local skill discovery issues in Codex and Claude.
 
 Unmanaged examples:
 
-- `~/.codex/config.toml`, except for the work profile's targeted Notion MCP merge
+- `~/.codex/config.toml`, except for the targeted MCP merges and the personal profile's sandbox merge
 - `~/.codex/auth.json`
 - `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`
