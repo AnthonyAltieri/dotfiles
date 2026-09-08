@@ -127,7 +127,9 @@ let
     }
   );
 
-  currentManifestFile = builtins.toFile "dotfiles-agent-managed-copies.tsv" (
+  # Sources can be derivation outputs (for example, generated Claude settings).
+  # writeText retains those build dependencies until activation consumes them.
+  currentManifestFile = pkgs.writeText "dotfiles-agent-managed-copies.tsv" (
     lib.concatStringsSep "\n" (
       map (
         entry:
