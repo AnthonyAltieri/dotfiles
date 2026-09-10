@@ -40,17 +40,36 @@ For each issue in the wave, call `create_thread` with a worktree environment off
 
 - the issue key and URL, the intended outcome, and its acceptance criteria;
 - constraints, non-goals, and the verification the child must run;
+- the Worker Testing Guidance block below, verbatim;
 - the branch to work on (`codex/<issue-key>-<slug>`) and the base branch to target;
-- this thread's identity, and the done-when: changes verified, branch pushed, draft PR opened against the base branch, Linear issue updated, and a completion message sent to this thread with `send_message_to_thread` containing the issue key, PR URL, and status (`pr-opened`, `blocked`, or `failed`);
+- this thread's identity, and the done-when: changes verified under the testing policy, branch pushed, draft PR opened against the base branch, Linear issue updated, and a completion message sent to this thread with `send_message_to_thread` containing the issue key, PR URL, and status (`pr-opened`, `blocked`, or `failed`);
 - the instruction to stay inside its own worktree and report — not absorb — any extra work it discovers.
 
 Record each child's thread ID against its issue; give each child a title of `<issue-key> <slug>` so the user can find it in the app.
+
+## Worker Testing Guidance
+
+Every worker brief carries this block verbatim so each fresh worker context receives the testing policy. `$test-audit` owns the full policy; this is its condensed form.
+
+```text
+Testing policy (non-negotiable; see the test-audit skill for the full text):
+- Budgets are hard and never raised: whole unit suite < 10s, whole e2e suite < 60s. Over budget means delete or merge tests, never add retries or bump timeouts.
+- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice: before opening the draft PR and on the final head.
+- Deterministic always: no sleeps, polling, retries, skip, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
+- Two tiers only, unit and e2e; no integration tier.
+- Unit: public API only, one behavior per test, nothing the type checker already proves, mock only process boundaries, inject the clock, no snapshot tests except serialized wire contracts.
+- E2e: one happy path per critical flow plus the failures that would page someone; real dependencies, no mocks; a flaky e2e test is fixed or deleted the same day.
+- Every bug fix ships exactly one regression test that failed before the fix.
+- Every test answers "what bug does this catch?"; if you cannot say, do not write it.
+- Report the runner commands you used and the suite times in the final response.
+```
 
 ## Monitor and Advance
 
 - When a child messages completion:
   1. Verify the claim — the PR exists, targets the base branch, and is a draft; the branch pushed; the Linear issue reflects reality. A child's "done" is a claim, not evidence.
-  2. Archive the child with `set_thread_archived`.
+  2. Audit the PR's new or changed tests with `$test-audit`; on a policy violation, message the child once with the specific finding and wait for the fix before archiving.
+  3. Archive the child with `set_thread_archived`.
 - If a child goes silent past a reasonable time budget, `read_thread` it; message it once with focused guidance if the fix is obvious, otherwise mark the issue blocked with the evidence, archive the child, and free the slot.
 - When the wave is fully reported and archived, re-run backlog planning and start the next wave if any issue is eligible. Stop when the backlog is drained, everything remaining is blocked, or the user's wave limit is reached.
 
@@ -70,3 +89,4 @@ After each wave and at the end, return: the epic and base branch; a table of iss
 - `$linear-claim-work` owns the claim, duplicate, and ownership-conflict gates per issue.
 - `$ultragoal` may wrap the whole orchestration when the user wants it to survive interruptions; the goal's verifier is the backlog state plus open PRs, and this skill defines the loop.
 - `$adversarial-review` may gate an individual child's PR when the user requests it; run it against that child's diff, not the whole wave.
+- `$test-audit` owns the testing policy; the Worker Testing Guidance block is its condensed form and the completion audit applies it to each PR.

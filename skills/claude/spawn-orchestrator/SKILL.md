@@ -55,11 +55,29 @@ Put the complete implementation contract inside each worker's `--task` brief:
 
 - issue key, URL, intended outcome, acceptance criteria, constraints, and non-goals;
 - required verification and repository instructions;
+- the Worker Testing Guidance block below, verbatim;
 - branch name `codex/<issue-key>-<slug>` and the base branch for the draft PR;
-- done-when: tests pass, branch is pushed, draft PR is opened, Linear reflects reality, and the final response contains issue key, PR URL, Codex thread ID, and status (`pr-opened`, `blocked`, or `failed`);
+- done-when: tests pass under the testing policy, branch is pushed, draft PR is opened, Linear reflects reality, and the final response contains issue key, PR URL, Codex thread ID, and status (`pr-opened`, `blocked`, or `failed`);
 - stay inside the assigned worktree and report newly discovered work instead of expanding scope.
 
 Use a unique issue key in the task and thread title. Record the Claude agent name and, once discoverable, the Codex thread ID. The persistent thread can be found during execution with `codex_thread_list` using the issue key as `search_term`.
+
+## Worker Testing Guidance
+
+Every worker brief carries this block verbatim so each fresh worker context receives the testing policy. `$test-audit` owns the full policy; this is its condensed form.
+
+```text
+Testing policy (non-negotiable; see the test-audit skill for the full text):
+- Budgets are hard and never raised: whole unit suite < 10s, whole e2e suite < 60s. Over budget means delete or merge tests, never add retries or bump timeouts.
+- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice: before opening the draft PR and on the final head.
+- Deterministic always: no sleeps, polling, retries, skip, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
+- Two tiers only, unit and e2e; no integration tier.
+- Unit: public API only, one behavior per test, nothing the type checker already proves, mock only process boundaries, inject the clock, no snapshot tests except serialized wire contracts.
+- E2e: one happy path per critical flow plus the failures that would page someone; real dependencies, no mocks; a flaky e2e test is fixed or deleted the same day.
+- Every bug fix ships exactly one regression test that failed before the fix.
+- Every test answers "what bug does this catch?"; if you cannot say, do not write it.
+- Report the runner commands you used and the suite times in the final response.
+```
 
 ## Monitor Threads
 
@@ -67,7 +85,7 @@ Use a unique issue key in the task and thread title. Record the Claude agent nam
 - Use `codex_thread_list` and `codex_thread_read` for authoritative Codex status and turn IDs. A wrapper's completion message is a claim, not proof.
 - When an active worker needs focused correction, call `codex_thread_steer` with the current thread and turn IDs. Use `SendMessage` only for wrapper-level guidance.
 - If a worker must stop, interrupt the active Codex turn before ending its wrapper. Never abandon a running turn in a worktree whose owner is exiting.
-- On completion, verify the draft PR, pushed branch, target base, and Linear state. Archive the Codex thread only after those checks pass or after a terminal failure is fully recorded.
+- On completion, verify the draft PR, pushed branch, target base, and Linear state. Audit the PR's new or changed tests with `$test-audit`; on a policy violation, steer the worker to fix it before archiving. Archive the Codex thread only after those checks pass or after a terminal failure is fully recorded.
 - When the wave is fully reported and archived, re-plan and start the next eligible wave.
 
 ## Guardrails
@@ -87,3 +105,4 @@ After each wave and at the end, return the epic and base branch plus a table of 
 
 - `$linear-claim-work` owns claim, duplicate, and ownership-conflict gates.
 - `$adversarial-review` may gate an individual worker's PR when requested; run it against that PR, not the whole wave.
+- `$test-audit` owns the testing policy; the Worker Testing Guidance block is its condensed form and the completion audit applies it to each PR.
