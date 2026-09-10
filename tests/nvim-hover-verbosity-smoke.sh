@@ -57,9 +57,9 @@ local tsgo_experimental = assert(configured.tsgo.capabilities.experimental)
 assert(tsgo_experimental.hoverVerbosityLevel == true, "tsgo should advertise hover verbosity")
 assert(tsgo_experimental.sentinel == true, "tsgo capability merge should preserve shared fields")
 
-local pyright_experimental = assert(configured.pyright.capabilities.experimental)
-assert(pyright_experimental.sentinel == true, "other servers should retain shared experimental fields")
-assert(pyright_experimental.hoverVerbosityLevel == nil, "hover verbosity should remain tsgo-specific")
+local pyrefly_experimental = assert(configured.pyrefly.capabilities.experimental)
+assert(pyrefly_experimental.sentinel == true, "other servers should retain shared experimental fields")
+assert(pyrefly_experimental.hoverVerbosityLevel == nil, "hover verbosity should remain tsgo-specific")
 
 print("ok tsgo hover verbosity capability merge")
 EOF

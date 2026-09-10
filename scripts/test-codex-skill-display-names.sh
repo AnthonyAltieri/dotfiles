@@ -81,7 +81,7 @@ while IFS= read -r metadata_file; do
       "$metadata_file" "$skill_name" "$display_name" >&2
     failures=$((failures + 1))
   fi
-done < <(find home/.codex/skills -type f -path '*/agents/openai.yaml' -print | sort)
+done < <(find skills -type f -path '*/agents/openai.yaml' -print | sort)
 
 if (( failures > 0 )); then
   exit 1

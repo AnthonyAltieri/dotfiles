@@ -10,7 +10,7 @@ window-save-state = always
 custom-shader = shaders/cursor_tail.glsl
 
 #keybinds
-# Explicitly unbind Ghostty's default split navigation so Ctrl+h/j/k/l reach tmux + Neovim.
+# Explicitly unbind Ghostty's default split navigation so Ctrl+h/j/k/l reach Neovim inside herdr.
 # Keep both translated and physical key names: physical keybinds have priority
 # when Ghostty matches a chord before layout translation.
 keybind = ctrl+h=unbind
@@ -39,20 +39,6 @@ keybind = super+ctrl+l=resize_split:right,10
 keybind = shift+enter=text:\x1b\r
 keybind = ctrl+.=text:\x1b[46;5u
 
-# Ctrl+N -> tmux prefix (C-Space = \x00) + digit -> select window N
-keybind = ctrl+1=text:\x00\x31
-keybind = ctrl+2=text:\x00\x32
-keybind = ctrl+3=text:\x00\x33
-keybind = ctrl+4=text:\x00\x34
-keybind = ctrl+5=text:\x00\x35
-keybind = ctrl+6=text:\x00\x36
-keybind = ctrl+7=text:\x00\x37
-keybind = ctrl+8=text:\x00\x38
-keybind = ctrl+9=text:\x00\x39
-
-# Send a dedicated CSI-u sequence for tmux to close the current pane when the
-# window is split, or close the window when only one pane remains.
-keybind = ctrl+shift+KeyQ=csi:81;6u
-
-# Send a dedicated CSI-u sequence for tmux to rename the current window.
-keybind = ctrl+shift+,=text:\x1b[60;6u
+# Ctrl+1..9, Ctrl+Shift+Q and Ctrl+Shift+, are delivered to herdr as CSI-u
+# chords (herdr enables the kitty keyboard protocol), so no translation is
+# needed here; herdr binds them in ~/.config/herdr/config.toml.

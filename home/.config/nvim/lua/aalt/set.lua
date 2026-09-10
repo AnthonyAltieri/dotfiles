@@ -46,7 +46,6 @@ vim.keymap.set("n", "<M-,>", "<cmd>vertical resize -2<CR>", { desc = "Decrease w
 vim.keymap.set("n", "<M-=>", "<C-w>=", { desc = "Equalize window sizes" })
 vim.keymap.set("n", "<C-q>", "<C-w>q", { desc = "Close current window" })
 vim.keymap.set("n", "q:", "<nop>")
-vim.keymap.set("n", "<C-f>", "<cmd>silent !tmux neww tmux-sessionizer<CR>")
 
 vim.keymap.set("n", "<C-\\>", "<cmd>Neotree toggle reveal<CR>", { desc = "Toggle file tree" })
 

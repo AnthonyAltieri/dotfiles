@@ -1,0 +1,6 @@
+interface:
+  display_name: "unslop"
+  short_description: "Cut AI tells from any writing"
+  default_prompt: "Use $unslop to edit the text for AI patterns and restore a human voice."
+policy:
+  allow_implicit_invocation: false

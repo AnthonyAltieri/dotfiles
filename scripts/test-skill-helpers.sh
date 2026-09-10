@@ -15,18 +15,11 @@ run() {
   "$@"
 }
 
-run cargo test --offline --manifest-path home/.codex/skills/atlas/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.codex/skills/sql-read/scripts/Cargo.toml
+run cargo test --offline --manifest-path pkgs/atlas-cli/Cargo.toml
+run nix build --no-link --impure .#codex-thread-manager
+run bash tests/claude-mcp-servers-smoke.sh
+run cargo test --offline --manifest-path pkgs/sql-read/Cargo.toml
 run tests/sql-read-state-migration-smoke.sh
-run cargo test --offline --manifest-path home/.codex/skills/gh-comments/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.codex/skills/gh-ci/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.codex/skills/gh-pr-body/scripts/Cargo.toml
-
-run cargo test --offline --manifest-path home/.claude/skills/sql-read/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.claude/skills/gh-address-comments/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.claude/skills/gh-fix-ci/scripts/Cargo.toml
-run cargo test --offline --manifest-path home/.claude/skills/gh-manage-pr/scripts/Cargo.toml
-
+run cargo test --offline --manifest-path pkgs/gh-comment-tools/Cargo.toml
+run cargo test --offline --manifest-path pkgs/gh-ci-tools/Cargo.toml
 run bash scripts/test-codex-skill-display-names.sh
-run bash scripts/test-github-skill-contracts.sh
-run scripts/test-shared-skills-sync.sh

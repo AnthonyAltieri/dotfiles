@@ -13,6 +13,10 @@
       url = "github:LnL7/nix-darwin/nix-darwin-25.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # herdr builds against zig_0_15, which nixpkgs 25.05 does not ship, so it
+    # deliberately keeps its own nixpkgs pin instead of following ours.
+    herdr.url = "github:herdrdev/herdr/v0.8.2";
   };
 
   outputs = inputs@{ self, nixpkgs, ... }: let
@@ -48,6 +52,7 @@
     forAllSystems = lib.genAttrs supportedSystems;
   in {
     overlays.default = final: prev: {
+      codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
 
@@ -61,6 +66,7 @@
         };
       in
       {
+        codex-thread-manager = pkgs.codex-thread-manager;
         observe = pkgs.observe;
       }
     );

@@ -2,110 +2,44 @@
 
 These are user-level preferences that apply across repos.
 
-## Workflow Orchestration
-### 1) Plan Mode Default
-Use planning before doing work when the task is non-trivial.
-- Enter plan mode for **any** non-trivial task (3+ steps, multiple files, or architectural decisions).
-- If something goes sideways: **stop**, re-plan immediately, and proceed with the revised plan (do not “push through”).
-- Use plan mode for **verification steps**, not just for building.
-- Write detailed specs up front to reduce ambiguity and rework.
-**Plan should include:**
-- Goal + success criteria
-- Assumptions / constraints
-- Steps (checklist)
-- Risks / edge cases
-- Verification plan
----
-### 2) Subagent Strategy
-Use subagents to keep the main thread focused and the context window clean.
-- Use subagents liberally for research, exploration, and parallel analysis.
-- For complex problems, delegate pieces and/or “throw more compute” at it via multiple subagents.
-- Keep **one task per subagent** to maintain focus and clear outcomes.
-**Good subagent tasks:**
-- “Scan logs/tests and summarize failure causes.”
-- “Propose 2–3 architectural options with tradeoffs.”
-- “Draft a migration plan and verification checklist.”
----
-### 3) Self-Improvement Loop
-Treat mistakes as inputs to a repeatable improvement process.
-- After **any** correction from the user, update `tasks/lessons.md` with:
-  - what went wrong
-  - why it happened
-  - the prevention rule / guardrail
-- Write rules for yourself that prevent the same mistake.
-- Ruthlessly iterate on these lessons until the mistake rate drops.
-- Review relevant lessons at session start for the project you’re working on.
----
-### 4) Verification Before Done
-Never consider work finished until it is demonstrated correct.
-- Do not mark a task complete without proving it works.
-- If you changed behavior, **diff** main vs. your changes (or before vs. after) when relevant.
-- Ask: **“Would a staff engineer approve this?”**
-- Run tests, check logs, and demonstrate correctness.
-**Definition of Done (minimum):**
-- Builds/tests pass (or a documented reason why not)
-- Key flows verified (manual or automated)
-- No new warnings/errors introduced (or explicitly documented)
-- Clear summary of changes and outcomes
----
-### 5) Demand Elegance (Balanced)
-Prefer clean solutions without over-engineering.
-- For non-trivial changes, pause and ask: **“Is there a more elegant way?”**
-- If a fix feels hacky: implement the solution you’d choose **knowing everything you know now**.
-- Skip “elegance push” for simple, obvious fixes—don’t over-engineer.
-- Challenge your own work before presenting it.
----
-### 6) Autonomous Bug Fixing
-When given a bug report, fix it end-to-end.
-- Don’t ask for hand-holding—investigate and resolve.
-- Start from evidence: logs, errors, failing tests.
-- Require **zero** context switching from the user.
-- Fix failing CI tests without being told how.
-**Bug-fix loop:**
-1. Reproduce (or isolate) the failure
-2. Identify root cause
-3. Implement the minimal correct fix
-4. Add/adjust tests where appropriate
-5. Verify locally and in CI signals
-6. Document what changed and why
----
 ## Task Management
-1. **Plan First**: Write the plan to `tasks/todo.md` with checkable items.
-2. **Verify Plan**: Check the plan before starting implementation.
-3. **Track Progress**: Mark items complete as you go.
-4. **Explain Changes**: Provide a high-level summary at each step.
-5. **Document Results**: Add a review section to `tasks/todo.md`.
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections.
----
+
+1. **Size the ticket first**: one abstraction or ownership model per PR, at most about three trust boundaries, roughly 15 changed files and 1,500–2,000 production lines. If a ticket is bigger, split it (in Linear, with blocked-by relations) before writing code and report the split.
+2. **Write the ticket contract** before implementation, in the ticket (Linear description or the tickets doc) — about ten lines:
+   - acceptance criteria, each mapped to the test or check that will demonstrate it;
+   - threat model: trusted vs untrusted inputs, actors, files, stores, peers; which failure classes are in scope;
+   - non-goals;
+   - invariants to preserve, named by abstraction family (descriptor ownership, lease clock, schema authority, …);
+   - resource owners, effect ordering, and locks/clocks/retries/cancellation when the change is stateful.
+   Reviews are judged against this contract; anything outside it becomes follow-up work, not remediation.
+3. **Plan in `tasks/todo.md`**: for non-trivial work write checkable steps there and verify the plan before implementing. `tasks/todo.md` is per-task scratch and is not committed; it holds only the ticket in flight. If something goes sideways, stop and re-plan instead of pushing through.
+4. **Evidence lives on the PR and the ticket, not in commits**: verification results, review ledgers, and completion notes go in the PR description, PR comments, or Linear comments against the final reviewed SHA. Never add evidence-only or worklog-only commits. Do not commit `tasks/todo.md` churn.
+5. **Capture lessons as guardrails**: after a user correction, add one line to `tasks/lessons.md` under the matching section — the guardrail only, in the imperative, with the why in a clause. Prefer converting the lesson into a lint rule, fixture, shared helper, or regression test and linking it; delete prose once the guardrail is enforced by code. Read the sections of `tasks/lessons.md` relevant to the ticket at session start, not the whole file.
+6. **Verify cheaply, then expensively**: targeted lint/tests while editing; one full affected gate before review; targeted tests during remediation; one final full gate on the final head.
+
+## Definition of Done
+
+- Builds/tests pass, or a documented reason why not.
+- Key flows verified (manual or automated); no new warnings/errors introduced, or explicitly documented.
+- Clear summary of changes and outcomes. Never mark a task complete without demonstrating it works.
+
 ## Core Principles
-- **Simplicity First**: Make every change as simple as possible. Minimize impact and code surface area.
-- **No Laziness**: Find root causes. No temporary fixes. Hold to senior developer standards.
-- **Minimal Impact**: Touch only what’s necessary. Avoid introducing new bugs.
+
+- **Simplicity first**: make every change as simple as possible; minimize impact and code surface area.
+- **No laziness**: find root causes; no temporary fixes.
+- **Proportional hardening**: defend against the ticket's threat model, not every imaginable one. Root-causing a bug is mandatory; adopting a stronger threat model mid-ticket is a scope change that needs a decision.
 
 ## Programming Defaults
+
 - For substantive coding, refactoring, debugging, and design-review tasks, use `$programming`.
 - `$programming` owns the default application-code style: validated boundaries, strong internal types, simple composition, deliberate observability, and minimal critical-path tests.
----
-## Codex Skill Metadata
-- For every repo-managed Codex skill with `agents/openai.yaml`, set `interface.display_name` exactly equal to the `SKILL.md` frontmatter `name`.
-- Preserve lowercase, hyphens, namespaces, and other machine-specific naming. Do not replace the canonical skill name with a human-readable title unless explicitly requested.
----
-## GitHub Review Comment Handling
-- When using `$github:gh-address-comments`, treat a request to handle or address PR comments as authorization to reply on GitHub and resolve every successfully handled review thread by default.
-- Treat `no write`, `no GitHub writes`, `read-only`, `dry run`, `draft only`, or equivalent as an instruction not to post replies, resolve threads, submit reviews, or make other GitHub mutations. In that mode, return drafted replies and intended resolution states instead.
-- Reply before resolving. If the reply fails, do not resolve the thread.
-- Resolve feedback only after the requested change or explanation is complete and supported by focused verification.
-- Leave ambiguous, conflicting, regressive, failed-verification, and clarification-dependent threads open.
-- Do not submit a formal PR review or add a top-level summary comment unless explicitly requested.
-- In the final response, include one entry per in-scope thread with the reviewer and location when available, a concise `Comment` summary, `Our response (posted)` or `Our response (draft)`, `Outcome`, and `Verification`.
-- For each code-changing thread, include a small labeled `Code change` diff or source snippet showing only the essential lines. Omit the snippet for no-code responses.
-- Finish with totals for handled, resolved, and still-open threads.
----
+
 ## Notion Defaults
+
 - For read-only Notion document, page, database, or URL tasks, use `$notion-read` (NotionRead).
 - If the task is reading and not updating/writing, prefer fetching or exporting the Notion content into a local temp file and analyzing that file instead of reading chunks through the MCP.
 - For creates, updates, comments, property changes, relation changes, or any other write, use the normal Notion write workflow.
----
+
 ## Branch Creation Policy
 
 - If I ask for a new branch, always base it on the latest `origin/main`.
@@ -118,24 +52,30 @@ git switch -c <branch-name> origin/main
 ```
 
 - If branch creation fails due to uncommitted changes or conflicts, stop and report the blocker.
----
+
 ## PR Creation Policy
 
-- When creating a new PR, default to a draft PR unless I explicitly ask for a ready-for-review/open PR.
-- Use `gh pr create --draft ...` for the default create path.
-- Do not convert an existing PR to draft or ready-for-review unless I explicitly ask.
+- Default to a draft PR (`gh pr create --draft ...`) unless I explicitly ask for a ready-for-review/open PR.
+- Do not convert an existing PR between draft and ready-for-review unless I explicitly ask.
+- When `DOTFILES_PROFILE=work`, apply the `ai-authored` GitHub label instead of `human-authored` to PRs you author.
+- To add an image or video to a PR body, follow the `gh-pr-body` skill and use `gh`'s built-in `--attach` flag; never substitute another upload path.
 
-### PR Body Images
+## GitHub Review Comments
 
-- When asked to add an image to a PR body, you must use `gh-pr-image`.
-- Run `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` and allow its prompt-gated GitHub mutation rather than bypassing the approval gate.
-- The current MVP accepts exactly one PNG, JPEG, or GIF per invocation and supports only public, same-repository PRs that the authenticated GitHub account can update. Private, internal, and fork-authored PRs are unsupported.
-- The helper uploads through an experimental, undocumented GitHub endpoint. If the request is outside the supported scope, stop and explain the limitation instead of silently selecting another image host or upload path.
+- For reading and working through PR review comments, use `$gh-address-comments`; it owns the evidence-first validate, fix, reply, and resolve loop.
+- A request to handle or address PR comments authorizes replying on GitHub and resolving each successfully handled thread. Reply before resolving; if the reply fails, leave the thread open.
+- `no write`, `read-only`, `dry run`, `draft only`, or equivalent suppress all GitHub mutations; report drafted replies and intended resolution states instead.
 
----
-## Focused Testing (Speed)
-- When debugging **one** failing test, **do not** run the full test suite.
-- Run only the **specific test file** and/or the **specific test** inside that file.
+## Testing Policy
+
+- For writing, changing, reviewing, or auditing tests, use `$test-audit`; it owns the full policy and the audit procedure.
+- Budgets are hard and never raised: whole unit suite < 10s, whole e2e suite < 60s. Over budget means delete or merge tests, never add retries or bump timeouts.
+- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice, before opening or updating the PR and on the final head.
+- Deterministic always: no sleeps, polling, retries, `skip`, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
+- Two tiers only, unit and e2e; no integration tier.
+- Unit: public API only, one behavior per test, nothing the type checker already proves, mock only process boundaries, inject the clock, exactly one regression test per bug fix, no snapshot tests except serialized wire contracts.
+- E2e: one happy path per critical flow plus the failures that would page someone; real dependencies, no mocks; a flaky e2e test is fixed or deleted the same day.
+- Every test answers "what bug does this catch?"; if you cannot say, do not write it.
 
 Examples (Vitest):
 - Single file: `cd apps/webapp && yarn test path/to/file.spec.tsx`
@@ -143,10 +83,11 @@ Examples (Vitest):
 
 Examples (Cypress):
 - Single spec: `cd apps/webapp && npx cypress run --browser chrome --headless --spec cypress/tests/e2e/some-test.e2e.spec.ts`
----
-## Lint After Every Edit
-- After modifying a file, immediately run lint **targeted to that file** before moving on.
-- Prefer the repo's configured linter; if none is configured ignore linting
 
-Examples (ESLint):
+## Lint After Every Edit
+
+- After modifying a file, immediately run lint **targeted to that file** before moving on.
+- Prefer the repo's configured linter; if none is configured ignore linting.
+
+Example (ESLint):
 - Single file: `cd apps/webapp && yarn lint path/to/file.tsx --max-warnings 0`

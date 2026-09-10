@@ -40,7 +40,6 @@ The user-bound outputs resolve the current login user at evaluation time. `boots
 ├── docs/
 ├── home/
 │   ├── .zshrc
-│   ├── .tmux.conf
 │   ├── .vimrc
 │   ├── .config/
 │   ├── .codex/
@@ -95,6 +94,16 @@ On the first real nix-darwin apply, bootstrap may also find unmanaged `/etc/bash
 Without `--overwrite`, bootstrap backs those files up to `*.before-nix-darwin` automatically and continues.
 With `--overwrite`, bootstrap shows a diff for each conflicting file and asks for confirmation before replacing it.
 
+Once you no longer need those backups, clean them up with:
+
+```bash
+./scripts/clean-bootstrap-backups.sh --dry-run   # preview
+./scripts/clean-bootstrap-backups.sh             # remove .hm-backup files in $HOME
+./scripts/clean-bootstrap-backups.sh --include-etc  # also remove /etc backups (sudo)
+```
+
+The script derives its candidates from the active Home Manager generation, so it only removes backups of files this repo manages. Note that the `/etc` backups also block the next bootstrap that hits an `/etc` conflict, which refuses to overwrite an existing backup.
+
 The deeper explanation of what bootstrap does and how the flake composes roles and platforms lives in [`docs/nix/README.md`](docs/nix/README.md).
 
 ## Day-to-day usage
@@ -146,11 +155,12 @@ nix flake update
 
 ## Package strategy
 
-- **Darwin** uses Homebrew through `modules/platforms/darwin/homebrew.nix`.
+- **Darwin** uses Homebrew through `modules/platforms/darwin/system/homebrew.nix`.
 - **Linux** uses Nix packages through `modules/platforms/linux/packages.nix`.
 - **Sandbox** stays lean and avoids desktop-specific settings.
 - Repo-local packages that are not present in pinned `nixpkgs`, such as `observe`, are defined under `pkgs/` and exposed through flake `packages`.
 - Work-only private Homebrew taps and casks are supplied through local env state, not tracked files.
+- The terminal multiplexer is [herdr](https://herdr.dev): Homebrew on Darwin, the `herdr` flake input on Linux and sandbox profiles (it is not in nixpkgs). Its config is `home/.config/herdr/config.toml`, linked to `~/.config/herdr/config.toml` by `modules/shared/shell/herdr.nix`, which also runs `herdr server reload-config` on change.
 
 Current hidden runtime dependencies are also declared, including `jq`.
 
@@ -172,43 +182,39 @@ DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 
 This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
+All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `atlas`, `bro`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-pr-description`, `handoff`, `how`, `improve-codebase-architecture`, `linear-claim-work`, `notion-knowledge-capture`, `notion-read`, `observe`, `programming`, `sql-read`, `teach`, `technical-writing`, `test-audit`, `unslop`, `why`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `spawn-orchestrator` (its own variant), and `ultragoal`, while Claude additionally gets `gh-manage-pr` and its own `spawn-orchestrator` variant.
+
+### Skills vendored from pstack
+
+`bro`, `how`, `teach`, `technical-writing`, `unslop`, and `why` are copied from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack) plugin for Cursor, licensed under the MIT License, at [`cursor/plugins@93b00b8`](https://github.com/cursor/plugins/tree/93b00b89ef425a9c1bac0d0b317dfc49c930ac99/pstack/skills). Two local changes apply on top: an `agents/openai.yaml` per skill so Codex also requires explicit invocation, matching the `disable-model-invocation: true` frontmatter upstream sets for Claude, and the Grok defaults in `how` and `why` replaced with ChatGPT Astra at xhigh reasoning (`gpt-6-astra-xhigh`), dropping Grok from the `how` critics list. To refresh them, re-copy the six directories from upstream, reapply the model swap, and bump the pinned commit here.
+
+Their `how`, `why`, and `teach` skills describe subagents with Cursor's `subagent_type`, `model`, and `readonly` parameters. Claude Code and Codex map those onto their own subagent tools; the model names are Cursor defaults, not settings this repo manages.
+
 Managed agent files include:
 
-- `~/.codex/skills/{adversarial-review,agent-code-review-loop,frontend-design,generate-sprite-sheets,gh-ci,gh-comments,gh-pr-body,handoff,improve-codebase-architecture,linear-claim-work,notion-knowledge-capture,notion-read,programming,sql-read,ultragoal}`
+- `~/.codex/skills/*` and `~/.claude/skills/*` from the canonical `skills/` tree
 - `~/.codex/AGENTS.md`
-- `~/.codex/prompts/pr.md`
 - `~/.codex/rules/base.rules`
 - `~/.claude/CLAUDE.md`
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- `~/.claude/commands/{handle-pr-checks.md,handle-pr-comments.md,pr.md}`
-- `~/.claude/skills/{agent-code-review-loop,frontend-design,gh-address-comments,gh-fix-ci,gh-manage-pr,handoff,improve-codebase-architecture,notion-knowledge-capture,notion-read,programming,sql-read}`
-- `~/.claude/{statusline-command.sh,tmux-notify.sh}`
+- `~/.claude/statusline-command.sh` and `~/.claude/hooks/herdr-agent-state.sh`
 
 Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skills/atlas`. The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`.
 
-The official namespaced `github:` Codex plugin remains externally managed and is not copied into this repo. Durable behavior preferences for `github:gh-address-comments` live in `home/.codex/AGENTS.md`; the repo-managed Claude counterpart lives in `home/.claude/skills/gh-address-comments`.
+Declared remote MCP servers (`dotfiles.agentMcpServers`) are merged into both agents' otherwise-unmanaged configs at activation. Personal and work declare `linear` (`https://mcp.linear.app/mcp`); work additionally declares `notion` (`https://mcp.notion.com/mcp`); sandbox declares none. For Codex the merge writes `[mcp_servers.<name>].url` plus `features.rmcp_client = true` into `~/.codex/config.toml`; for Claude it writes `mcpServers.<name>` (an `http` server) into `~/.claude/.claude.json`, the same file `claude mcp add -s user` writes.
 
-The work profile also applies a targeted merge to `~/.codex/config.toml` so Codex knows about the Notion remote MCP server:
+On Darwin, Claude also receives the local `codex-threads` stdio MCP server. It wraps the public Codex app-server protocol with persistent Astra/xhigh thread lifecycle tools while leaving worktree creation to Claude's outer agent. It launches the app-server binary bundled with Codex Desktop (`/Applications/ChatGPT.app/Contents/Resources/codex`, then `Codex.app`) so both write the same thread store format, falling back to `codex` on `PATH`; set `CODEX_THREAD_MANAGER_CODEX` to override. Codex records these threads with the same interactive source as the Desktop's own (`vscode`), so the Desktop lists them under chronological sort or search, but not in the by-project sidebar, which only groups threads the Desktop itself created. The Desktop re-scans the thread store when its window regains focus. The managed Claude settings select Fable as the orchestrator model and enable OpenAI's `codex@openai-codex` plugin from the `openai/codex-plugin-cc` marketplace; Homebrew supplies the matching `codex` app and CLI. The work role additionally enables Anthropic's `slack@claude-plugins-official` plugin through `dotfiles.claudeEnabledPlugins`, which merges into `enabledPlugins` of the managed settings; other roles deploy `home/.claude/settings.json` unchanged.
 
-```toml
-[features]
-rmcp_client = true
-
-[mcp_servers.notion]
-url = "https://mcp.notion.com/mcp"
-```
-
-That merge intentionally touches only those keys. Notion OAuth state remains local; on a new machine, run `codex mcp login notion` after applying the work profile.
+The merges intentionally touch only those keys — other servers, settings, and OAuth state stay local. On a new machine, authenticate once per agent: `codex mcp login <name>`, and `/mcp` in Claude Code.
 
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
-Rust-backed helper commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read` are built from the managed source trees and exposed on `PATH` by the active profile.
-Use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` when asked to add an image to a PR body. The prompt-gated MVP accepts exactly one PNG, JPEG, or GIF per invocation on public, same-repository PRs the authenticated account can update and uploads through an experimental, undocumented GitHub endpoint. Private, internal, and fork-authored PRs are unsupported.
+Packaged helper commands such as `atlas-cli`, `codex-thread-manager`, `fetch-comments`, `classify-ci-log`, and `sql-read` are built from `pkgs/` and exposed on `PATH` by the active profile. PR media uploads use `gh`'s built-in `--attach` flag (gh 2.99.0+) rather than a packaged helper.
 
 Examples of intentionally unmanaged local state:
 
-- `~/.codex/config.toml`, except for the work profile's targeted Notion MCP merge
+- `~/.codex/config.toml` and `~/.claude/.claude.json`, except for the targeted MCP server merges above
 - `~/.codex/auth.json`
 - `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`
@@ -283,3 +289,54 @@ FULL_ACTIVATE=1 ./tests/run-linux-docker-smoke.sh
 ```
 
 Full activation pulls a much larger Nix closure and can exceed typical Docker Desktop disk budgets. Docker does not cover `nix-darwin`, Homebrew integration, or the macOS bootstrap path.
+
+## Visible dataflow research
+
+This human-facing bibliography preserves the research behind the repository's named-stage dataflow guidance without adding it to the programming skill's required context.
+
+See the [Visible Dataflow forward-test evidence](docs/skill-evaluations/programming/visible-dataflow.md) for the human-only prompts, raw outputs, rubric, and iteration record.
+
+### Foundations and architecture
+
+- [McIlroy, Pinson, and Tague, “UNIX Time-Sharing System: Foreword” (1978)](https://doi.org/10.1002/j.1538-7305.1978.tb02135.x): connect small tools through a shared input/output convention; the connector and protocol matter more than the glyph.
+- [Backus, “Can Programming Be Liberated from the von Neumann Style?” (1978)](https://doi.org/10.1145/359576.359579): build programs with combining forms rather than reasoning primarily through mutable stores and statement sequences.
+- [Hughes, “Why Functional Programming Matters” (1989)](https://doi.org/10.1093/comjnl/32.2.98): use higher-order functions and laziness as modularity glue, not merely as alternative syntax.
+- [Garlan and Shaw, “An Introduction to Software Architecture,” §3.1](https://www.sei.cmu.edu/documents/1119/1994_005_001_16331.pdf): distinguish streaming pipes and filters from batch-sequential processing and document the style's architectural limits.
+- [Parnas, “On the Criteria To Be Used in Decomposing Systems into Modules” (1972)](https://doi.org/10.1145/361598.361623): prefer information-hiding module boundaries over automatically decomposing a system by processing step.
+- [Lee and Parks, “Dataflow Process Networks” (1995)](https://ptolemy.berkeley.edu/publications/papers/95/processNets/): treat runtime dataflow as a formal network model with actors, FIFO channels, and execution semantics, not as a visual synonym for a chain.
+
+### Program comprehension evidence
+
+- [Heltweg, Schwarz, and Riehle, “Can a domain-specific language improve program structure comprehension of data pipelines?” (2026)](https://link.springer.com/article/10.1007/s10664-025-10746-7): an explicit pipeline DSL improved structural correctness, but not speed or perceived difficulty, for 57 non-professional programmers.
+- [Alharbi and Kolovos, “Exploring the Impact of Source Code Linearity...” (2024)](https://eprints.whiterose.ac.uk/id/eprint/218768/1/ICPC_2024_ERA_Paper.pdf): locally linear Java API examples generally reduced response time in a 61-participant experiment without a broad correctness advantage.
+- [Cates, Yunik, and Feitelson, “Does Code Structure Affect Comprehension?” (2021)](https://arxiv.org/abs/2103.11008): meaningful intermediate variables helped most in the hardest case; meaningless temporaries could add noise.
+- [Salvaneschi et al., “An Empirical Study on Program Comprehension with Reactive Programming” (2014)](https://programming-group.com/assets/pdf/papers/2014_An-Empirical-Study-on-Program-Comprehension-with-Reactive-Programming.pdf): explicit reactive dependencies outperformed callback-oriented Observer implementations in a small student experiment.
+- [Hofmeister, Siegmund, and Holt, “Shorter Identifier Names Take Longer to Comprehend” (2019)](https://www.se.cs.uni-saarland.de/publications/docs/HoSeHo17.pdf): 72 professional C# developers located defects about 19% faster with full-word identifiers than with letters or abbreviations.
+- [Schankin et al., “Descriptive Compound Identifier Names Improve Source Code Comprehension” (2018)](https://brains-on-code.github.io/descriptive-compound-identifier-names.pdf): 88 Java developers found semantic defects about 14% faster with descriptive names; the effect disappeared for syntax-error search.
+- [Börstler and Paech, “The Role of Method Chains and Comments...” (2016)](https://doi.org/10.1109/TSE.2016.2527791): a 104-student experiment found no overall readability or comprehension advantage from method chaining.
+- [Zid et al., “A Study on the Pythonic Functional Constructs' Understandability” (2024)](https://mdipenta.github.io/files/ICSE24_funcExperiment.pdf): results for lambdas, comprehensions, and map/reduce/filter varied by construct and complexity; functional syntax was not inherently clearer.
+- [Tempero et al., “On the Comprehensibility of Functional Decomposition” (2024)](https://juholeinonen.com/assets/pdf/tempero2024comprehensibility.pdf): decomposition helped one studied Java operation and hurt another, arguing against universal tiny-function rules.
+- [Pennington, “Stimulus Structures and Mental Representations...” (1987)](https://www.cs.kent.edu/~jmaletic/cs69995-PC/papers/pennington87.pdf): professional programmers formed control-flow and later functional/dataflow representations according to the task.
+- [Green, “Cognitive Dimensions of Notations” (1989)](https://www.cl.cam.ac.uk/~afb21/CognitiveDimensions/papers/Green1989.pdf): use visibility, hidden dependencies, viscosity, and related dimensions as tradeoff vocabulary, not causal proof.
+- [Busjahn et al., “Eye Movements in Code Reading: Relaxing the Linear Order” (2015)](https://doi.org/10.1109/ICPC.2015.36): expert code reading was less linear than novice reading, cautioning against equating source order with actual navigation.
+- [Wyrich, Bogner, and Wagner, “40 Years of Designing Code Comprehension Experiments” (2022)](https://arxiv.org/abs/2206.11102): comprehension experiments vary widely in tasks, measures, materials, and participants; generalize individual findings cautiously.
+
+### Language and API traditions
+
+- [Syme, “The Early History of F#,” §9.1](https://fsharp.org/history/hopl-final/hopl-fsharp.pdf) and [F# function documentation](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/): distinguish applying a value with `|>` from constructing a new function with composition.
+- [Clojure Threading Macros Guide](https://clojure.org/guides/threading_macros): expose first-, last-, flexible-, optional-, and conditional-threading policies as different forms.
+- [Elixir Enumerables and Streams](https://elixir.hexdocs.pm/enumerable-and-streams.html): distinguish eager `Enum` pipelines that materialize intermediates from lazy `Stream` pipelines.
+- [R Forward Pipe Operator](https://stat.ethz.ch/R-manual/R-devel/RHOME/library/base/html/pipeOp.html) and [magrittr design tradeoffs](https://magrittr.tidyverse.org/articles/tradeoffs.html): see how pipe implementations affect laziness, evaluation count, lexical effects, stack shape, and debugging.
+- [TC39 Pipeline Operator proposal](https://github.com/tc39/proposal-pipeline-operator): study the tradeoff between unary-function F# pipes and arbitrary-expression Hack pipes; neither adds runtime pipeline semantics.
+- [Fowler, “Fluent Interface”](https://martinfowler.com/bliki/FluentInterface.html): design the entire call sequence as a domain-specific language; do not confuse fluency with chaining alone.
+
+### Production semantics
+
+- [Java Stream package documentation](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/stream/package-summary.html): keep stream behaviors stateless and non-interfering; side effects may be reordered, run on different threads, or be elided.
+- [Go, “Concurrency Patterns: Pipelines and cancellation”](https://go.dev/blog/pipelines): propagate cancellation so early downstream termination does not strand upstream goroutines.
+- [Wlaschin, “Railway Oriented Programming”](https://fsharpforfunandprofit.com/rop/) and [“Against Railway-Oriented Programming”](https://fsharpforfunandprofit.com/posts/against-railway-oriented-programming/): compose expected domain failures while retaining exceptions and diagnostics for cases where `Result` is the wrong model.
+- [Reactive Streams](https://www.reactive-streams.org/): make non-blocking backpressure part of the contract between asynchronous stages.
+- [Enterprise Integration Patterns, “Pipes and Filters”](https://www.enterpriseintegrationpatterns.com/patterns/messaging/PipesAndFilters.html): compose independent message-processing steps behind a simple connector interface.
+- [AWS, “Making retries safe with idempotent APIs”](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/): treat ambiguous completion and duplicate effects as first-class concerns across network boundaries.
+- [Microsoft, “Saga distributed transactions pattern”](https://learn.microsoft.com/en-us/azure/architecture/patterns/saga): model a cross-service sequence as durable local transactions, retries, and compensations rather than false atomicity.
+- [Coutts, Leshchinskiy, and Stewart, “Stream Fusion” (2007)](https://doi.org/10.1145/1291151.1291199): composition may allocate intermediates unless the runtime or compiler deliberately fuses them.

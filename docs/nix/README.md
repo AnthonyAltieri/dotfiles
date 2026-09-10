@@ -89,7 +89,6 @@ flowchart TD
 │   ├── .config/
 │   ├── .claude/
 │   ├── .codex/
-│   ├── .tmux.conf
 │   ├── .vimrc
 │   └── .zshrc
 ├── lib/
@@ -114,13 +113,13 @@ Use these placement rules:
 
 ### Shared modules
 
-`modules/shared/` carries the reusable Home Manager behavior:
+`modules/shared/` carries the reusable Home Manager behavior, grouped by domain, each with a `default.nix` aggregator:
 
 - `base.nix` sets `home.username`, `home.homeDirectory`, `home.stateVersion`, base session variables, and Linux target wiring.
 - `files.nix` links the managed payloads from `home/`.
-- `shell.nix`, `tmux.nix`, `neovim.nix`, `starship.nix`, and `vim.nix` configure the shell and editor stack.
-- `agents-codex.nix` and `agents-claude.nix` manage the curated agent config that should travel between machines.
-- `skill-helpers.nix` builds the Rust-backed helper commands from the managed skill source trees and puts them on `PATH`.
+- `shell/` owns the interactive shell stack: `zsh.nix`, `herdr.nix` (the terminal multiplexer: Homebrew on Darwin, the herdr flake elsewhere), and the starship package.
+- `editors/` owns the editor stack: `neovim.nix` plus the neovim/vim packages on platforms that do not get them from Homebrew.
+- `agents/` owns everything agent-related: `managed-copies.nix`, `mcp-servers.nix`, `claude.nix`, `codex.nix`, and `skill-helpers.nix` (the Rust-backed helper commands on `PATH`).
 
 ### Roles
 
@@ -135,13 +134,10 @@ Today `personal.nix` and `work.nix` are intentionally thin. That is deliberate. 
 
 ### Platforms
 
-`modules/platforms/darwin/` owns the macOS-only policy:
+`modules/platforms/darwin/` owns the macOS-only policy, split by evaluation target:
 
-- `default.nix` imports the Darwin platform modules.
-- `homebrew.nix` declares Homebrew packages and casks through `nix-darwin`.
-- `homebrew.nix` also accepts work-only private taps and casks from ignored env state, keeping private package names out of tracked public files.
-- `defaults.nix` owns macOS defaults like keyboard repeat settings.
-- `ghostty.nix` only applies to non-sandbox Darwin roles.
+- `system/` holds the `nix-darwin` system modules: `homebrew.nix` (Homebrew packages and casks, plus work-only private taps and casks from ignored env state) and `defaults.nix` (macOS defaults like keyboard repeat settings).
+- `home/` holds the Home Manager modules that only apply to non-sandbox Darwin roles: `packages.nix`, `ghostty.nix`, and `pnpm.nix`.
 
 `modules/platforms/linux/` owns the Linux-only package layer:
 
@@ -158,11 +154,11 @@ Managed examples:
 - `~/.config/zsh`
 - `~/.config/starship.toml`
 - `~/.vimrc`
-- shared `~/.codex/skills/*`, excluding work-only skills
+- `~/.codex/skills/*` and `~/.claude/skills/*`, copied from the repo's canonical `skills/` tree (excluding work-only skills)
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- selected Claude commands, `~/.claude/CLAUDE.md`, and shared skills, including `handoff`, `improve-codebase-architecture`, `notion-knowledge-capture`, and `notion-read`
-- selected Codex prompts, the managed `~/.codex/rules/base.rules` baseline, and `~/.codex/AGENTS.md`
+- `~/.claude/CLAUDE.md`
+- the managed `~/.codex/rules/base.rules` baseline and `~/.codex/AGENTS.md`
 
 Darwin profiles additionally manage the `atlas` skill for both Codex and Claude. The work profile also manages the `observe` skill for both agents.
 It applies a targeted merge to `~/.codex/config.toml` for Codex's Notion remote MCP connection:
@@ -177,8 +173,7 @@ url = "https://mcp.notion.com/mcp"
 
 That merge intentionally touches only those keys. Notion OAuth state remains local; on a new machine, run `codex mcp login notion` after applying the work profile.
 
-The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, `gh-manage-pr-summarize`, `gh-pr-image`, and `sql-read`.
-Use `gh-pr-image add <image> --alt <text> [--pr ...] [-R ...]` when asked to add an image to a PR body. The prompt-gated MVP accepts exactly one PNG, JPEG, or GIF per invocation on public, same-repository PRs the authenticated account can update and uploads through an experimental, undocumented GitHub endpoint. Private, internal, and fork-authored PRs are unsupported.
+The active profile also builds the Rust-backed helper commands from the managed skill sources. That includes commands such as `atlas-cli`, `fetch-comments`, `classify-ci-log`, and `sql-read`. Adding an image or video to a PR body uses `gh`'s built-in `--attach` flag (gh 2.99.0+), as described in the `gh-manage-pr` and `gh-pr-body` skills.
 The managed `.codex` and `.claude` payloads are copied into place as regular files during activation rather than symlinked, which avoids local skill discovery issues in Codex and Claude.
 
 Unmanaged examples:

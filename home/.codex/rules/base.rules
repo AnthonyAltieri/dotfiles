@@ -11,7 +11,7 @@ prefix_rule(pattern=["node", ".output/server/index.mjs"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "cd apps/signal && set -a && source .env.local && export APP_ENV=local APP_REGION=iad BASE_URL=http://localhost:3000 && set +a && yarn build && node .output/server/index.mjs"], decision="allow")
 prefix_rule(pattern=["yarn", "dev"], decision="allow")
 prefix_rule(pattern=["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}\\n", "http://localhost:3003/"], decision="allow")
-prefix_rule(pattern=["tmux"], decision="allow")
+prefix_rule(pattern=["herdr"], decision="allow")
 prefix_rule(pattern=["psql"], decision="allow")
 prefix_rule(pattern=["./venv/bin/python", "utils/anon_migration.py"], decision="allow")
 prefix_rule(pattern=["docker", "compose"], decision="allow")
@@ -113,7 +113,7 @@ prefix_rule(
         "fetch-comments --format json",
     ],
     not_match=[
-        "create-comment --body FROM CODEX: ready for another look.",
+        "create-thread-reply --thread-id PRRT_example --body FROM CODEX: ready for another look.",
     ],
 )
 
@@ -167,18 +167,6 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern=["create-comment"],
-    decision="prompt",
-    justification="Posting PR comments mutates GitHub state and should keep prompting.",
-    match=[
-        "create-comment --body FROM CODEX: ready for another look.",
-    ],
-    not_match=[
-        "fetch-comments --format json",
-    ],
-)
-
-prefix_rule(
     pattern=["create-thread-reply"],
     decision="prompt",
     justification="Replying to review threads mutates GitHub state and should keep prompting.",
@@ -199,17 +187,5 @@ prefix_rule(
     ],
     not_match=[
         "fetch-comments --format compact",
-    ],
-)
-
-prefix_rule(
-    pattern=["gh-pr-image", "add"],
-    decision="prompt",
-    justification="Uploading an image and updating a pull request body mutates GitHub state and uses an experimental endpoint, so it should stay approval-gated.",
-    match=[
-        "gh-pr-image add screenshot.png --alt settings --pr 123 -R owner/repo",
-    ],
-    not_match=[
-        "gh-manage-pr-summarize /tmp/pr.diffstat",
     ],
 )

@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOMEBREW_MODULE="$ROOT_DIR/modules/platforms/darwin/homebrew.nix"
-NEOVIM_MODULE="$ROOT_DIR/modules/shared/neovim.nix"
+HOMEBREW_MODULE="$ROOT_DIR/modules/platforms/darwin/system/homebrew.nix"
+NEOVIM_MODULE="$ROOT_DIR/modules/shared/editors/neovim.nix"
 
 if ! rg -q '^[[:space:]]*"tree-sitter-cli"$' "$HOMEBREW_MODULE"; then
 	printf 'expected Homebrew to install tree-sitter-cli\n' >&2

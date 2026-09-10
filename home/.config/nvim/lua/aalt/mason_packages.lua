@@ -1,7 +1,7 @@
 local M = {}
 
 M.lsp_server_packages = {
-	pyright = "pyright",
+	pyrefly = "pyrefly",
 	ruff = "ruff",
 	rust_analyzer = "rust-analyzer",
 	lua_ls = "lua-language-server",
@@ -9,7 +9,7 @@ M.lsp_server_packages = {
 }
 
 M.lsp_server_names = {
-	"pyright",
+	"pyrefly",
 	"ruff",
 	"rust_analyzer",
 	"lua_ls",

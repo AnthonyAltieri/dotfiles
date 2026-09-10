@@ -1,38 +1,35 @@
 {
-  "model": "opus[1m]",
+  "model": "fable",
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
+  "enabledPlugins": {
+    "codex@openai-codex": true
+  },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      },
+      "autoUpdate": true
+    }
+  },
+  "permissions": {
+    "defaultMode": "auto"
+  },
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   },
   "hooks": {
-    "Stop": [
+    "SessionStart": [
       {
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/tmux-notify.sh on"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/tmux-notify.sh on"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/tmux-notify.sh off"
+            "command": "bash ~/.claude/hooks/herdr-agent-state.sh session",
+            "timeout": 10
           }
         ]
       }
