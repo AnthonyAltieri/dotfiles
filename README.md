@@ -182,7 +182,7 @@ DOTFILES_WORK_HOMEBREW_CASKS=private-cask
 
 This repo manages a curated subset of `~/.codex` and `~/.claude`.
 
-All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `atlas`, `bro`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-pr-description`, `handoff`, `how`, `improve-codebase-architecture`, `linear-claim-work`, `notion-knowledge-capture`, `notion-read`, `observe`, `programming`, `sql-read`, `teach`, `technical-writing`, `unslop`, `why`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `spawn-orchestrator` (its own variant), and `ultragoal`, while Claude additionally gets `gh-manage-pr` and its own `spawn-orchestrator` variant.
+All skills live in a single canonical `skills/` tree in this repo and are copied to each agent's skill directory. Shared skills (`adversarial-review`, `atlas`, `bro`, `frontend-design`, `gh-address-comments`, `gh-fix-ci`, `gh-pr-description`, `handoff`, `how`, `improve-codebase-architecture`, `linear-claim-work`, `notion-knowledge-capture`, `notion-read`, `observe`, `programming`, `sql-read`, `teach`, `technical-writing`, `test-audit`, `unslop`, `why`) deploy to both agents; Codex additionally gets `generate-sprite-sheets`, `gh-pr-body`, `spawn-orchestrator` (its own variant), and `ultragoal`, while Claude additionally gets `gh-manage-pr` and its own `spawn-orchestrator` variant.
 
 ### Skills vendored from pstack
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "test-audit"
+  short_description: "Apply the testing policy to new, changed, or existing tests"
+  default_prompt: "Use $test-audit to decide whether each test should exist, place it in the unit or e2e tier, keep it deterministic and inside the suite budgets, and audit the suite for tests to delete or merge."

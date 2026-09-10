@@ -140,6 +140,7 @@ assert_jq '.agentManagedTargets | index(".codex/skills/atlas") == null' "Did not
 assert_jq '.agentManagedTargets | index(".codex/skills/handoff") != null' "Expected Codex handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/improve-codebase-architecture") != null' "Expected Codex improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != null' "Expected Codex linear-claim-work skill to be managed"
+assert_jq '.agentManagedTargets | index(".codex/skills/test-audit") != null' "Expected shared Codex test-audit skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
 assert_jq '.claudeSettings.enabledPlugins["codex@openai-codex"] == true' "Expected Codex plugin enabled in Claude settings"
 assert_jq '.claudeSettings.model == "fable"' "Expected Claude settings to keep the base model"
@@ -151,6 +152,7 @@ assert_jq '.agentManagedTargets | index(".claude/skills/gh-manage-pr") != null' 
 assert_jq '.agentManagedTargets | index(".claude/skills/handoff") != null' "Expected Claude handoff skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/improve-codebase-architecture") != null' "Expected Claude improve-codebase-architecture skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/linear-claim-work") != null' "Expected shared Claude linear-claim-work skill to be managed"
+assert_jq '.agentManagedTargets | index(".claude/skills/test-audit") != null' "Expected shared Claude test-audit skill to be managed"
 assert_jq '.activationEntries | index("migrateSqlReadState") != null' "Expected SQL Read state migration activation entry"
 assert_jq '.files | index(".vimrc") != null' "Expected ~/.vimrc to be managed"
 assert_jq '.packages | index("git") != null' "Expected git in home.packages"
@@ -283,9 +285,12 @@ if [[ "${FULL_ACTIVATE:-0}" == "1" ]]; then
     "$HOME/.codex/skills/gh-pr-body/SKILL.md" \
     "$HOME/.codex/skills/linear-claim-work/SKILL.md" \
     "$HOME/.codex/skills/programming/SKILL.md" \
+    "$HOME/.codex/skills/test-audit/SKILL.md" \
+    "$HOME/.codex/skills/test-audit/agents/openai.yaml" \
     "$HOME/.claude/settings.json" \
     "$HOME/.claude/skills/adversarial-review/SKILL.md" \
-    "$HOME/.claude/skills/gh-fix-ci/SKILL.md"
+    "$HOME/.claude/skills/gh-fix-ci/SKILL.md" \
+    "$HOME/.claude/skills/test-audit/SKILL.md"
   do
     if [[ ! -e "$path" ]]; then
       echo "Expected copied agent file to exist: ${path}" >&2
