@@ -60,10 +60,16 @@ git switch -c <branch-name> origin/main
 - When `DOTFILES_PROFILE=work`, apply the `ai-authored` GitHub label instead of `human-authored` to PRs you author.
 - To add an image or video to a PR body, follow the `gh-pr-body` skill and use `gh`'s built-in `--attach` flag; never substitute another upload path.
 
-## Focused Testing (Speed)
+## Testing Policy
 
-- When debugging **one** failing test, **do not** run the full test suite.
-- Run only the **specific test file** and/or the **specific test** inside that file.
+- For writing, changing, reviewing, or auditing tests, use `$test-audit`; it owns the full policy and the audit procedure.
+- Budgets are hard and never raised: whole unit suite < 10s, whole e2e suite < 60s. Over budget means delete or merge tests, never add retries or bump timeouts.
+- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice, before opening or updating the PR and on the final head.
+- Deterministic always: no sleeps, polling, retries, `skip`, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
+- Two tiers only, unit and e2e; no integration tier.
+- Unit: public API only, one behavior per test, nothing the type checker already proves, mock only process boundaries, inject the clock, exactly one regression test per bug fix, no snapshot tests except serialized wire contracts.
+- E2e: one happy path per critical flow plus the failures that would page someone; real dependencies, no mocks; a flaky e2e test is fixed or deleted the same day.
+- Every test answers "what bug does this catch?"; if you cannot say, do not write it.
 
 Examples (Vitest):
 - Single file: `cd apps/webapp && yarn test path/to/file.spec.tsx`
