@@ -60,6 +60,12 @@ git switch -c <branch-name> origin/main
 - When `DOTFILES_PROFILE=work`, apply the `ai-authored` GitHub label instead of `human-authored` to PRs you author.
 - To add an image or video to a PR body, follow the `gh-manage-pr` skill and use `gh`'s built-in `--attach` flag; never substitute another upload path.
 
+## GitHub Review Comments
+
+- For reading and working through PR review comments, use `$gh-address-comments`; it owns the evidence-first validate, fix, reply, and resolve loop.
+- A request to handle or address PR comments authorizes replying on GitHub and resolving each successfully handled thread. Reply before resolving; if the reply fails, leave the thread open.
+- `no write`, `read-only`, `dry run`, `draft only`, or equivalent suppress all GitHub mutations; report drafted replies and intended resolution states instead.
+
 ## Testing Policy
 
 - For writing, changing, reviewing, or auditing tests, use `$test-audit`; it owns the full policy and the audit procedure.

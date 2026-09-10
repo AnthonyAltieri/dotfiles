@@ -1,6 +1,6 @@
 ---
 name: gh-address-comments
-description: Use when the user asks to read/fetch GitHub PR review comments and work through them end-to-end — skeptically validate each comment against the code, push commits fixing confirmed issues, reply to/answer the review threads with evidence and commit links, and resolve the threads. Triggers include "handle comments", "handle PR comments", "address PR comments", "read PR comments", "push fixes", "answer threads", "respond to review", "resolve comments/threads".
+description: Use when the user asks to read/fetch GitHub PR review comments and work through them end-to-end — skeptically validate each comment against the code, push commits fixing confirmed issues, reply to/answer the review threads with evidence and commit links, and resolve the threads. Triggers include "handle comments", "handle PR comments", "address PR comments", "read PR comments", "push fixes", "answer threads", "respond to review", "resolve comments/threads"; honor no-write, read-only, dry-run, or draft-only requests by making no GitHub mutations.
 metadata:
   short-description: Validate, fix, answer, and resolve PR review threads
 ---
@@ -15,6 +15,14 @@ Fetch the review threads on the current branch's PR and drive every unresolved t
 Never resolve a thread silently, never reply without evidence, and never "fix" something just to appease a comment you could not confirm.
 
 Use the `gh` CLI for all GitHub reads and top-level comments, and the Rust helper commands (on `PATH` via the active Nix profile) for review-thread replies and resolution. If no PR exists for the current branch, report this and stop.
+
+## Write Mode
+
+- Default to GitHub writes enabled: a request to handle or address PR comments is authorization to reply on every successfully handled thread and then resolve it.
+- Treat `no write`, `no GitHub writes`, `do not post`, `do not reply or resolve`, `dry run`, `draft only`, or equivalent as no-GitHub-write mode. Local changes remain allowed when the user asked for implementation.
+- Treat `read-only` or an explicit request not to change local files as both no-GitHub-write mode and no-local-edit mode.
+- In no-GitHub-write mode, skip every reply and resolve command and report drafted replies plus the intended resolution state for each thread instead.
+- Do not submit a formal PR review or add a top-level summary comment unless explicitly requested.
 
 ## Inputs
 
@@ -86,8 +94,16 @@ Classify the outcome: **Confirmed** (proof the comment is correct, or that a clo
 
 ## Output Format
 
-1. Code Examples — before/after snippets grouped by file
-2. Summary Table — file, line, reviewer, claim, verdict (confirmed/refuted/question), evidence, commit link (if any)
+Include one entry for every in-scope review thread, labelled with the reviewer and file location when available. Group exact duplicates only when every thread stays identifiable. Each entry has:
+
+- `Comment`: a concise restatement of the reviewer's claim.
+- `Our response (posted)` or `Our response (draft)`: the reply text verbatim when available, otherwise a faithful concise paraphrase. Use `(draft)` in no-GitHub-write mode.
+- `Verdict`: confirmed, refuted, or question.
+- `Outcome`: `resolved` or `open`, followed by the reason.
+- `Verification`: the focused evidence supporting the disposition, or `not applicable`.
+- `Code change`: only when the thread caused a code change; a fenced `diff` or source snippet showing the essential few lines, plus the commit link. Omit for refutations, answers, and unchanged code.
+
+Finish with totals for handled, resolved, and still-open threads.
 
 ## Bundled Resources
 
