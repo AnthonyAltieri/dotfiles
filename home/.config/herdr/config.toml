@@ -9,27 +9,36 @@ prefix = "ctrl+space"
 
 # Prefix + v/s split panes; new panes follow the current working directory
 # through [terminal] new_cwd = "follow" (the default).
-split_vertical = "prefix+v"
-split_horizontal = "prefix+s"
+split_vertical = ["prefix+v", "cmd+d"]
+split_horizontal = ["prefix+s", "cmd+shift+d"]
 
 # Ghostty delivers Ctrl+Shift+Q and Ctrl+Shift+, as CSI-u chords, so herdr
 # can bind them directly without a prefix.
-close_pane = ["prefix+x", "ctrl+shift+q"]
+close_pane = ["prefix+x", "ctrl+shift+q", "cmd+w"]
 rename_tab = ["prefix+shift+t", "ctrl+shift+comma"]
 
-# Ctrl+1..9 jumps straight to a tab (Ghostty no longer translates these).
-switch_tab = ["prefix+1..9", "ctrl+1..9"]
+# Ghostty unbinds its own Cmd+T/W/D/[/]/1..9 chords so they reach herdr;
+# see the "Hand Ghostty's macOS Cmd" block in home/.config/ghostty/config.
+new_tab = ["prefix+c", "cmd+t"]
+next_tab = ["prefix+n", "cmd+shift+]"]
+previous_tab = ["prefix+p", "cmd+shift+["]
+cycle_pane_next = ["prefix+tab", "cmd+]"]
+cycle_pane_previous = ["prefix+shift+tab", "cmd+["]
 
-# Ctrl+Shift+1..9 jumps straight to a workspace.
-switch_workspace = "ctrl+shift+1..9"
+# Ctrl+1..9 or Alt+1..9 jumps straight to a tab (Ghostty no longer translates these).
+switch_tab = ["prefix+1..9", "ctrl+1..9", "alt+1..9"]
+
+# Ctrl+Shift+1..9 or Cmd+1..9 jumps straight to a workspace.
+switch_workspace = ["ctrl+shift+1..9", "cmd+1..9"]
 
 # Pane focus. Neovim owns plain Ctrl+h/j/k/l and calls `herdr pane focus`
 # when it hits a window edge (see home/.config/nvim/lua/aalt/lazy/herdr_navigator.lua);
-# shell panes use the prefix or the terminal-safe ctrl+alt chords.
-focus_pane_left = ["prefix+h", "ctrl+alt+h"]
-focus_pane_down = ["prefix+j", "ctrl+alt+j"]
-focus_pane_up = ["prefix+k", "ctrl+alt+k"]
-focus_pane_right = ["prefix+l", "ctrl+alt+l"]
+# shell panes use the prefix, Alt+h/j/k/l (Ghostty sends Option as Alt), or the
+# terminal-safe ctrl+alt chords.
+focus_pane_left = ["prefix+h", "alt+h", "ctrl+alt+h"]
+focus_pane_down = ["prefix+j", "alt+j", "ctrl+alt+j"]
+focus_pane_up = ["prefix+k", "alt+k", "ctrl+alt+k"]
+focus_pane_right = ["prefix+l", "alt+l", "ctrl+alt+l"]
 
 [ui]
 # Show the outer terminal which workspace/tab is focused.
