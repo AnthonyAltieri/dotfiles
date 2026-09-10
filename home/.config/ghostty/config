@@ -39,6 +39,37 @@ keybind = super+ctrl+l=resize_split:right,10
 keybind = shift+enter=text:\x1b\r
 keybind = ctrl+.=text:\x1b[46;5u
 
+# Hand Ghostty's macOS Cmd tab/split chords to herdr (herdr enables the kitty
+# keyboard protocol, so Cmd chords reach it directly once Ghostty stops
+# consuming them). herdr binds these in ~/.config/herdr/config.toml.
+# See https://deepakness.com/raw/ghostty-herdr-keybindings/
+keybind = cmd+t=unbind
+keybind = cmd+w=unbind
+keybind = cmd+d=unbind
+keybind = cmd+shift+d=unbind
+keybind = cmd+[=unbind
+keybind = cmd+]=unbind
+keybind = cmd+shift+[=unbind
+keybind = cmd+shift+]=unbind
+keybind = cmd+1=unbind
+keybind = cmd+digit_1=unbind
+keybind = cmd+2=unbind
+keybind = cmd+digit_2=unbind
+keybind = cmd+3=unbind
+keybind = cmd+digit_3=unbind
+keybind = cmd+4=unbind
+keybind = cmd+digit_4=unbind
+keybind = cmd+5=unbind
+keybind = cmd+digit_5=unbind
+keybind = cmd+6=unbind
+keybind = cmd+digit_6=unbind
+keybind = cmd+7=unbind
+keybind = cmd+digit_7=unbind
+keybind = cmd+8=unbind
+keybind = cmd+digit_8=unbind
+keybind = cmd+9=unbind
+keybind = cmd+digit_9=unbind
+
 # Ctrl+1..9, Ctrl+Shift+Q and Ctrl+Shift+, are delivered to herdr as CSI-u
 # chords (herdr enables the kitty keyboard protocol), so no translation is
 # needed here; herdr binds them in ~/.config/herdr/config.toml.

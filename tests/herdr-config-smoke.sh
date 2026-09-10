@@ -53,14 +53,29 @@ expect_key() {
 }
 
 expect_key 'prefix = "ctrl+space"'
-expect_key 'split_vertical = "prefix+v"'
-expect_key 'split_horizontal = "prefix+s"'
+expect_key 'split_vertical = ["prefix+v", "cmd+d"]'
+expect_key 'split_horizontal = ["prefix+s", "cmd+shift+d"]'
 expect_key '"ctrl+shift+q"'
 expect_key '"ctrl+shift+comma"'
-expect_key 'switch_tab = ["prefix+1..9", "ctrl+1..9"]'
-expect_key 'switch_workspace = "ctrl+shift+1..9"'
-expect_key '"ctrl+alt+h"'
+expect_key 'close_pane = ["prefix+x", "ctrl+shift+q", "cmd+w"]'
+expect_key 'new_tab = ["prefix+c", "cmd+t"]'
+expect_key 'next_tab = ["prefix+n", "cmd+shift+]"]'
+expect_key 'previous_tab = ["prefix+p", "cmd+shift+["]'
+expect_key 'cycle_pane_next = ["prefix+tab", "cmd+]"]'
+expect_key 'cycle_pane_previous = ["prefix+shift+tab", "cmd+["]'
+expect_key 'switch_tab = ["prefix+1..9", "ctrl+1..9", "alt+1..9"]'
+expect_key 'switch_workspace = ["ctrl+shift+1..9", "cmd+1..9"]'
+expect_key 'focus_pane_left = ["prefix+h", "alt+h", "ctrl+alt+h"]'
+expect_key 'focus_pane_right = ["prefix+l", "alt+l", "ctrl+alt+l"]'
 expect_key 'onboarding = false'
+
+# Ghostty must release the Cmd chords herdr binds directly.
+for cmd_chord in 'cmd+t' 'cmd+w' 'cmd+d' 'cmd+shift+d' 'cmd+[' 'cmd+]' 'cmd+shift+[' 'cmd+shift+]' 'cmd+1' 'cmd+digit_1' 'cmd+9' 'cmd+digit_9'; do
+  if ! rg -Fq "keybind = ${cmd_chord}=unbind" "$ROOT_DIR/home/.config/ghostty/config"; then
+    printf 'expected Ghostty to unbind %s so herdr receives it\n' "$cmd_chord" >&2
+    exit 1
+  fi
+done
 
 # Ghostty must no longer translate the chords herdr binds directly.
 if rg -q 'text:\\x00' "$ROOT_DIR/home/.config/ghostty/config"; then
