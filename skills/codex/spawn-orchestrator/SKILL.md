@@ -1,11 +1,11 @@
 ---
 name: spawn-orchestrator
-description: Orchestrate a backlog through separate Codex app threads in isolated worktrees, refilling available slots with ready issues as workers finish. Each issue ends in a draft PR and a verified report. Honor explicitly requested fixed waves. Use only when the user explicitly invokes spawn-orchestrator or asks to spawn parallel Codex sessions over a backlog; do not use for single-task delegation or read-only fan-out.
+description: Orchestrate a backlog through separate Codex app threads in isolated worktrees, refilling available slots with ready issues as workers finish. Each issue ends in a draft PR by default; explicit --automerge lets workers merge verified PRs into main. Honor explicitly requested fixed waves. Use only when the user explicitly invokes spawn-orchestrator or asks to spawn parallel Codex sessions over a backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
 
-Work a backlog in parallel: one separate Codex app thread per unblocked issue, each in its own worktree, each ending in a PR and a completion message back to this thread. This thread stays the orchestrator — it schedules ready work, creates and monitors child threads, and never implements issues itself.
+Work a backlog in parallel: one separate Codex app thread per unblocked issue, each in its own worktree, each ending in a draft PR or, with `--automerge`, a verified merge into `main`. This thread stays the orchestrator — it schedules ready work, creates and monitors child threads, and never implements issues itself.
 
 ## Children Are App Threads
 
@@ -23,7 +23,8 @@ Subagents are fine in general — this thread may use them for backlog triage or
 ## Inputs and Defaults
 
 - **Work source:** a Linear epic/parent issue (URL or key) or an explicit issue list. Resolve children and relations through the connected Linear tools.
-- **Base branch:** an explicitly named base, else the repository default. Fetch before spawning so every child worktree starts from the current remote base.
+- **Base branch:** with `--automerge`, use `main`; otherwise use an explicitly named base, else the repository default. If an explicit base conflicts with `main`, report the conflict before dispatching automerge workers. Fetch before spawning so every child worktree starts from the current remote base; report a missing target branch.
+- **Completion mode:** draft PRs by default. `--automerge` in the user's invocation authorizes spawned workers to mark their PRs ready, merge them into `main`, and complete their issues after verification, without asking again per issue. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. This is a skill option, not a flag to pass to a child executable.
 - **Concurrency:** up to 3 active issue workers unless the user sets a lower or higher limit; never exceed 5. Include workers in review, remediation, or a verification queue. Reduce intake when host resources or the user's review backlog cannot support it.
 - **Advancement:** rolling refill by default — after verifying a completion or safely parking blocked work, fill the available slot with the next eligible issue without waiting for unrelated workers. Explicit fixed waves wait for the whole wave to report and settle before the next starts. Honor user task/wave limits and stop requests in either mode.
 
@@ -44,7 +45,8 @@ For each eligible issue that fits the concurrency limit, call `create_thread` wi
 - owned paths and APIs, current parallel neighbors, and any host-resource or exclusive verification slot it must wait for;
 - the Worker Testing Guidance block below, verbatim;
 - the branch to work on (`codex/<issue-key>-<slug>`) and the base branch to target;
-- this thread's identity, and the done-when: changes verified under the testing policy, branch pushed, draft PR opened against the base branch, Linear issue updated, and a completion message sent to this thread with `send_message_to_thread` containing the issue key, PR URL, and status (`pr-opened`, `blocked`, or `failed`);
+- this thread's identity and the completion mode: by default, changes verified under the testing policy, branch pushed, draft PR opened against the base branch, and Linear issue updated; with `--automerge`, include the Optional Automerge procedure below and finish only after verified merge into `main` and the issue update;
+- report through `send_message_to_thread` with the issue key, PR URL, head SHA, verification evidence, and status (`pr-opened`, `merge-ready`, `merged`, `blocked`, or `failed`); `merge-ready` is a progress event, not completion, and `merged` also includes the merge commit SHA;
 - the instruction to stay inside its own worktree and report — not absorb — any extra work it discovers.
 
 Record each child's thread ID against its issue; give each child a title of `<issue-key> <slug>` so the user can find it in the app.
@@ -54,6 +56,17 @@ Record each child's thread ID against its issue; give each child a title of `<is
 Keep the ready-work queue separate from the heavy-check queue. On a shared host, grant one exclusive slot for full suites, provider benchmarks, or other checks that contend for shared state or substantial CPU/RAM. Coordinate that slot with other active repository tasks. Independent hosts may run checks concurrently where repository rules permit; serialize final merges to each base branch when merging is authorized.
 
 While a worker holds that slot, other workers may design, edit, review, and run focused checks within the remaining resource budget. Pause only conflicting or resource-heavy operations, not every task. Required gates still run: do not skip checks, expand timeouts, or reuse evidence invalidated by changed code or base. Refresh the base and repeat the required affected checks and reviews before final integration when it advances.
+
+## Optional Automerge
+
+Invoke as `$spawn-orchestrator --automerge <epic>`. Without the flag, stop at verified draft PRs. With it, each worker performs its own PR merge under an orchestrator-owned merge slot for `main`:
+
+1. Prepare and verify a draft PR, then report `merge-ready` with its URL, current head SHA, and review/check evidence. Stay available for integration; do not merge or treat this event as completion.
+2. The orchestrator verifies the pushed PR and target, audits changed tests with `$test-audit`, and reserves the merge slot for this issue. Only one worker may integrate into `main` at a time; waiting workers still count toward concurrency. Keep heavy-check scheduling separate so independent work continues.
+3. While holding the slot, the worker fetches current `main`, updates its branch if needed under repository rules, marks the PR ready, and obtains the required reviews and checks for the final head and current base. Any head/base change invalidates affected evidence. Report the resulting head and evidence; the orchestrator rechecks them, including any affected test audit, before granting merge permission for that exact head.
+4. The worker merges through the repository's supported PR mechanism and merge strategy, using an expected-head guard. Recheck head, base, and required gates immediately before submission; return to step 3 if they changed. Honor branch protection, required reviews, and merge queues. Never use an administrative bypass, force-push `main`, or push directly to `main`.
+5. A scheduled or queued merge is still pending. Retain the merge slot and monitor it until the provider confirms `merged`; do not archive the worker or unblock dependent work on an enqueue response. The worker reports the merge commit; the orchestrator reads back the PR's merged state and target, fetches `main`, and verifies the recorded merge commit is reachable there before recording completion, updating Linear, and releasing/refilling capacity.
+6. Remediate in-scope check/review failures in the same worker before retrying. Unresolved failures, missing required approval, conflicts, or unavailable merge permissions/tools leave the issue `blocked` with its PR and resume condition. Do not repeatedly retry the same blocker. Before parking or honoring a stop/revoked authorization, cancel any pending automatic/queued merge and verify cancellation or an already-completed merge. If cancellation cannot be confirmed, retain merge ownership and report it as pending. Release slots only when no merge can run unattended; resumption starts again with current capacity, base, head, and gate checks.
 
 ## Worker Testing Guidance
 
@@ -74,29 +87,30 @@ Testing policy (non-negotiable; see the test-audit skill for the full text):
 
 ## Monitor and Advance
 
+- When a child messages `merge-ready`, follow Optional Automerge when enabled; otherwise keep the default draft-PR endpoint. Do not archive or free the worker on `merge-ready`.
 - When a child messages completion:
-  1. Verify the claim — the PR exists, targets the base branch, and is a draft; the branch pushed; the Linear issue reflects reality. A child's "done" is a claim, not evidence.
-  2. Audit the PR's new or changed tests with `$test-audit`; on a policy violation, message the child once with the specific finding and wait for the fix before archiving.
+  1. Verify the claim — in default mode the PR exists, targets the base branch, and is a draft; in automerge mode verify the merged PR and commit on `main` as above. Confirm the branch was pushed and Linear reflects reality. A child's "done" is a claim, not evidence.
+  2. In default mode, audit the PR's new or changed tests with `$test-audit`; on a policy violation, message the child once with the specific finding and wait for the fix before archiving. In automerge mode, confirm that the pre-merge audit covers the merged head.
   3. Archive the child with `set_thread_archived`.
   4. Release its resource slots and refill eligible capacity immediately in rolling mode; explicit fixed waves retain their barrier.
-- If a child goes silent, inspect it before deciding it is blocked; a long-running check is not itself a blocker. For confirmed blocked work, record the issue, dependency, branch/PR, and resume condition; ensure execution has stopped and preserve recoverable work before releasing its slot. Keep its ownership recorded even while parked. Resume it only after capacity and dependency/overlap checks pass again; do not start a second worker for that issue.
+- If a child goes silent, inspect it before deciding it is blocked; a long-running check is not itself a blocker. For confirmed blocked work, record the issue, dependency, branch/PR, and resume condition; apply Optional Automerge cancellation/ownership rules when enabled, ensure execution has stopped, and preserve recoverable work before releasing its slot. Keep its ownership recorded even while parked. Resume it only after capacity and dependency/overlap checks pass again; do not start a second worker for that issue.
 - Repository lifecycle rules control whether a parked thread is retained or archived. Pending administrative updates or approvals on one issue do not block unrelated authorized work once its resources are released; preserve the pending action rather than bypassing it.
 - Stop dispatching when the user's limit is reached or no issue is eligible. Continue monitoring active workers; end with a truthful report when the requested work is settled or no further progress is possible without user input or an external change.
 
 ## Guardrails
 
-- Never merge PRs and never mark issues done on a child's claim alone — human review of each PR is the gate this workflow feeds, not a step it performs.
+- Without `--automerge`, stop at draft PRs for human review. With it, workers merge only through the verified procedure above; required human reviews still apply. Never mark issues done on a child's claim alone.
 - One issue per child; a child that discovers extra work reports it for triage instead of expanding scope.
 - Keep Linear mutations minimal and within `$linear-claim-work` rules; the orchestrator does not restructure the epic.
 - Leave nothing dangling: at the end, every created thread is archived or reported, and any worktree the app does not clean up itself is reported.
 
 ## Report
 
-At meaningful completions or blocker changes, and at the end, return: the epic and base branch; a table of issue → thread → branch → PR → status; active versus available slots; heavy-check owner; ready work waiting and why; blocked or parked work with resume conditions; and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
+At meaningful completions or blocker changes, and at the end, return: the epic, base branch, and completion mode; a table of issue → thread → branch → PR → status (with merge commit for `merged`); active versus available slots; heavy-check and merge-slot owners; ready work waiting and why; blocked or parked work with resume conditions; and the next dispatch, review, or merge order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
 
 ## Composition
 
 - `$linear-claim-work` owns the claim, duplicate, and ownership-conflict gates per issue.
-- `$ultragoal` may wrap the whole orchestration when the user wants it to survive interruptions; the goal's verifier is the backlog state plus open PRs, and this skill defines the loop.
+- `$ultragoal` may wrap the whole orchestration when the user wants it to survive interruptions; the goal's verifier is the backlog state plus verified draft PRs or, with `--automerge`, verified merges into `main`, and this skill defines the loop.
 - `$adversarial-review` may gate an individual child's PR when the user requests it; run it against that child's diff, not the whole wave.
 - `$test-audit` owns the testing policy; the Worker Testing Guidance block is its condensed form and the completion audit applies it to each PR.

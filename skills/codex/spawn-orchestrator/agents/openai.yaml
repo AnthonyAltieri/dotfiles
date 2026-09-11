@@ -1,6 +1,6 @@
 interface:
   display_name: "spawn-orchestrator"
-  short_description: "Keep ready backlog issues moving in parallel Codex tasks"
+  short_description: "Run parallel backlog tasks with optional verified automerge"
   default_prompt: "Use $spawn-orchestrator to work the ready issues under <epic> in separate Codex app threads and worktrees off <base>, refilling available slots after verified completion, prioritizing blockers on the path to the requested outcome, and coordinating heavy checks; each issue ends in a draft PR and a verified report."
 policy:
   allow_implicit_invocation: false
