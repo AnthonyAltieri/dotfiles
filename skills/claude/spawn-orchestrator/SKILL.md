@@ -1,6 +1,6 @@
 ---
 name: spawn-orchestrator
-description: Use a Claude Code Fable session to orchestrate persistent Codex App threads, each running an Astra xhigh worker in an isolated worktree. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
+description: Use a Claude Code Fable session to orchestrate persistent Codex App threads, each running an Astra xhigh worker in an isolated worktree. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; use --max to fill the dependency-ready frontier beyond the default worker cap. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
@@ -39,17 +39,26 @@ Invoking this skill is the user's explicit request to spawn workers over the req
 - **Work source:** a Linear epic/parent issue or an explicit issue list. Resolve children and relations through connected Linear tools.
 - **Base branch:** with `--automerge`, use `main`; otherwise use an explicitly named base, else the repository default. If an explicit base conflicts with `main`, report the conflict before dispatching automerge workers. Fetch before spawning so every worktree starts from the current remote base; report a missing target branch.
 - **Completion mode:** draft PRs by default. `--automerge` in the user's invocation authorizes spawned workers to mark their PRs ready, merge them into `main`, and complete their issues after verification, without asking again per issue. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. This is a skill option, not a flag to pass to a child executable.
-- **Concurrency:** up to 3 active issue workers unless the user sets a lower or higher limit; never exceed 5. Include workers in review, remediation, or a verification queue. Reduce intake when host resources or the user's review backlog cannot support it.
+- **Concurrency:** without `--max`, use up to 3 active issue workers unless the user sets a limit, with a ceiling of 5. Explicit `--max` removes the default three-worker limit and five-worker ceiling: fill the current dependency-ready frontier as described below. An explicit numeric concurrency limit still bounds `--max`. Count pending creation/worktree setup and workers in review, remediation, or verification/merge queues as active; host/platform capacity and explicit user task/wave limits still apply.
 - **Advancement:** rolling refill by default — after verifying a completion or safely parking blocked work, fill the available slot with the next eligible issue without waiting for unrelated workers. Explicit fixed waves wait for the whole wave to report and settle before the next starts. Honor user task/wave limits and stop requests in either mode.
 - **Worker model:** always `gpt-6-astra` with `xhigh` reasoning. Do not silently inherit either value from local Codex defaults.
 
 ## Plan the Backlog
 
-1. Resolve the requested issues and their blocking relations. Track each worker's owned paths and APIs, stage, resource needs, and blockers, including other active repository tasks such as a test-suite audit.
+1. Build the requested tasks' dependency graph with edges from prerequisite to dependent. The ready frontier is the unfinished tasks whose prerequisite outcomes are all verified satisfied. Report cycles, unknown prerequisite state, and unsatisfied external blockers; keep affected tasks deferred while independent ready work proceeds. Track each worker's owned paths and APIs, stage, resource needs, and blockers, including other active repository tasks such as a test-suite audit.
 2. An eligible issue is non-terminal and has no open blocking relation. Refresh dependencies and existing-work ownership before every dispatch, then claim through `$linear-claim-work`. An open PR or a worker's completion message does not satisfy a dependency that requires merged code; verify the required result on the base branch. Resume an existing issue's worker instead of creating a duplicate.
 3. Choose ready issues with disjoint owned files and no conflicting API decisions. Sharing a crate or subsystem alone does not require serialization. An independently scoped design document may proceed alongside implementation; its dependent code still waits for the reviewed decision. Do not invent additional work outside the requested backlog to fill slots.
 4. Prefer work that removes a blocker on the shortest path to the user's requested outcome. Start ready design decisions early when they unlock several later changes; use spare capacity for independent fixes. Readiness alone is not a reason to postpone critical design behind peripheral cleanup.
-5. Re-evaluate the queue after a verified completion, merge, newly discovered blocker, or ownership change. If capacity is idle, name the concrete dependency, overlap, resource, or user-limit reason.
+5. Re-evaluate the ready frontier and capacity after a verified completion, merge, dependency change, or ownership/resource change. If capacity is idle, name the concrete dependency, overlap, resource, or user-limit reason.
+
+## Maximum Ready-Work Concurrency
+
+Invoke as `/spawn-orchestrator --max <epic>`, or combine it with `--automerge`. Enable `--max` only from the user's invocation; preserve the concurrency mode and any explicit ceilings in run state and every initial/resume brief. It is a skill option, not a child-executable flag, and does not authorize merging by itself.
+
+- Fill the current ready frontier with every worker that can coexist under ownership, host/platform, and explicit user limits. For example, twelve independent ready issues and capacity for twelve mean twelve workers, not five. Skip conflicting candidates in priority order and continue considering other compatible ready tasks.
+- Account for existing workers and other repository activity. Observe dispatch outcomes and resource pressure as workers start; stop intake only at a concrete constraint, record it, and keep remaining work queued. Do not replace the removed cap with an arbitrary lower cap or repeatedly retry an unchanged capacity refusal.
+- Recompute readiness after each verified completion or merge, dependency change, or released resource. In rolling mode, an issue may start as soon as its own prerequisites are satisfied, even while unrelated earlier work continues. A topological ordering alone does not create a whole-layer barrier; explicitly requested fixed waves retain their barrier, with `--max` filling the ready work in that wave.
+- `--max` expands implementation concurrency only. Keep exclusive heavy-check and merge slots, required reviews/checks, and dependency verification unchanged. An open draft PR still cannot unblock a task that requires its code on the base branch.
 
 ## Dispatch Ready Work
 
@@ -57,7 +66,7 @@ Put the complete implementation contract inside each worker's `--task` brief:
 
 - issue key, URL, intended outcome, acceptance criteria, constraints, and non-goals;
 - required verification and repository instructions;
-- owned paths and APIs, current parallel neighbors, and any host-resource or exclusive verification slot it must wait for;
+- concurrency mode, explicit ceilings, owned paths and APIs, current parallel neighbors, and any host-resource or exclusive verification slot it must wait for;
 - the Worker Testing Guidance block below, verbatim;
 - branch name `codex/<issue-key>-<slug>` and the base branch for the draft PR;
 - completion mode: by default, tests pass under the testing policy, branch is pushed, draft PR is opened, and Linear reflects reality; with `--automerge`, include the Optional Automerge procedure below and finish only after verified merge into `main` and the issue update;
@@ -125,7 +134,7 @@ Testing policy (non-negotiable; see the test-audit skill for the full text):
 
 ## Report
 
-At meaningful completions or blocker changes, and at the end, return the epic, base branch, and completion mode plus a table of issue → Claude wrapper → Codex thread → branch → PR → status (with merge commit for `merged`). Include active versus available slots, heavy-check and merge-slot owners, ready work waiting and why, blocked or parked work with resume conditions, and the next dispatch, review, or merge order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
+At meaningful completions or blocker changes, and at the end, return the epic, base branch, and completion mode plus a table of issue → Claude wrapper → Codex thread → branch → PR → status (with merge commit for `merged`). Include concurrency mode, active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, heavy-check and merge-slot owners, blocked or parked work with resume conditions, and the next dispatch, review, or merge order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
 
 ## Composition
 
