@@ -6,8 +6,9 @@
 
 ### <subsystem or capability>
 
-<!-- One line of rationale, then code: before/after payloads, trimmed DDL,
-     rename pairs, key logic verbatim. -->
+<!-- One plain sentence of rationale, then a small snippet when the change has
+     a shape: type signature, pseudocode, before/after payload, trimmed DDL,
+     rename pairs. Verbatim code only for the exact lines that matter. -->
 
 ## How to verify
 
