@@ -29,8 +29,11 @@ Create or update a pull request with the GitHub CLI (`gh`). Images and videos go
    - For large diffs, read `git diff <base>...HEAD --dirstat=files,0` and the diffstat first to see which subsystems changed, then pull hunks only for the sections that need snippets.
 3. Draft the description per the `gh-pr-description` skill: discover the
    repo's PR template and PR-lint rules first (headings, title grammar,
-   labels, size ceilings), then write a Why-first, code-snippet-heavy body
-   against them. The repo contract wins over any default template.
+   labels, size ceilings), then write a Why-first body against them in the
+   plain `bro` voice, explaining with small snippets (type signatures and
+   pseudocode preferred). The repo contract wins over any default template,
+   and unless the user explicitly asks otherwise the PR must pass every local
+   PR lint rule as configured.
 4. Apply the PR update, adding `--attach` flags on the same command when media is requested (step 5).
    - Create: `gh pr create --draft --title "<title>" --body-file <tmpfile>`
    - Update: `gh pr edit <pr> --title "<title>" --body-file <tmpfile>`

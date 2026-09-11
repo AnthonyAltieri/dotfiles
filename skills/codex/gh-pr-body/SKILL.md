@@ -29,9 +29,11 @@ For a large diff, read `git diff <baseRefName>...HEAD --dirstat=files,0` and the
 
 Draft per the `gh-pr-description` skill: discover the repo's PR template and
 PR-lint rules first (headings, title grammar, labels, size ceilings), then
-write a Why-first, code-snippet-heavy body against them. The repo contract
-wins over any default template. Preserve unrelated user-authored sections
-unless the requested update clearly replaces them.
+write a Why-first body against them in the plain `bro` voice, explaining with
+small snippets (type signatures and pseudocode preferred). The repo contract
+wins over any default template, and unless the user explicitly asks otherwise
+the PR must pass every local PR lint rule as configured. Preserve unrelated
+user-authored sections unless the requested update clearly replaces them.
 
 Apply an authorized update with `gh pr edit --title ... --body-file ...`, then
 read the PR back, verify the exact title/body, and confirm any PR lint verdict

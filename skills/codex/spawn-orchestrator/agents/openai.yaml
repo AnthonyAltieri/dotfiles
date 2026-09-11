@@ -1,6 +1,6 @@
 interface:
   display_name: "spawn-orchestrator"
   short_description: "Parallel backlog tasks with max fan-out and opt-in automerge"
-  default_prompt: "Use $spawn-orchestrator to work the ready issues under <epic> in separate Codex app threads and worktrees off <base>, refilling available slots after verified completion, prioritizing blockers on the path to the requested outcome, and coordinating heavy checks; each issue ends in a draft PR and a verified report."
+  default_prompt: "Use $spawn-orchestrator to work the ready issues under <epic> in separate Codex app threads and worktrees off <base>, refilling available slots after verified completion, prioritizing blockers on the path to the requested outcome, and leaving each child to work autonomously until its single final report; each issue ends in a draft PR and a verified report."
 policy:
   allow_implicit_invocation: false
