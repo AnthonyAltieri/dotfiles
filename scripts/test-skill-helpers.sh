@@ -18,6 +18,7 @@ run() {
 run cargo test --offline --manifest-path pkgs/atlas-cli/Cargo.toml
 run nix build --no-link --impure .#codex-thread-manager
 run bash tests/claude-mcp-servers-smoke.sh
+run bash tests/codex-workspace-write-sandbox-smoke.sh
 run cargo test --offline --manifest-path pkgs/sql-read/Cargo.toml
 run tests/sql-read-state-migration-smoke.sh
 run cargo test --offline --manifest-path pkgs/gh-comment-tools/Cargo.toml

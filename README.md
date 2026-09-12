@@ -208,13 +208,15 @@ On Darwin, Claude also receives the local `codex-threads` stdio MCP server. It w
 
 The merges intentionally touch only those keys — other servers, settings, and OAuth state stay local. On a new machine, authenticate once per agent: `codex mcp login <name>`, and `/mcp` in Claude Code.
 
+The personal role also merges Codex workspace-write sandbox settings (`dotfiles.codexWorkspaceWriteSandbox`) into `~/.codex/config.toml`: `sandbox_workspace_write.network_access = true` and `writable_roots` for Bazel's output root (`~/.cache/bazel`), Docker's socket (`~/.docker/run`, `/var/run/docker.sock`). Relative roots resolve against the current home directory at evaluation time, so the role applies to any login user; roots added locally are kept.
+
 These managed `.codex` and `.claude` paths are copied into place as regular files and directories during Home Manager activation. They are intentionally not left as symlinks so Codex and Claude can discover local skills and prompts reliably.
 
 Packaged helper commands such as `atlas-cli`, `codex-thread-manager`, `fetch-comments`, `classify-ci-log`, and `sql-read` are built from `pkgs/` and exposed on `PATH` by the active profile. PR media uploads use `gh`'s built-in `--attach` flag (gh 2.99.0+) rather than a packaged helper.
 
 Examples of intentionally unmanaged local state:
 
-- `~/.codex/config.toml` and `~/.claude/.claude.json`, except for the targeted MCP server merges above
+- `~/.codex/config.toml` and `~/.claude/.claude.json`, except for the targeted MCP server and sandbox merges above
 - `~/.codex/auth.json`
 - `~/.codex/rules/default.rules`
 - `~/.codex/history.jsonl`
