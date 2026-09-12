@@ -118,8 +118,9 @@ After a `merged` report the orchestrator reads back the PR's merged state and ta
 Every worker brief carries this block verbatim so each fresh worker context receives the testing policy. `$test-audit` owns the full policy; this is its condensed form.
 
 ```text
-Testing policy (non-negotiable; see the test-audit skill for the full text):
-- Budgets are hard and never raised: whole unit suite < 10s, whole e2e suite < 60s. Over budget means delete or merge tests, never add retries or bump timeouts.
+Testing policy (see the test-audit skill for the full text):
+- Runtime targets, not hard limits: aim for the whole unit suite as close to 10s and the whole e2e suite as close to 60s as reasonably practical; faster suites are welcome. Preserve useful coverage when exceeding these targets.
+- Prioritize improvements of at least 10% of the affected whole suite's runtime. Do not spend significant time on smaller gains; quick, low-risk improvements are fine. Accept above-target runtimes when further optimization would take disproportionate effort.
 - Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice: before opening the draft PR and on the final head.
 - Deterministic always: no sleeps, polling, retries, skip, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
 - Two tiers only, unit and e2e; no integration tier.

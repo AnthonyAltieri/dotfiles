@@ -1,6 +1,6 @@
 ---
 name: test-audit
-description: Apply the testing policy when writing, changing, reviewing, or auditing tests. Use to decide whether a test should exist, which tier it belongs to, how to keep it deterministic and inside the suite time budgets, and to audit an existing suite for tests to delete or merge; skip for non-test code.
+description: Apply the testing policy when writing, changing, reviewing, or auditing tests. Use to decide whether a test should exist, which tier it belongs to, how to keep it deterministic and reasonably fast, and to audit an existing suite for worthwhile improvements; skip for non-test code.
 ---
 
 # Test Audit
@@ -9,7 +9,9 @@ Tests exist to catch regressions cheaply. Every test costs wall-clock time on ev
 
 ## Policy
 
-**Budgets (hard, CI-enforced, never raised):** whole unit suite < 10s, whole e2e suite < 60s. Over budget means delete or merge tests. Never add retries or bump timeouts to get under budget.
+**Runtime targets (not hard limits):** aim for the whole unit suite to run as close to 10s and the whole e2e suite as close to 60s as reasonably practical; faster suites are welcome. Exceeding these targets alone is not a CI failure or a reason to remove useful coverage.
+
+**Proportionate optimization:** prioritize improvements expected to reduce the affected whole suite's runtime by at least 10%. Do not spend significant time chasing smaller gains; quick, low-risk improvements are fine. Preserve regression coverage and stop when further optimization would take disproportionate effort. Never add retries or bump timeouts to disguise slow or flaky tests.
 
 **Run the smallest test that proves the point.** While iterating, run one test or one file, never the whole suite. Run the full suite exactly twice: once before opening or updating the PR, once on the final head. If nothing smaller than the suite can prove a change, the change is too big or the tests overlap; fix that first.
 
@@ -48,16 +50,16 @@ Tests exist to catch regressions cheaply. Every test costs wall-clock time on ev
 
 ## When Auditing A Suite
 
-Report findings in this order, each with file, test name, and the rule it violates. During review or audit, report; do not change tests unless asked.
+Report runtime observations and policy violations in this order, with the relevant file, test name, and policy where applicable. During review or audit, report; do not change tests unless asked.
 
-1. **Budget**: measure the unit and e2e suites. If either is over budget, list the slowest tests and propose deletions or merges that bring it under. Never propose a higher budget, a retry, or a longer timeout.
+1. **Runtime**: measure the unit and e2e suites against the 10s and 60s targets. If either is above target, identify the main bottlenecks and estimate potential gains as a percentage of that whole suite's runtime. Prioritize worthwhile improvements, especially gains of 10% or more; do not spend significant time on smaller gains. Accept and explain an above-target runtime when further work would be disproportionate or would sacrifice useful coverage. Being above target alone is not a policy violation.
 2. **Nondeterminism**: sleeps, polling loops, retries, `skip`, timeouts used as synchronization, real clock or randomness, order or shared-state dependence.
 3. **Wrong tier**: tests labelled integration, unit tests hitting real dependencies, e2e tests covering flows that would not page.
 4. **Internals and mocks**: tests reaching past the public API, mocks of our own modules, snapshot tests that are not wire contracts.
 5. **Redundancy**: multiple tests asserting one behavior, near-duplicate cases that belong in one table test, tests of getters, config, wiring, framework behavior, or anything the type checker already proves.
 6. **Missing regression tests**: bug fixes in scope without exactly one test that failed before the fix.
 
-For each finding, state the action: delete, merge into a named test, move tier, or rewrite, and what bug the surviving test catches.
+For each finding, state the action: optimize, accept the runtime with a reason, delete, merge into a named test, move tier, or rewrite. For test changes, state what bug the surviving test catches.
 
 ## Run Commands
 
