@@ -1,47 +1,52 @@
 ---
 name: spawn-orchestrator
-description: Use a Claude Code Fable session to orchestrate persistent Codex App threads, each running an Astra xhigh worker in an isolated worktree. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; use --max to fill the dependency-ready frontier beyond the default worker cap. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
+description: Use a Claude Code Fable session to orchestrate headless Codex CLI workers, one `codex exec` process per issue, each running gpt-6-astra at xhigh in an isolated worktree with Codex's automatic approval reviewer. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; use --max to fill the dependency-ready frontier beyond the default worker cap. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
 
-Run the backlog from this Fable session while Codex Astra workers implement it. One issue gets one isolated Claude worktree, one persistent Codex App thread, one branch, and one PR: a draft by default, or a verified merge into `main` with `--automerge`. The Fable session schedules ready work, watches threads without interrupting them, verifies outcomes at completion, and never implements an issue itself. Workers run autonomously and in isolation: each receives a complete brief, makes its own routine decisions, and reports exactly once when it reaches a terminal state. The orchestrator intervenes only for user-directed stops or scope changes, a single completion-time correction, or a genuinely big decision a worker has stopped on.
+Run the backlog from this Fable session while Codex workers implement it. One issue gets one isolated worktree, one resumable Codex thread, one branch, and one PR: a draft by default, or a verified merge into `main` with `--automerge`. The Fable session schedules ready work, watches workers without interrupting them, verifies outcomes at completion, and never implements an issue itself. Workers run autonomously and in isolation: each receives a complete brief, makes its own routine decisions, and reports exactly once when it reaches a terminal state. The orchestrator intervenes only for user-directed stops or scope changes, a single completion-time correction, a sandbox denial or stall the user must decide, or a genuinely big decision a worker has stopped on.
 
-## Required Integration
+## Required Tooling
 
-This workflow requires both managed integrations:
+- The `codex` CLI on `PATH`, logged in, version 0.153 or newer. Check with `codex --version`.
+- `python3` for the helper script deployed beside this skill at `~/.claude/skills/spawn-orchestrator/scripts/codex_worker.py`. Call it as `python3 <that path> <subcommand>`; the rest of this skill writes it as `codex_worker.py`.
 
-- OpenAI's `codex@openai-codex` Claude plugin, including the `codex:codex-rescue` subagent.
-- The `codex-threads` MCP server, whose tools list, read, resume, steer, interrupt, rename, archive, and unarchive app-server threads.
-
-Find lazy-loaded MCP tools before dispatching workers. If either integration is unavailable, stop and report which setup is missing. Do not substitute ordinary Claude implementation subagents, headless `codex exec`, or a direct MCP thread without worktree ownership.
+If either is missing, stop and report which setup is missing. Do not substitute ordinary Claude implementation subagents, the Codex Claude plugin, or an MCP bridge to the Codex app.
 
 ## Worker Ownership
 
-Create each worker with Claude's `Agent` tool using this shape:
+The orchestrator owns every worktree and every worker process directly. There is no wrapper agent.
 
-```text
-Agent(
-  subagent_type: "codex:codex-rescue",
-  isolation: "worktree",
-  run_in_background: true,
-  description: "<issue-key> <slug>",
-  prompt: "--wait --fresh --model gpt-6-astra --effort xhigh --task \"<self-contained brief>\""
-)
-```
+1. Create the worktree with plain git from the fetched base:
 
-The outer Claude `Agent` owns the worktree and stays alive in the background. The inner Codex call must use `--wait`, never `--background`: ending the thin Claude wrapper early can terminate its Codex child and release its worktree. Codex creates a persistent app-server thread, so the work remains visible and resumable in the Codex App after the wrapper reports.
+   ```bash
+   git fetch origin --prune
+   git worktree add -b codex/<issue-key>-<slug> .claude/worktrees/<issue-key> origin/<base>
+   ```
 
-Invoking this skill is the user's explicit request to spawn workers over the requested backlog. Do not request separate permission per worker.
+   If `git check-ignore .claude/worktrees` is silent, add `.claude/worktrees/` to `.git/info/exclude` first so the hub checkout stays clean.
+2. Write the brief to a file and launch the worker with the Bash tool in background mode. The helper blocks until the Codex process exits, so the Bash completion notification is the worker's completion signal:
+
+   ```bash
+   RUN=~/.cache/spawn-orchestrator/<run-id>/<issue-key>
+   python3 codex_worker.py start --run-dir "$RUN" --worktree .claude/worktrees/<issue-key> --brief /path/to/brief.md
+   ```
+
+   `start` runs `codex exec --json` with `-m gpt-6-astra`, `model_reasoning_effort=xhigh`, the `--approve-for-me` approval triple, and outbound network enabled. It feeds the brief through stdin, records the thread id from the first event, appends the event stream to `$RUN/events.jsonl`, and writes the worker's final message to `$RUN/last.md`.
+3. Record the issue key, run directory, worktree, branch, and thread id in orchestrator state as soon as `$RUN/thread_id` appears.
+
+Invoking this skill is the user's explicit request to spawn workers over the requested backlog. Do not request separate permission per worker. Closing this Claude Code session kills every live worker process; their threads remain resumable from the recorded run directories.
 
 ## Inputs and Defaults
 
 - **Work source:** a Linear epic/parent issue or an explicit issue list. Resolve children and relations through connected Linear tools.
 - **Base branch:** with `--automerge`, use `main`; otherwise use an explicitly named base, else the repository default. If an explicit base conflicts with `main`, report the conflict before dispatching automerge workers. Fetch before spawning so every worktree starts from the current remote base; report a missing target branch.
 - **Completion mode:** draft PRs by default. `--automerge` in the user's invocation authorizes spawned workers to mark their PRs ready, merge them into `main`, and complete their issues after verification, without asking again per issue. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. Concurrency mode and ceilings are orchestrator state only and never appear in a brief. This is a skill option, not a flag to pass to a child executable.
-- **Concurrency:** without `--max`, use up to 3 active issue workers unless the user sets a limit, with a ceiling of 5. Explicit `--max` removes the default three-worker limit and five-worker ceiling: fill the current dependency-ready frontier as described below. An explicit numeric concurrency limit still bounds `--max`. Count pending creation/worktree setup and workers in review, remediation, or verification/merge queues as active; host/platform capacity and explicit user task/wave limits still apply.
+- **Concurrency:** without `--max`, use up to 3 active issue workers unless the user sets a limit, with a ceiling of 5. Explicit `--max` removes the default three-worker limit and five-worker ceiling: fill the current dependency-ready frontier as described below. An explicit numeric concurrency limit still bounds `--max`. Count pending creation/worktree setup and workers in review, remediation, or verification/merge queues as active; host/platform capacity and explicit user task/wave limits still apply. Every worker is a separate Codex process sharing one account and one `~/.codex`; treat repeated rate-limit errors in `stderr.log` as a concrete capacity constraint.
 - **Advancement:** rolling refill by default — after verifying a completion or safely parking blocked work, fill the available slot with the next eligible issue without waiting for unrelated workers. Explicit fixed waves wait for the whole wave to report and settle before the next starts. Honor user task/wave limits and stop requests in either mode.
-- **Worker model:** always `gpt-6-astra` with `xhigh` reasoning. Do not silently inherit either value from local Codex defaults.
+- **Worker model:** always `gpt-6-astra` with `xhigh` reasoning. The helper passes both explicitly on every turn; do not override them from local Codex defaults.
+- **Approvals:** every worker runs under Codex's automatic approval reviewer. Sandbox escalations are decided by that reviewer, never by the orchestrator or the user mid-task. The reviewer treats the brief as the user's authorization, so briefs must never contain blanket permission language such as "do whatever is needed".
 
 ## Plan the Backlog
 
@@ -62,7 +67,7 @@ Invoke as `/spawn-orchestrator --max <epic>`, or combine it with `--automerge`. 
 
 ## Dispatch Ready Work
 
-Put the complete implementation contract inside each worker's `--task` brief. The brief is the only communication the worker will receive, so it must be self-contained:
+Put the complete implementation contract inside each worker's brief file. The brief is the only communication the worker will receive, so it must be self-contained:
 
 - issue key, URL, intended outcome, acceptance criteria, constraints, and non-goals;
 - required verification and repository instructions, including any review the worker must run on its own PR (for example `$adversarial-review` when the user requested it); the worker spawns, reads, and closes those reviews itself;
@@ -71,11 +76,11 @@ Put the complete implementation contract inside each worker's `--task` brief. Th
 - the Worker Testing Guidance block below, verbatim;
 - branch name `codex/<issue-key>-<slug>` and the base branch for the draft PR;
 - completion mode: by default, tests pass under the testing policy, branch is pushed, draft PR is opened, and Linear reflects reality; with `--automerge`, include the Optional Automerge procedure below and finish only after verified merge into `main` and the issue update;
-- the single final report: issue key, PR URL, Codex thread ID, head SHA, verification evidence, decisions made without guidance, files touched outside owned paths, newly discovered work, and a terminal status (`pr-opened`, `merged`, `blocked`, or `failed`); `merged` also includes the merge commit SHA.
+- the single final report: issue key, PR URL, head SHA, verification evidence, decisions made without guidance, files touched outside owned paths, newly discovered work, and a terminal status (`pr-opened`, `merged`, `blocked`, or `failed`); `merged` also includes the merge commit SHA.
 
-Do not include parallel neighbors, concurrency mode, ceilings, or anything that would lead the worker to wait for or ask the orchestrator.
+Do not include parallel neighbors, concurrency mode, ceilings, blanket permission grants, or anything that would lead the worker to wait for or ask the orchestrator.
 
-Use a unique issue key in the task and thread title. Record the Claude agent name and, once discoverable, the Codex thread ID. The persistent thread can be found during execution with `codex_thread_list` using the issue key as `search_term`.
+Use the issue key in the run directory name and the first line of the brief. The thread id is in `$RUN/thread_id`; the orchestrator records it, the worker never needs it.
 
 ## Worker Autonomy
 
@@ -85,6 +90,7 @@ Every worker brief carries this block verbatim. It is what keeps the worker from
 Autonomy contract (non-negotiable):
 - You work alone in your own worktree. Nobody will answer a question mid-task: do not ask the orchestrator, do not wait for a reply, do not pause for approval that this brief already grants.
 - Make routine judgment calls yourself and record each one in the PR description. Stop and report `blocked` only when every plausible assumption would be unsafe or would make the work useless.
+- Sandbox escalations are decided by the automatic approval reviewer. If it denies an action, do not work around it or retry it: finish the work the denial does not affect, then report `blocked` with the denied command and the reviewer's reason.
 - Do not coordinate with other workers. Do not look for, wait on, or message other threads or branches.
 - Edit files outside your owned paths only when the acceptance criteria require it, keep the edit minimal, and list every such file in your final report.
 - Work you discover outside your issue goes in the final report, not into your branch.
@@ -111,7 +117,7 @@ Invoke as `/spawn-orchestrator --automerge <epic>`. Without the flag, stop at ve
 4. A scheduled or queued merge is still pending: wait until the provider confirms `merged`. Then fetch `main`, verify the merge commit is reachable from it, update the Linear issue, and report `merged` with the merge commit SHA.
 5. Remediate in-scope check or review failures yourself before retrying. Unresolved failures, missing required approval, conflicts, or unavailable merge permissions or tools end the task as `blocked` with the PR URL and a resume condition. Do not retry the same blocker repeatedly and do not ask the orchestrator to intervene. Before ending as `blocked`, cancel any queued merge and confirm the cancellation or the completed merge; if you cannot confirm, report the merge as pending.
 
-After a `merged` report the orchestrator reads back the PR's merged state and target, fetches `main`, and verifies the recorded merge commit is reachable there. It then records completion, archives the Codex thread and ends its wrapper, and releases capacity: a merged worker is finished by default and is not kept alive for follow-ups. A post-merge `$test-audit` violation becomes a new follow-up issue in the backlog, never a reason to resume the archived thread or to have gated the merge with a handshake.
+After a `merged` report the orchestrator reads back the PR's merged state and target, fetches `main`, and verifies the recorded merge commit is reachable there. It then records completion, archives the thread with `codex_worker.py archive`, and releases capacity: a merged worker is finished by default and is not kept alive for follow-ups. A post-merge `$test-audit` violation becomes a new follow-up issue in the backlog, never a reason to resume the archived thread or to have gated the merge with a handshake.
 
 ## Worker Testing Guidance
 
@@ -130,58 +136,90 @@ Testing policy (non-negotiable; see the test-audit skill for the full text):
 - Report the runner commands you used and the suite times in the final response.
 ```
 
-## Monitor Threads
+## Monitor Workers
 
-Monitoring is passive. Read; do not message.
+Monitoring is passive. Read files; do not message.
 
-- Use Claude's agent notifications and `ListAgents` for the outer wrapper's lifecycle.
-- Use `codex_thread_list` and `codex_thread_read` for authoritative Codex status and turn IDs. A wrapper's completion message is a claim, not proof.
-- Never message a worker to ask for status, progress, or an ETA, and never answer a question it should decide itself. If a worker goes silent, read its thread; a long-running check is not itself a blocker. While reading, also judge progress against Stalled Work below.
-- Steer or resume a worker only for: a user-directed stop or scope change; the single completion-time correction described below; the user's answer to a Stalled Work question; or a genuinely big decision the worker has stopped on, such as target branch, destructive action, or a scope conflict with another issue. If a worker stops on anything smaller, resume it once with the instruction to decide itself and record the decision in the PR description.
-- If a worker must stop, interrupt the active Codex turn before ending its wrapper. Never abandon a running turn in a worktree whose owner is exiting.
+- The Bash completion notification for a worker's `start` or `resume` call is the completion signal. Then run `codex_worker.py status --run-dir "$RUN"`: `completed` with a worker status is a claim to verify, `failed` or `stopped` needs the tail of `events.jsonl` and `stderr.log`, and `running` means the notification was for something else.
+- Never trust the process exit code alone. A turn is complete only when `status` reports `completed`, which requires a `turn.completed` event in the last turn.
+- To judge a live worker, read `$RUN/events.jsonl`. Each `command_execution` item carries the command, exit code, and output. A long-running check is not itself a blocker. While reading, judge progress against Stalled Work below and check `codex_worker.py denials --run-dir "$RUN"` for Sandbox Denials.
+- Never message a worker to ask for status, progress, or an ETA, and never answer a question it should decide itself.
+- There is no live steer. To redirect a worker: `codex_worker.py stop`, then `codex_worker.py resume --run-dir "$RUN" --prompt /path/to/followup.md`. Resume only for: a user-directed stop or scope change; the single completion-time correction described below; the user's answer to a Sandbox Denials or Stalled Work question; or a genuinely big decision the worker has stopped on, such as target branch, destructive action, or a scope conflict with another issue. If a worker stops on anything smaller, resume it once with the instruction to decide itself and record the decision in the PR description.
+- `resume` exits with code 3 and stops the process if Codex opened a different thread than the recorded one. Treat that as a failed resume, not a new worker.
 - On completion, verify the pushed branch, target base, and Linear state, plus the draft PR in default mode or the merged PR and commit on `main` in automerge mode. Do not re-run or re-check reviews the worker spawned itself; its report lists how each finding was closed.
-- In default mode, audit the PR's new or changed tests with `$test-audit`, steer the worker once with the complete list of violations, and wait for the fix; do not iterate finding by finding. Archive the Codex thread after those checks pass or after a terminal failure is fully recorded.
-- In automerge mode, archive the Codex thread and end its wrapper as soon as the merge into `main` is verified. Anything found afterwards is a new issue, not a resume.
-- After verified completion and wrapper shutdown, release resource slots and refill eligible capacity immediately in rolling mode; explicit fixed waves retain their barrier.
-- For confirmed blocked work, record the issue, dependency, branch/PR, and resume condition. Confirm any queued merge is cancelled or complete, interrupt the Codex turn, and verify recoverable work is preserved before ending its wrapper and releasing capacity. Repository lifecycle rules control whether the thread is retained or archived.
-- Keep parked ownership recorded. Reacquire capacity and recheck dependencies/overlap before resuming the same issue's thread. Re-establish a live worktree owner before resuming Codex if its wrapper has exited; never create a duplicate worker or resume into a released worktree.
+- In default mode, audit the PR's new or changed tests with `$test-audit`, resume the worker once with the complete list of violations, and wait for the fix; do not iterate finding by finding. Archive the thread after those checks pass or after a terminal failure is fully recorded.
+- In automerge mode, archive the thread as soon as the merge into `main` is verified. Anything found afterwards is a new issue, not a resume.
+- After verified completion, remove the worktree with `git worktree remove` only when the branch is pushed, release resource slots, and refill eligible capacity immediately in rolling mode; explicit fixed waves retain their barrier.
+- For confirmed blocked work, record the issue, dependency, branch/PR, run directory, and resume condition. Confirm any queued merge is cancelled or complete, stop the live turn if any, and verify recoverable work is preserved before releasing capacity. Keep the worktree and thread.
+- Keep parked ownership recorded. Reacquire capacity and recheck dependencies/overlap before resuming the same issue's thread; never create a duplicate worker or resume into a removed worktree.
 - Pending administrative updates or approvals on one issue do not block unrelated authorized work once its resources are released; preserve the pending action rather than bypassing it.
 - Stop dispatching when the user's limit is reached or no issue is eligible. Continue monitoring active workers; end with a truthful report when the requested work is settled or no further progress is possible without user input or an external change.
 
+## Sandbox Denials
+
+A worker asked to cross a sandbox boundary and the automatic reviewer said no. The worker cannot appeal and must not work around it, so the decision is the user's. Detect denials with `codex_worker.py denials --run-dir "$RUN"`, which pairs each declined command with the boundary it hit, the worker's justification, and the reviewer's reason. Report each denial once, as soon as it is seen, in this exact shape:
+
+```markdown
+**Auto-review denied an escalation: <issue-key>** (worker <n> of <active>, others unaffected)
+
+| | |
+|---|---|
+| **Blocked action** | `<command as the worker ran it>` |
+| **Boundary** | <Filesystem or Network>. <one sentence on what the sandbox blocked> |
+| **Worker's reason** | "<the worker's justification, one sentence>" |
+| **Reviewer's reason** | "<the Reason line from the reviewer, one sentence>" |
+| **Worker now** | <stopped and reported blocked | continued without it | still running> after <n> attempt(s) |
+| **Branch state** | <commits pushed or not, PR open or not> |
+| **Thread** | `<thread id>` in `<run dir>` |
+
+Reply with a number:
+1. **Skip it (recommended).** Resume the worker with instructions to finish without it and note it in the PR as follow-up.
+2. **Redirect.** Tell me the alternative and I resume the worker with it.
+3. **Allow once.** I run the exact command myself in the worktree, then resume the worker as if it had succeeded.
+4. **Stop the worker.** Keep the branch and thread for later.
+```
+
+Rules for the message and what follows:
+
+- Seven rows, one sentence per cell, quotes trimmed to the one sentence that carries the decision. The full reviewer text stays in the run directory.
+- Mark exactly one option as recommended. Skip is the default recommendation; recommend Allow once only when the command is plainly in scope for the issue and touches nothing outside the worktree that the user did not name. Never recommend retrying.
+- Allow once means the orchestrator runs the command itself in the worker's worktree. Never widen a worker's sandbox, pass a bypass flag, or resume with "you are approved" text: the reviewer would read that text as authorization for the rest of the run.
+- If the worker is still running when the denial is seen, leave it running. If it stopped with `blocked`, do not resume it until the user answers. Unrelated workers keep going.
+- Wait for the answer, act on it once, then return to passive monitoring. Include the open question in every report until it is answered. A second denial on the same issue gets a new message with the new evidence.
+
 ## Stalled Work
 
-Autonomy is not a license to spin. Detecting a stall is the orchestrator's job, and resolving one is the user's decision, not another steer. Judge progress from the thread itself with `codex_thread_read`, never by asking the worker.
+Autonomy is not a license to spin. Detecting a stall is the orchestrator's job, and resolving one is the user's decision, not another resume. Judge progress from `events.jsonl`, never by asking the worker.
 
-Treat an issue as stalled when the thread shows any of these without new evidence in between:
+Treat an issue as stalled when the events show any of these without new evidence in between:
 
 - a test-fix loop: the same suite or check fails on three or more consecutive runs and the fixes between them do not change the failure;
 - the same blocker reported or retried more than twice (a merge conflict, a failing required check, a missing approval, a flaky dependency);
 - repeated full-suite runs, rebases, or reruns with no new commit, finding, or decision between them;
-- a wall-clock or turn count that is far past what the issue's size warrants, with the thread still circling the same files.
+- a wall-clock or turn count that is far past what the issue's size warrants, with the events still circling the same files.
 
 When an issue stalls:
 
-1. Stop intervening on it. Do not steer it with another hint, and do not let it keep burning turns: interrupt the active turn, keep the worktree, branch, and thread alive, and record the issue as `stalled` with its PR, head, and the loop you observed. Unrelated workers keep going.
+1. Stop intervening on it. Do not resume it with another hint, and do not let it keep burning turns: `codex_worker.py stop`, keep the worktree, branch, and thread, and record the issue as `stalled` with its PR, head, and the loop you observed. Unrelated workers keep going.
 2. Ask the user how to proceed. Put the question in one message with: the issue key and PR, what the loop looks like in two or three plain sentences, what has already been tried, and the concrete options. Offer two to four options, each with what it costs and what it gives up, and lead with your recommendation marked as such. Typical options: give the worker a specific new direction you spell out; narrow or split the issue; park it and refill the slot; accept a smaller deliverable such as a draft PR without the failing gate, when the testing policy allows it; or stop the whole run. Never present "keep trying" as the recommendation.
 3. Wait for the answer. Do not resume, park, or archive the stalled issue on your own while the question is open. Include the open question in every report.
 4. Act on the answer once, then return to passive monitoring. If the same issue stalls again after that, ask again with the new evidence; do not silently apply the previous answer.
 
-Reading a thread to judge progress is not a status ping, and this question to the user is not an approval gate: it is the one place the orchestrator asks for direction, because the alternative is an unbounded loop the user did not sign up for.
+Reading events to judge progress is not a status ping, and these questions to the user are not approval gates: they are the two places the orchestrator asks for direction, because the alternative is an unbounded loop or a silent workaround the user did not sign up for.
 
 ## Guardrails
 
-- One issue per Codex thread and one thread per worktree. Never reuse a worker thread for another issue.
+- One issue per thread, one thread per worktree, one run directory per issue. Never reuse a worker thread for another issue.
 - No mid-task coordination. The orchestrator never grants slots, permissions, or approvals to a running worker, and a worker never waits on the orchestrator or another worker. Everything a worker needs is in its brief.
-- No silent loops. A stalled issue goes to the user with options and a recommendation, never to another round of steering.
-- Never place Codex `--background` inside the background Claude wrapper.
+- No silent loops and no silent workarounds. A stalled issue or a sandbox denial goes to the user with options and a recommendation, never to another round of resumes.
+- Never pass `--dangerously-bypass-approvals-and-sandbox`, `danger-full-access`, or extra writable roots to a worker. The helper's approval triple is the only sandbox configuration workers run with.
 - Without `--automerge`, stop at draft PRs for human review. With it, workers merge only through the verified procedure above; required human reviews still apply. Never mark issues done on a worker's claim alone.
 - Keep Linear mutations within `$linear-claim-work`; do not restructure the epic.
-- `codex_thread_start` is for a caller that already owns an explicit worktree path. This skill uses the plugin wrapper so Claude remains the worktree owner.
-- Leave nothing dangling: every wrapper and Codex turn is complete or interrupted, every thread is archived or reported, and every worktree with unpushed changes is identified.
+- Leave nothing dangling: every turn is complete or stopped, every thread is archived or reported with its run directory, and every worktree with unpushed changes is identified.
 
 ## Report
 
-At meaningful completions or blocker changes, and at the end, return the epic, base branch, and completion mode plus a table of issue → Claude wrapper → Codex thread → branch → PR → status (with merge commit for `merged`). Include concurrency mode, active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, blocked or parked work with resume conditions, any open Stalled Work question, and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
+At meaningful completions or blocker changes, and at the end, return the epic, base branch, and completion mode plus a table of issue → thread → branch → PR → status (with merge commit for `merged`). Include concurrency mode, active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, blocked or parked work with resume conditions and run directories, any open Sandbox Denials or Stalled Work question, and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
 
 ## Composition
 
