@@ -28,8 +28,9 @@ cycle_pane_previous = ["prefix+shift+tab", "cmd+["]
 # Ctrl+1..9 or Alt+1..9 jumps straight to a tab (Ghostty no longer translates these).
 switch_tab = ["prefix+1..9", "ctrl+1..9", "alt+1..9"]
 
-# Ctrl+Shift+1..9 or Cmd+1..9 jumps straight to a workspace.
-switch_workspace = ["ctrl+shift+1..9", "cmd+1..9"]
+# Cmd+1..9 jumps straight to a workspace (Ghostty unbinds its own Cmd+digit
+# tab chords so they reach herdr).
+switch_workspace = ["cmd+1..9"]
 
 # Pane focus. Neovim owns plain Ctrl+h/j/k/l and calls `herdr pane focus`
 # when it hits a window edge (see home/.config/nvim/lua/aalt/lazy/herdr_navigator.lua);
