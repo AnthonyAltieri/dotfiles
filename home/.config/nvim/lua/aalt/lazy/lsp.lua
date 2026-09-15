@@ -225,9 +225,7 @@ return {
 
             require("mason-lspconfig").setup({
                 ensure_installed = vim.tbl_keys(servers or {}),
-                automatic_enable = {
-                    exclude = { "ts_ls" },
-                },
+                automatic_enable = vim.tbl_keys(servers),
             })
 
             -- Configure each mason-managed server with capabilities and custom settings
