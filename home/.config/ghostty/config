@@ -2,6 +2,7 @@ theme = Catppuccin Macchiato
 font-family = "BerkeleyMono"
 window-title-font-family = "BerkeleyMono"
 font-size = 14
+font-feature = -calt, -liga, -dlig
 shell-integration = zsh
 confirm-close-surface = false
 macos-option-as-alt = true
