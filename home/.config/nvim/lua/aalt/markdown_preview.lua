@@ -44,7 +44,7 @@ local function open_markdown_preview()
 	if obsidian == "" then
 		obsidian = "/Applications/Obsidian.app/Contents/MacOS/obsidian-cli"
 		if vim.fn.executable(obsidian) ~= 1 then
-			notify("Obsidian CLI is unavailable; install Obsidian through bootstrap", vim.log.levels.ERROR)
+			notify("Obsidian CLI is unavailable; install Obsidian manually and enable the CLI", vim.log.levels.ERROR)
 			return
 		end
 	end
