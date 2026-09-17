@@ -16,16 +16,17 @@ local launches = {}
 local uv = vim.uv or vim.loop
 
 vim.fn.exepath = function(command)
-	assert(command == "glow", "unexpected executable lookup: " .. command)
-	return "/managed/bin/glow"
+	assert(command == "obsidian", "unexpected executable lookup: " .. command)
+	return "/managed/bin/obsidian"
 end
 
-vim.fn.jobstart = function(argv, options)
+vim.system = function(argv, options, on_exit)
 	launches[#launches + 1] = {
 		argv = argv,
 		options = options,
+		on_exit = on_exit,
 	}
-	return 17
+	return {}
 end
 
 uv.os_uname = function()
@@ -33,7 +34,6 @@ uv.os_uname = function()
 end
 
 require("aalt.markdown_preview").setup()
-assert(vim.fn.exists(":Md") == 2, ":Md was not registered")
 
 vim.api.nvim_buf_set_lines(0, 0, 1, false, { "# Unsaved heading" })
 assert(vim.bo.modified, "test buffer should be modified before :Md")
@@ -43,28 +43,33 @@ vim.cmd("Md")
 assert(#launches == 1, ":Md should start exactly one launcher")
 local launch = launches[1]
 local expected_path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p")
-local expected_argv = {
-	"open",
-	"-na",
-	"Ghostty.app",
-	"--args",
-	"-e",
-	"/managed/bin/glow",
-	"--tui",
-	"--",
-	expected_path,
-}
+local expected_argv = { "/managed/bin/obsidian", "open", "path=file:" .. expected_path }
 
 assert(vim.deep_equal(launch.argv, expected_argv), "unexpected launcher argv: " .. vim.inspect(launch.argv))
-assert(launch.options.detach == true, "Ghostty launcher should be detached")
-assert(type(launch.options.on_exit) == "function", "launcher should report asynchronous failures")
+assert(launch.options.detach == true, "Obsidian launcher should be detached")
 assert(vim.bo.modified, ":Md must not save or clear the modified buffer")
 
 local saved_lines = vim.fn.readfile(vim.env.MD_TEST_PATH)
 assert(saved_lines[1] == "# Saved heading", ":Md must not write unsaved buffer contents")
 
-print("ok :Md external Glow preview")
-vim.cmd("qa!")
+print("ok :Md opens the original Markdown file with the Obsidian CLI")
+
+local notifications = {}
+vim.notify = function(message, level)
+	notifications[#notifications + 1] = { message = message, level = level }
+end
+launch.on_exit({ code = 0, stdout = "Opened: file:" .. expected_path, stderr = "" })
+launch.on_exit({ code = 0, stdout = "Error: File not found.\n", stderr = "" })
+vim.schedule(function()
+	if #notifications ~= 1 or notifications[1].level ~= vim.log.levels.ERROR
+		or not notifications[1].message:find("Error: File not found.", 1, true) then
+		io.stderr:write("CLI errors with exit code zero must be reported\n")
+		vim.cmd("cquit")
+		return
+	end
+	print("ok :Md reports zero-exit CLI errors")
+	vim.cmd("qa!")
+end)
 LUA
 
 MD_TEST_PATH="$MARKDOWN_PATH" \
@@ -76,4 +81,4 @@ nvim --headless -u NONE -i NONE -n \
   --cmd "set runtimepath^=$ROOT/home/.config/nvim" \
   "$MARKDOWN_PATH" \
   "+set filetype=markdown" \
-  "+lua dofile('$TEST_LUA')"
+  "+lua local ok, err = pcall(dofile, '$TEST_LUA'); if not ok then io.stderr:write(err .. '\n'); vim.cmd('cquit') end"
