@@ -5,7 +5,9 @@ Inspired by (ie. most of it taken from): https://github.com/ThePrimeagen/neovimr
 `obsidian open "path=file:<absolute-path>"`. It opens the original file in place and
 leaves unsaved Neovim edits untouched; use `:w` first to include those changes.
 The `file:` prefix identifies a file outside the vault; a plain absolute path
-is still treated as a vault path by the CLI.
+is still treated as a vault path by the CLI. The CLI opens the tab without
+focusing Obsidian, so `:Md` runs `open -a Obsidian` after a successful open to
+bring the window to the front.
 
 Keep Obsidian running and enable **Settings → General → Command line interface**.
 The command uses `obsidian` from PATH, falling back to the CLI bundled at

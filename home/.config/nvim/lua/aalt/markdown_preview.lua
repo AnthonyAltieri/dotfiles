@@ -27,6 +27,22 @@ local function resolve_markdown_path()
 	return path
 end
 
+-- The Obsidian CLI opens the tab in the existing window without focusing the
+-- app, so bring it to the front once the file has opened.
+local function activate_obsidian()
+	local ok, launch_err = pcall(vim.system, { "open", "-a", "Obsidian" }, { detach = true }, function(result)
+		if result.code == 0 then
+			return
+		end
+		vim.schedule(function()
+			notify(string.format("Could not bring Obsidian to the front (exit %d)", result.code), vim.log.levels.WARN)
+		end)
+	end)
+	if not ok then
+		notify("Could not bring Obsidian to the front: " .. tostring(launch_err), vim.log.levels.WARN)
+	end
+end
+
 local function open_markdown_preview()
 	local path, err = resolve_markdown_path()
 	if not path then
@@ -59,6 +75,7 @@ local function open_markdown_preview()
 		local stderr = vim.trim(result.stderr or "")
 		-- The CLI also reports command errors on stdout with exit code zero.
 		if result.code == 0 and not stdout:match("^Error:") then
+			vim.schedule(activate_obsidian)
 			return
 		end
 

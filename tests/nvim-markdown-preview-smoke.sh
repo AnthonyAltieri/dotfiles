@@ -68,6 +68,14 @@ vim.schedule(function()
 		return
 	end
 	print("ok :Md reports zero-exit CLI errors")
+
+	local expected_activate = { "open", "-a", "Obsidian" }
+	if #launches ~= 2 or not vim.deep_equal(launches[2].argv, expected_activate) then
+		io.stderr:write("a successful open must activate Obsidian exactly once: " .. vim.inspect(launches) .. "\n")
+		vim.cmd("cquit")
+		return
+	end
+	print("ok :Md brings Obsidian to the front after a successful open")
 	vim.cmd("qa!")
 end)
 LUA
