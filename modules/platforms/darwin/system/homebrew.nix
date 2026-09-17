@@ -84,7 +84,6 @@ in
       "1password-cli"
       "codex"
       "ghostty"
-      "obsidian"
       "raycast"
     ] ++ privateWorkHomebrewCasks;
   };

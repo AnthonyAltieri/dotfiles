@@ -11,9 +11,8 @@ Keep Obsidian running and enable **Settings → General → Command line interfa
 The command uses `obsidian` from PATH, falling back to the CLI bundled at
 `/Applications/Obsidian.app/Contents/MacOS/obsidian-cli`.
 
-Both macOS bootstrap profiles install Obsidian through Homebrew. Bootstrap
-preserves the existing policy of not upgrading installed Homebrew packages.
-Homebrew installs the public release. To receive [early-access versions](https://obsidian.md/help/early-access),
+Install Obsidian manually from [obsidian.md/download](https://obsidian.md/download).
+Bootstrap does not install or update Obsidian. To receive [early-access versions](https://obsidian.md/help/early-access),
 sign in with a Catalyst-enabled Obsidian account, enable **Settings → General →
 Receive early access versions**, then check for updates and relaunch.
 
