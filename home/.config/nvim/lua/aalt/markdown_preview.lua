@@ -27,6 +27,22 @@ local function resolve_markdown_path()
 	return path
 end
 
+-- The Obsidian CLI opens the tab in the existing window without focusing the
+-- app, so bring it to the front once the file has opened.
+local function activate_obsidian()
+	local ok, launch_err = pcall(vim.system, { "open", "-a", "Obsidian" }, { detach = true }, function(result)
+		if result.code == 0 then
+			return
+		end
+		vim.schedule(function()
+			notify(string.format("Could not bring Obsidian to the front (exit %d)", result.code), vim.log.levels.WARN)
+		end)
+	end)
+	if not ok then
+		notify("Could not bring Obsidian to the front: " .. tostring(launch_err), vim.log.levels.WARN)
+	end
+end
+
 local function open_markdown_preview()
 	local path, err = resolve_markdown_path()
 	if not path then
@@ -36,47 +52,50 @@ local function open_markdown_preview()
 
 	local uv = vim.uv or vim.loop
 	if uv.os_uname().sysname ~= "Darwin" then
-		notify(":Md is configured for Ghostty on macOS", vim.log.levels.ERROR)
+		notify(":Md is configured for Obsidian on macOS", vim.log.levels.ERROR)
 		return
 	end
 
-	local glow = vim.fn.exepath("glow")
-	if glow == "" then
-		notify("Glow is not available on PATH", vim.log.levels.ERROR)
-		return
+	local obsidian = vim.fn.exepath("obsidian")
+	if obsidian == "" then
+		obsidian = "/Applications/Obsidian.app/Contents/MacOS/obsidian-cli"
+		if vim.fn.executable(obsidian) ~= 1 then
+			notify("Obsidian CLI is unavailable; install Obsidian manually and enable the CLI", vim.log.levels.ERROR)
+			return
+		end
 	end
 
-	local job_id = vim.fn.jobstart({
+	-- Obsidian 1.14.2 identifies files outside the vault with a file: prefix.
+	local ok, launch_err = pcall(vim.system, {
+		obsidian,
 		"open",
-		"-na",
-		"Ghostty.app",
-		"--args",
-		"-e",
-		glow,
-		"--tui",
-		"--",
-		path,
-	}, {
-		detach = true,
-		on_exit = function(_, exit_code)
-			if exit_code == 0 then
-				return
-			end
+		"path=file:" .. path,
+	}, { text = true, detach = true }, function(result)
+		local stdout = vim.trim(result.stdout or "")
+		local stderr = vim.trim(result.stderr or "")
+		-- The CLI also reports command errors on stdout with exit code zero.
+		if result.code == 0 and not stdout:match("^Error:") then
+			vim.schedule(activate_obsidian)
+			return
+		end
 
-			vim.schedule(function()
-				notify(string.format("Could not open Glow in Ghostty (exit %d)", exit_code), vim.log.levels.ERROR)
-			end)
-		end,
-	})
+		local detail = stderr ~= "" and stderr or stdout
+		if detail == "" then
+			detail = string.format("exit %d", result.code)
+		end
+		vim.schedule(function()
+			notify("Could not open Markdown in Obsidian: " .. detail, vim.log.levels.ERROR)
+		end)
+	end)
 
-	if job_id <= 0 then
-		notify("Could not start the Ghostty launcher", vim.log.levels.ERROR)
+	if not ok then
+		notify("Could not start Obsidian CLI: " .. tostring(launch_err), vim.log.levels.ERROR)
 	end
 end
 
 function M.setup()
 	vim.api.nvim_create_user_command("Md", open_markdown_preview, {
-		desc = "Open the current Markdown file in Glow in a new Ghostty window",
+		desc = "Open the current Markdown file with the Obsidian CLI",
 	})
 end
 

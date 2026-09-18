@@ -78,6 +78,7 @@ Every child brief carries this block verbatim. It is what keeps the child from t
 Autonomy contract (non-negotiable):
 - You work alone in your own worktree. Nobody will answer a question mid-task: do not ask the orchestrator, do not wait for a reply, do not pause for approval that this brief already grants.
 - Make routine judgment calls yourself and record each one in the PR description. Stop and report `blocked` only when every plausible assumption would be unsafe or would make the work useless.
+- Sandbox escalations are decided by the automatic approval reviewer. If it denies an action, do not work around it or retry it: finish the work the denial does not affect, then report `blocked` with the denied command and the reviewer's reason.
 - Do not coordinate with other workers. Do not look for, wait on, or message other threads or branches.
 - Edit files outside your owned paths only when the acceptance criteria require it, keep the edit minimal, and list every such file in your final report.
 - Work you discover outside your issue goes in the final report, not into your branch.
@@ -135,7 +136,7 @@ Testing policy (see the test-audit skill for the full text):
 
 Monitoring is passive. Read; do not message.
 
-- Use `read_thread` and `list_threads` to inspect a child. Never message a child to ask for status, progress, or an ETA, and never answer a question it should decide itself. If a child goes silent, read its thread; a long-running check is not itself a blocker. While reading, also judge progress against Stalled Work below.
+- Use `read_thread` and `list_threads` to inspect a child. Never message a child to ask for status, progress, or an ETA, and never answer a question it should decide itself. If a child goes silent, read its thread; a long-running check is not itself a blocker. While reading, also judge progress against Stalled Work below and look for auto-review denials, which Sandbox Denials below turns into a question for the user.
 - Message a child only for: a user-directed stop or scope change; the single completion-time correction described here or in Optional Automerge; the user's answer to a Stalled Work question; or a genuinely big decision the child has stopped on, such as target branch, destructive action, or a scope conflict with another issue. If a child stops on anything smaller, send one message telling it to decide itself and record the decision in the PR description.
 - When a child messages `merge-ready` with automerge enabled, run the orchestrator procedure in Optional Automerge. Without automerge, treat it as `pr-opened`.
 - When a child messages completion:
@@ -167,18 +168,50 @@ When an issue stalls:
 
 Reading a thread to judge progress is not a status ping, and this question to the user is not an approval gate: it is the one place the orchestrator asks for direction, because the alternative is an unbounded loop the user did not sign up for.
 
+## Sandbox Denials
+
+A child asked to cross a sandbox boundary and the automatic reviewer said no. The child cannot appeal and must not work around it, so the decision is the user's. A denial shows up in the child's thread as a declined command followed by the reviewer's `Reason:` line, and in the child's final message when it reports `blocked`. Report each denial once, as soon as it is seen, in this exact shape:
+
+```markdown
+**Auto-review denied an escalation: <issue-key>** (child <n> of <active>, others unaffected)
+
+| | |
+|---|---|
+| **Blocked action** | `<command as the child ran it>` |
+| **Boundary** | <Filesystem or Network>. <one sentence on what the sandbox blocked> |
+| **Child's reason** | "<the child's justification, one sentence>" |
+| **Reviewer's reason** | "<the Reason line from the reviewer, one sentence>" |
+| **Child now** | <stopped and reported blocked | continued without it | still running> after <n> attempt(s) |
+| **Branch state** | <commits pushed or not, PR open or not> |
+| **Thread** | <child thread title and id in the app> |
+
+Reply with a number:
+1. **Skip it (recommended).** Message the child to finish without it and note it in the PR as follow-up.
+2. **Redirect.** Tell me the alternative and I message the child with it.
+3. **Allow once.** Open the child thread in the Codex app and approve it under Auto-review Denials, then tell me and I message the child to continue. If that is not possible, I run the exact command myself in the child's worktree.
+4. **Stop the child.** Keep the branch and thread for later.
+```
+
+Rules for the message and what follows:
+
+- Seven rows, one sentence per cell, quotes trimmed to the one sentence that carries the decision. The full reviewer text stays in the child's thread.
+- Mark exactly one option as recommended. Skip is the default recommendation; recommend Allow once only when the command is plainly in scope for the issue and touches nothing outside the worktree that the user did not name. Never recommend retrying.
+- Never message a child with "you are approved" text or loosen its sandbox: the reviewer reads the child's transcript as authorization for the rest of the run.
+- If the child is still running when the denial is seen, leave it running. If it stopped with `blocked`, do not message it until the user answers. Unrelated children keep going.
+- Wait for the answer, act on it once, then return to passive monitoring. Include the open question in every report until it is answered. A second denial on the same issue gets a new message with the new evidence.
+
 ## Guardrails
 
 - Without `--automerge`, stop at draft PRs for human review. With it, the selected merge actor follows the verified procedure above; required human reviews still apply. Never mark issues done on a child's claim alone.
 - One issue per child; a child that discovers extra work reports it for triage instead of expanding scope.
 - No mid-task coordination. The orchestrator never grants slots, permissions, or approvals to a running child, and a child never waits on the orchestrator or another child. Everything a child needs is in its brief.
-- No silent loops. A stalled issue goes to the user with options and a recommendation, never to another round of messages.
+- No silent loops and no silent workarounds. A stalled issue or a sandbox denial goes to the user with options and a recommendation, never to another round of messages.
 - Keep Linear mutations minimal and within `$linear-claim-work` rules. Add only the bounded prerequisite repairs justified above; do not otherwise restructure the epic.
 - Leave nothing dangling: at the end, every created thread is archived or reported, and any worktree the app does not clean up itself is reported.
 
 ## Report
 
-At meaningful completions or blocker changes, and at the end, return: the epic, base branch, and completion mode; a table of issue → thread → branch → PR → status (with merge commit for `merged`); concurrency mode, active count, and effective capacity constraints; ready-frontier size and undispatched issues with reasons; blocked or parked work with resume conditions; any open Stalled Work question; and the next dispatch, review, or merge order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
+At meaningful completions or blocker changes, and at the end, return: the epic, base branch, and completion mode; a table of issue → thread → branch → PR → status (with merge commit for `merged`); concurrency mode, active count, and effective capacity constraints; ready-frontier size and undispatched issues with reasons; blocked or parked work with resume conditions; any open Sandbox Denials or Stalled Work question; and the next dispatch, review, or merge order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
 
 ## Composition
 

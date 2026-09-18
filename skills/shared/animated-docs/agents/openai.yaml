@@ -1,0 +1,4 @@
+interface:
+  display_name: "animated-docs"
+  short_description: "Interactive animated explainers for docs"
+  default_prompt: "Use $animated-docs to add an interactive, animated explainer card to the docs site that runs the real code and shows how the entities and data model change."
