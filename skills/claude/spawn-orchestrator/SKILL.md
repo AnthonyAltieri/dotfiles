@@ -1,6 +1,6 @@
 ---
 name: spawn-orchestrator
-description: Use a Claude Code Fable session to orchestrate headless Codex CLI workers, one `codex exec` process per issue, each running gpt-6-astra at xhigh in an isolated worktree with Codex's automatic approval reviewer. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; use --max to fill the dependency-ready frontier beyond the default worker cap. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
+description: Use a Claude Code Fable session to orchestrate headless Codex CLI workers, one `codex exec` process per issue, each running gpt-6-astra at xhigh in an isolated worktree with Codex's automatic approval reviewer. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; use --max to fill the dependency-ready frontier beyond the default worker cap and --min-tests to verify only affected code. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
@@ -45,6 +45,7 @@ Invoking this skill is the user's explicit request to spawn workers over the req
 - **Completion mode:** draft PRs by default. `--automerge` in the user's invocation authorizes spawned workers to mark their PRs ready, merge them into `main`, and complete their issues after verification, without asking again per issue. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. Concurrency mode and ceilings are orchestrator state only and never appear in a brief. This is a skill option, not a flag to pass to a child executable.
 - **Concurrency:** without `--max`, use up to 3 active issue workers unless the user sets a limit, with a ceiling of 5. Explicit `--max` removes the default three-worker limit and five-worker ceiling: fill the current dependency-ready frontier as described below. An explicit numeric concurrency limit still bounds `--max`. Count pending creation/worktree setup and workers in review, remediation, or verification/merge queues as active; host/platform capacity and explicit user task/wave limits still apply. Every worker is a separate Codex process sharing one account and one `~/.codex`; treat repeated rate-limit errors in `stderr.log` as a concrete capacity constraint.
 - **Advancement:** rolling refill by default — after verifying a completion or safely parking blocked work, fill the available slot with the next eligible issue without waiting for unrelated workers. Explicit fixed waves wait for the whole wave to report and settle before the next starts. Honor user task/wave limits and stop requests in either mode.
+- **Verification mode:** `default` unless the user selects `--min-tests`. With `--min-tests`, workers and their subagents run only tests for affected code, including final verification. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. It combines with `--max` and `--automerge`, and is a skill option conveyed in the brief, not a child-executable flag.
 - **Worker model:** always `gpt-6-astra` with `xhigh` reasoning. The helper passes both explicitly on every turn; do not override them from local Codex defaults.
 - **Approvals:** every worker runs under Codex's automatic approval reviewer. Sandbox escalations are decided by that reviewer, never by the orchestrator or the user mid-task. The reviewer treats the brief as the user's authorization, so briefs must never contain blanket permission language such as "do whatever is needed".
 
@@ -73,7 +74,7 @@ Put the complete implementation contract inside each worker's brief file. The br
 - required verification and repository instructions, including any review the worker must run on its own PR (for example `$adversarial-review` when the user requested it); the worker spawns, reads, and closes those reviews itself;
 - owned paths and APIs, and any repository-declared exclusive resource the issue must not use (the orchestrator has already scheduled around it);
 - the Worker Autonomy block below, verbatim;
-- the Worker Testing Guidance block below, verbatim;
+- the common Worker Testing Guidance block and exactly one verification-mode block below, verbatim; include the selected mode in every resume brief and pass it to any worker-created subagents;
 - branch name `codex/<issue-key>-<slug>` and the base branch for the draft PR;
 - completion mode: by default, tests pass under the testing policy, branch is pushed, draft PR is opened, and Linear reflects reality; with `--automerge`, include the Optional Automerge procedure below and finish only after verified merge into `main` and the issue update;
 - the single final report: issue key, PR URL, head SHA, verification evidence, decisions made without guidance, files touched outside owned paths, newly discovered work, and a terminal status (`pr-opened`, `merged`, `blocked`, or `failed`); `merged` also includes the merge commit SHA.
@@ -112,7 +113,7 @@ Merges into `main` are serialized by the provider through expected-head guards, 
 Invoke as `/spawn-orchestrator --automerge <epic>`. Without the flag, stop at verified draft PRs. With it, each worker owns the whole path to `merged` and the orchestrator neither gates nor grants individual merges. Include this procedure in the brief:
 
 1. Prepare and verify the draft PR under the testing policy, then audit your own new or changed tests against the Worker Testing Guidance and fix violations before continuing.
-2. Fetch current `main`. If it moved since your last full-suite run, update the branch under repository rules and rerun the affected checks. Mark the PR ready and obtain the required reviews and checks for the final head against the current base.
+2. Fetch current `main`. If it moved since your last verification, update the branch under repository rules and rerun the affected checks under the selected verification mode. Mark the PR ready and obtain the required reviews and checks for the final head against the current base.
 3. Merge through the repository's supported PR mechanism and merge strategy with an expected-head guard. If head or base changed since step 2, return to step 2. Honor branch protection, required reviews, and merge queues. Never use an administrative bypass, force-push `main`, or push directly to `main`.
 4. A scheduled or queued merge is still pending: wait until the provider confirms `merged`. Then fetch `main`, verify the merge commit is reachable from it, update the Linear issue, and report `merged` with the merge commit SHA.
 5. Remediate in-scope check or review failures yourself before retrying. Unresolved failures, missing required approval, conflicts, or unavailable merge permissions or tools end the task as `blocked` with the PR URL and a resume condition. Do not retry the same blocker repeatedly and do not ask the orchestrator to intervene. Before ending as `blocked`, cancel any queued merge and confirm the cancellation or the completed merge; if you cannot confirm, report the merge as pending.
@@ -121,20 +122,37 @@ After a `merged` report the orchestrator reads back the PR's merged state and ta
 
 ## Worker Testing Guidance
 
-Every worker brief carries this block verbatim so each fresh worker context receives the testing policy. `$test-audit` owns the full policy; this is its condensed form.
+Every initial and resume brief carries the common block and exactly one mode block verbatim. `$test-audit` owns the full policy; pass the selected mode to completion audits and any worker-created review subagents. For example, `/spawn-orchestrator --min-tests --automerge <epic>` selects affected-only verification through merge. Missing full-suite evidence is not a violation in this mode; required provider checks still apply.
 
 ```text
 Testing policy (see the test-audit skill for the full text):
 - Runtime targets, not hard limits: aim for the whole unit suite as close to 10s and the whole e2e suite as close to 60s as reasonably practical; faster suites are welcome. Preserve useful coverage when exceeding these targets.
 - Prioritize improvements of at least 10% of the affected whole suite's runtime. Do not spend significant time on smaller gains; quick, low-risk improvements are fine. Accept above-target runtimes when further optimization would take disproportionate effort.
-- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice: before opening the draft PR and on the final head.
 - Deterministic always: no sleeps, polling, retries, skip, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
 - Two tiers only, unit and e2e; no integration tier.
 - Unit: public API only, one behavior per test, nothing the type checker already proves, mock only process boundaries, inject the clock, no snapshot tests except serialized wire contracts.
 - E2e: one happy path per critical flow plus the failures that would page someone; real dependencies, no mocks; a flaky e2e test is fixed or deleted the same day.
 - Every bug fix ships exactly one regression test that failed before the fix.
 - Every test answers "what bug does this catch?"; if you cannot say, do not write it.
-- Report the runner commands you used and the suite times in the final response.
+- Report the runner commands you used and their durations in the final response.
+```
+
+Without `--min-tests`, include:
+
+```text
+Verification mode: default.
+- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice: before opening the draft PR and on the final head.
+```
+
+With `--min-tests`, include this block instead:
+
+```text
+Verification mode: --min-tests, selected by the user.
+- This overrides default whole-suite verification in repository instructions and test-audit. Run only tests for the changed behavior and affected dependents during implementation, review, PR preparation, and final verification. Pass this mode to every subagent you create.
+- Map the diff and its affected callers or user flows to the smallest useful test cases, files, or targets. Include relevant regression tests; re-evaluate the selection after code or base changes and rerun affected checks on the final head.
+- Do not run the whole unit or e2e suite, including for timing budgets or completion audits. If the runner cannot select affected tests, use available focused checks and report the coverage gap; do not fall back to a full-suite command or claim untested behavior is verified.
+- Report the selected commands, durations, why they cover the affected behavior, and any verification gaps. State that full suites were not run under --min-tests.
+- Required provider CI checks and reviews still apply; wait for their results without duplicating full-suite runs locally or disabling those gates.
 ```
 
 ## Monitor Workers
@@ -220,7 +238,7 @@ Reading events to judge progress is not a status ping, and these questions to th
 
 ## Report
 
-At meaningful completions or blocker changes, and at the end, return the epic, base branch, and completion mode plus a table of issue → thread → branch → PR → status (with merge commit for `merged`). Include concurrency mode, active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, blocked or parked work with resume conditions and run directories, any open Sandbox Denials or Stalled Work question, and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
+At meaningful completions or blocker changes, and at the end, return the epic, base branch, completion mode, and verification mode plus a table of issue → thread → branch → PR → status (with merge commit for `merged`). Include concurrency mode, active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, blocked or parked work with resume conditions and run directories, any open Sandbox Denials or Stalled Work question, and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
 
 ## Composition
 

@@ -13,7 +13,9 @@ Tests exist to catch regressions cheaply. Every test costs wall-clock time on ev
 
 **Proportionate optimization:** prioritize improvements expected to reduce the affected whole suite's runtime by at least 10%. Do not spend significant time chasing smaller gains; quick, low-risk improvements are fine. Preserve regression coverage and stop when further optimization would take disproportionate effort. Never add retries or bump timeouts to disguise slow or flaky tests.
 
-**Run the smallest test that proves the point.** While iterating, run one test or one file, never the whole suite. Run the full suite exactly twice: once before opening or updating the PR, once on the final head. If nothing smaller than the suite can prove a change, the change is too big or the tests overlap; fix that first.
+**Run the smallest test that proves the point.** While iterating, run one test or one file, never the whole suite. By default, run the full suite exactly twice: once before opening or updating the PR, once on the final head. In default mode, if nothing smaller than the suite can prove a change, the change is too big or the tests overlap; fix that first. Honor an explicitly selected verification mode as described below.
+
+**Affected-only verification (`--min-tests`).** When the user or the caller's brief selects this mode, replace both full-suite gates with the smallest useful tests for changed behavior and affected dependents. Select cases, files, or targets from the diff and its effects on callers and user flows, including relevant regression tests. Re-evaluate the selection after code or base changes and verify the final head within that scope. Do not run whole suites for verification, review, or timing audits. If affected tests cannot be selected, report the coverage gap and use available focused checks instead of falling back to the full suite. Report commands, durations, coverage rationale, and gaps; do not imply full-suite verification. Required provider CI checks still apply.
 
 **Deterministic, always.** A test passes or fails for the same reason every run. No sleeps, no polling loops, no retries, no timeouts-as-synchronization, no reliance on wall-clock, randomness, ordering, or leftover state. Wait only on an explicit signal (promise, event, job completion) that the code under test emits. If a test needs a retry to pass, the test or the code is wrong; fix that.
 
@@ -46,11 +48,13 @@ Tests exist to catch regressions cheaply. Every test costs wall-clock time on ev
 3. Check for overlap. Search the suite for an existing test that already asserts the behavior; extend a table test before adding a case.
 4. Check what types already prove. Prefer tightening a schema or union over asserting the same invariant at runtime.
 5. Isolate: inject the clock, mock only process boundaries, own and tear down state, wait on emitted signals only.
-6. Run just the new or changed test, then the file. Leave the full suite for the two PR gates.
+6. Run just the new or changed test, then the file. At the two PR gates, follow the selected verification mode: full suites by default, affected tests only with `--min-tests`.
 
 ## When Auditing A Suite
 
 Report runtime observations and policy violations in this order, with the relevant file, test name, and policy where applicable. During review or audit, report; do not change tests unless asked.
+
+With `--min-tests`, audit the changed tests and affected behavior using scoped check results and any existing timing evidence. Do not launch whole suites to measure runtime targets or treat missing full-suite evidence as a violation. The suite-wide runtime measurement below applies to the default mode.
 
 1. **Runtime**: measure the unit and e2e suites against the 10s and 60s targets. If either is above target, identify the main bottlenecks and estimate potential gains as a percentage of that whole suite's runtime. Prioritize worthwhile improvements, especially gains of 10% or more; do not spend significant time on smaller gains. Accept and explain an above-target runtime when further work would be disproportionate or would sacrifice useful coverage. Being above target alone is not a policy violation.
 2. **Nondeterminism**: sleeps, polling loops, retries, `skip`, timeouts used as synchronization, real clock or randomness, order or shared-state dependence.
@@ -63,4 +67,4 @@ For each finding, state the action: optimize, accept the runtime with a reason, 
 
 ## Run Commands
 
-Use the repository's configured runners. Run a single test or file while iterating, the full unit suite, the full e2e suite, and the type checker as the PR gates. If the repository has no runner for a tier, say so instead of inventing one.
+Use the repository's configured runners. Run a single test or file while iterating. At PR gates, run the full unit suite, full e2e suite, and type checker by default; with `--min-tests`, select affected test cases, files, or targets and relevant lint/type checks. If the repository has no runner for a tier or cannot select affected tests, report that limitation instead of inventing a runner or expanding to a whole-suite test command.
