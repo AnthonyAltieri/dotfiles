@@ -69,7 +69,8 @@ git switch -c <branch-name> origin/main
 ## Testing Policy
 
 - For writing, changing, reviewing, or auditing tests, use `$test-audit`; it owns the full policy and the audit procedure.
-- Budgets are hard and never raised: whole unit suite < 10s, whole e2e suite < 60s. Over budget means delete or merge tests, never add retries or bump timeouts.
+- Runtime targets, not hard limits: aim for the whole unit suite as close to 10s and the whole e2e suite as close to 60s as reasonably practical; faster suites are welcome. Preserve useful coverage when exceeding these targets.
+- Prioritize improvements of at least 10% of the affected whole suite's runtime. Do not spend significant time on smaller gains; quick, low-risk improvements are fine. Accept above-target runtimes when further optimization would take disproportionate effort.
 - Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice, before opening or updating the PR and on the final head.
 - Deterministic always: no sleeps, polling, retries, `skip`, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
 - Two tiers only, unit and e2e; no integration tier.
