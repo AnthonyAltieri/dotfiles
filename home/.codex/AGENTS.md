@@ -71,7 +71,7 @@ git switch -c <branch-name> origin/main
 - For writing, changing, reviewing, or auditing tests, use `$test-audit`; it owns the full policy and the audit procedure.
 - Runtime targets, not hard limits: aim for the whole unit suite as close to 10s and the whole e2e suite as close to 60s as reasonably practical; faster suites are welcome. Preserve useful coverage when exceeding these targets.
 - Prioritize improvements of at least 10% of the affected whole suite's runtime. Do not spend significant time on smaller gains; quick, low-risk improvements are fine. Accept above-target runtimes when further optimization would take disproportionate effort.
-- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. Run the full suite exactly twice, before opening or updating the PR and on the final head.
+- Run the smallest test that proves the point while iterating: one test or one file, never the whole suite. By default, run the full suite exactly twice, before opening or updating the PR and on the final head. When the user selects affected-only verification (such as `spawn-orchestrator --min-tests`), use tests for changed behavior and affected dependents at both gates instead; do not run full suites for verification or audits.
 - Deterministic always: no sleeps, polling, retries, `skip`, timeouts as synchronization, or reliance on wall-clock, randomness, ordering, or leftover state. Wait only on a signal the code under test emits.
 - Two tiers only, unit and e2e; no integration tier.
 - Unit: public API only, one behavior per test, nothing the type checker already proves, mock only process boundaries, inject the clock, exactly one regression test per bug fix, no snapshot tests except serialized wire contracts.
