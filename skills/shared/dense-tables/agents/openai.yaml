@@ -1,0 +1,4 @@
+interface:
+  display_name: "dense-tables"
+  short_description: "Build compact, readable operational tables"
+  default_prompt: "Use $dense-tables to apply a compact table and information-density style while preserving this application's existing fonts and design system."
