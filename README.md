@@ -53,11 +53,13 @@ The user-bound outputs resolve the current login user at evaluation time. `boots
 
 `home/` stores the managed payloads using their real target names, so the tree matches the home directory layout Home Manager deploys.
 
-## Bootstrap on macOS
+## Bootstrap on macOS and Debian
 
-`bootstrap.sh` is the supported macOS apply path. It is safe to rerun after pulling changes or editing the flake. It installs missing prerequisites only, reloads Nix and Homebrew when they already exist, then reapplies the selected Darwin role.
+`bootstrap.sh` is the supported apply path on macOS and Debian Linux (x86-64 and ARM64). It is safe to rerun after pulling changes or editing the flake. It reloads Nix when already installed, installs missing prerequisites, then reapplies the selected role using nix-darwin on macOS or Home Manager on Linux.
 
-Run bootstrap as your normal user. On a real apply, the script uses `sudo` only for the final `darwin-rebuild switch` step.
+Run bootstrap as your normal user, without `sudo`. Prerequisite installation may prompt for sudo. macOS also uses sudo for `darwin-rebuild switch`; Linux activates Home Manager without root and does not install Homebrew.
+
+On a fresh Debian machine, your user needs sudo access. If sudo is missing, install it and grant your user access as root before running bootstrap. Bootstrap installs `ca-certificates`, `curl`, `git`, and `xz-utils` through apt before installing Nix. It uses multi-user Nix when systemd is running, or single-user Nix in environments such as containers. Existing Nix installations are reused.
 
 First-time prerequisite install:
 
@@ -78,7 +80,7 @@ Preview without switching:
 ./bootstrap.sh personal --dry-run --overwrite
 ```
 
-`--dry-run` is available only after Nix is already installed on the machine. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
+`--dry-run` is available only after Nix is already installed on the machine. On a fresh machine, run `./bootstrap.sh install-dependencies` first.
 
 Show a closure diff before a real apply:
 
@@ -87,8 +89,10 @@ Show a closure diff before a real apply:
 ./bootstrap.sh work --diff
 ```
 
+On Linux, bootstrap selects `personal-linux` / `work-linux` for x86-64 or `personal-aarch64-linux` / `work-aarch64-linux` for ARM64. `--diff` compares against your active Home Manager generation; the first apply has no baseline and continues without a diff.
+
 During a real apply, Home Manager backs up conflicting managed files with the `.hm-backup` suffix before replacing them by default.
-If you want a one-off apply to force-replace those managed files directly instead, run bootstrap with `--overwrite`.
+If you want a one-off apply to force-replace those managed files directly instead, run bootstrap with `--overwrite`. Linux uses the corresponding `homeConfigurations.<profile>-overwrite` output for this mode.
 
 On the first real nix-darwin apply, bootstrap may also find unmanaged `/etc/bashrc` or `/etc/zshrc` content.
 Without `--overwrite`, bootstrap backs those files up to `*.before-nix-darwin` automatically and continues.
@@ -108,7 +112,7 @@ The deeper explanation of what bootstrap does and how the flake composes roles a
 
 ## Day-to-day usage
 
-On macOS, rerunning bootstrap is the simplest path:
+On macOS and Debian, rerunning bootstrap is the simplest path:
 
 ```bash
 ./bootstrap.sh personal
