@@ -111,11 +111,27 @@
         homeDirectory = homeDirectoryFor "x86_64-linux";
       };
 
+      personal-linux-overwrite = mkHome {
+        role = "personal";
+        system = "x86_64-linux";
+        inherit username;
+        homeDirectory = homeDirectoryFor "x86_64-linux";
+        overwriteHomeManagerBackups = true;
+      };
+
       personal-aarch64-linux = mkHome {
         role = "personal";
         system = "aarch64-linux";
         inherit username;
         homeDirectory = homeDirectoryFor "aarch64-linux";
+      };
+
+      personal-aarch64-linux-overwrite = mkHome {
+        role = "personal";
+        system = "aarch64-linux";
+        inherit username;
+        homeDirectory = homeDirectoryFor "aarch64-linux";
+        overwriteHomeManagerBackups = true;
       };
 
       work-linux = mkHome {
@@ -125,11 +141,27 @@
         homeDirectory = homeDirectoryFor "x86_64-linux";
       };
 
+      work-linux-overwrite = mkHome {
+        role = "work";
+        system = "x86_64-linux";
+        inherit username;
+        homeDirectory = homeDirectoryFor "x86_64-linux";
+        overwriteHomeManagerBackups = true;
+      };
+
       work-aarch64-linux = mkHome {
         role = "work";
         system = "aarch64-linux";
         inherit username;
         homeDirectory = homeDirectoryFor "aarch64-linux";
+      };
+
+      work-aarch64-linux-overwrite = mkHome {
+        role = "work";
+        system = "aarch64-linux";
+        inherit username;
+        homeDirectory = homeDirectoryFor "aarch64-linux";
+        overwriteHomeManagerBackups = true;
       };
 
       sandbox-aarch64-darwin = mkHome {

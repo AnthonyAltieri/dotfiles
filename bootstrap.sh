@@ -14,18 +14,18 @@ Usage:
   ./bootstrap.sh install-dependencies
   ./bootstrap.sh <personal|work> [--dry-run] [--diff] [--overwrite]
 
-Bootstrap is the supported macOS apply path for this repo.
+Bootstrap supports macOS and Debian Linux (x86-64 and ARM64).
 It is safe to rerun after pulling changes or editing the flake.
-Run it as your normal user. The script will prompt for sudo only for the
-final darwin-rebuild switch step when a real apply needs root.
+Run it as your normal user. Installing prerequisites may require sudo.
+macOS uses sudo for darwin-rebuild; Linux activates Home Manager as your user.
 
 Flags:
   --dry-run  Build the target closure but do not switch or install missing prerequisites.
              Requires Nix to already be installed on the machine.
-  --diff     Show a closure diff against the current system before switching.
+  --diff     Show a closure diff against the current generation before switching.
   --overwrite
              Overwrite conflicting Home Manager managed files instead of creating
-             `*.hm-backup` backups during activation. If `/etc/bashrc` or
+             `*.hm-backup` backups during activation. On macOS, if `/etc/bashrc` or
              `/etc/zshrc` conflict, show a diff and prompt before replacing them.
   --help     Show this help text.
 EOF
@@ -132,13 +132,6 @@ parse_args() {
   fi
 }
 
-require_darwin() {
-  if [[ "$(uname -s)" != "Darwin" ]]; then
-    echo "bootstrap.sh currently supports macOS only." >&2
-    exit 1
-  fi
-}
-
 log() {
   printf '[bootstrap] %s\n' "$*"
 }
@@ -229,7 +222,7 @@ EOF
   fi
 
   log "Installing Nix..."
-  bash <(curl -fsSL https://nixos.org/nix/install) --daemon
+  bash <(curl -fsSL https://nixos.org/nix/install) "${1:---daemon}"
   load_nix
 }
 
@@ -579,7 +572,19 @@ switch_darwin_role() {
 }
 
 parse_args "$@"
-require_darwin
+case "$(uname -s)" in
+  Darwin) ;;
+  Linux)
+    # shellcheck source=scripts/bootstrap-linux.sh
+    source "${SCRIPT_DIR}/scripts/bootstrap-linux.sh"
+    bootstrap_linux
+    exit 0
+    ;;
+  *)
+    echo "bootstrap.sh supports macOS and Debian Linux only." >&2
+    exit 1
+    ;;
+esac
 normalize_root_home
 
 if [[ "$COMMAND" == "install-dependencies" ]]; then

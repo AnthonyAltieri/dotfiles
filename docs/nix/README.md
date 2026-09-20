@@ -194,19 +194,18 @@ The rule is simple: portable config goes in the flake, machine-local state stays
 
 ## Bootstrap and updates
 
-`bootstrap.sh` is the supported macOS apply path. It is meant to be rerun.
+`bootstrap.sh` is the supported macOS and Debian Linux apply path. It is meant to be rerun.
 
 What it does:
 
-1. verifies the host is macOS
+1. selects macOS or Linux (x86-64 / ARM64)
 2. loads Nix if it is already installed
-3. installs Nix if it is missing
-4. loads Homebrew if it is already installed
-5. installs Homebrew if it is missing
-6. builds the selected Darwin system closure from this flake
-7. runs `darwin-rebuild switch --flake` for the chosen role
+3. installs Nix if it is missing; on Debian, first installs `ca-certificates`, `curl`, `git`, and `xz-utils` through apt
+4. on macOS, loads Homebrew or installs it if missing
+5. builds the selected Darwin system closure or Linux Home Manager activation package from this flake
+6. runs `darwin-rebuild switch --flake` on macOS or the built Home Manager activation script on Linux
 
-Run bootstrap as your normal user. On a real apply, it uses `sudo` only for the final `darwin-rebuild switch` step.
+Run bootstrap as your normal user, without sudo. On Debian, sudo must already be installed and available to your user for prerequisite installation. Nix is installed in multi-user mode when systemd is running, or single-user mode otherwise; an existing Nix installation is reused. Home Manager activation runs as your user. On macOS, prerequisite installation and `darwin-rebuild switch` may require sudo.
 
 That makes the first-install prerequisite flow:
 
@@ -214,7 +213,7 @@ That makes the first-install prerequisite flow:
 ./bootstrap.sh install-dependencies
 ```
 
-Then the normal macOS workflow:
+Then the normal macOS or Debian workflow:
 
 ```bash
 ./bootstrap.sh personal
@@ -222,6 +221,8 @@ Then the normal macOS workflow:
 ```
 
 You do not need a separate "first install" command and "later updates" command. After pulling repo changes, rerun bootstrap for your role and it will re-apply the current flake state.
+
+Linux selects `personal-linux` / `work-linux` on x86-64 and `personal-aarch64-linux` / `work-aarch64-linux` on ARM64. The Linux path lives in `scripts/bootstrap-linux.sh`; it does not run Homebrew, load private Homebrew environment files, or modify `/etc` shell files.
 
 Preview modes:
 
@@ -232,13 +233,14 @@ Preview modes:
 ./bootstrap.sh work --diff
 ```
 
-- `--dry-run` builds the target Darwin closure but does not switch the system.
+- `--dry-run` builds the target closure but does not activate it.
 - `--dry-run` also refuses to install missing Nix or Homebrew so the preview path stays side-effect free.
-- `--dry-run` only works after Nix is already installed. On a fresh Mac, run `./bootstrap.sh install-dependencies` first.
-- `--diff` runs `nix store diff-closures` against `/run/current-system` when that link exists.
+- `--dry-run` only works after Nix is already installed. On a fresh machine, run `./bootstrap.sh install-dependencies` first.
+- `--diff` runs `nix store diff-closures` against `/run/current-system` on macOS or the active Home Manager generation on Linux. Without an existing generation it reports the missing baseline and continues.
 - By default, Home Manager backs up conflicting managed files using the `.hm-backup` suffix before replacing them.
 - `--overwrite` switches bootstrap to an alternate Darwin configuration that sets `home-manager.backupFileExtension = null`, so conflicting managed files are replaced directly with no `*.hm-backup` copies.
-- If `/etc/bashrc` or `/etc/zshrc` still contain unmanaged pre-nix-darwin content, bootstrap resolves that before activation.
+- On Linux, the default activation sets `HOME_MANAGER_BACKUP_EXT=hm-backup`. `--overwrite` selects `homeConfigurations.<profile>-overwrite`, which enables the same managed-file force policy as macOS, and clears the backup extension for activation.
+- On macOS, if `/etc/bashrc` or `/etc/zshrc` still contain unmanaged pre-nix-darwin content, bootstrap resolves that before activation.
 - Without `--overwrite`, bootstrap renames each conflicting file to `*.before-nix-darwin` and continues automatically.
 - With `--overwrite`, bootstrap shows a unified diff for each conflicting file and asks for confirmation before replacing it. Declining any prompt aborts the apply without changing `/etc`.
 
@@ -292,6 +294,7 @@ Prefer the smallest layer that actually owns the behavior. Do not put Linux-only
 Fast local checks:
 
 ```bash
+bash tests/bootstrap-platform-smoke.sh
 bash tests/nvim-external-write-merge-smoke.sh
 bash tests/nvim-monorepo-routing-smoke.sh
 bash scripts/test-skill-helpers.sh
@@ -320,4 +323,11 @@ For Linux smoke tests in a fresh Ubuntu container:
 ./tests/run-linux-docker-smoke.sh
 ```
 
-Docker covers the Linux Home Manager profiles. It does not cover `nix-darwin`, Homebrew integration, or the macOS bootstrap path.
+For Debian bootstrap, including real prerequisite installation and a minimal Home Manager activation:
+
+```bash
+docker build -f tests/docker/debian/Dockerfile -t dotfiles-bootstrap-debian .
+docker run --rm dotfiles-bootstrap-debian
+```
+
+The Debian test evaluates the production personal/work profiles for both Linux architectures, then exercises preview, diff, backup, and overwrite using a minimal Home Manager payload with the repo's pinned inputs. It does not build the full development package set. Docker does not cover `nix-darwin`, Homebrew integration, or the macOS bootstrap path.
