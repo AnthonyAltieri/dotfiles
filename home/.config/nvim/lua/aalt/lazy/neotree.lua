@@ -8,8 +8,13 @@ return {
 		{ "MunifTanjim/nui.nvim", commit = "7cd18e7" },
 	},
 	config = function()
+		local hidden = require("aalt.hidden")
+		hidden.setup()
 		require("neo-tree").setup({
 			close_if_last_window = true,
+			event_handlers = {
+				{ event = "state_created", handler = hidden.apply },
+			},
 			filesystem = {
 				hijack_netrw_behavior = "disabled",
 				follow_current_file = {
