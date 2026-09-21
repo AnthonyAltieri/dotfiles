@@ -12,6 +12,7 @@ return {
 	-- File Tree
 	{ cat = "File Tree", key = "<C-\\>", desc = "Toggle file tree" },
 	{ cat = "File Tree", key = "<leader>pv", desc = "Focus tree at current file" },
+	{ cat = "File Tree", key = ":Hidden", desc = "Edit hidden-file patterns by language" },
 
 	-- Go To
 	{ cat = "Go To", key = "gd", desc = "Go to definition" },
