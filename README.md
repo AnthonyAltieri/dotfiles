@@ -157,6 +157,16 @@ Update flake inputs:
 nix flake update
 ```
 
+## Shell history search
+
+After applying the profile and opening a new terminal, press **Ctrl+R** to search
+history with fzf in a bordered, 10-line panel below the prompt. Type fragments of
+a command and press **Enter** to put the selection at the prompt for editing.
+Press **Esc** or **Ctrl+C** to cancel. Ctrl+T and Alt+C keep their existing bindings.
+
+Every profile already installs fzf. Shell startup skips the integration when fzf
+is unavailable, leaving the default history search in place.
+
 ## Package strategy
 
 - **Darwin** uses Homebrew through `modules/platforms/darwin/system/homebrew.nix`.
