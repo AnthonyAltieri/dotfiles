@@ -6,6 +6,12 @@ if [[ -o interactive ]] && [[ -t 0 ]]; then
   stty -ixon 2>/dev/null
 fi
 
+# Search history in a 10-line panel below the prompt; Enter selects for editing.
+if [[ -o interactive ]] && (( $+commands[fzf] )); then
+  export FZF_CTRL_R_OPTS='--height=10 --layout=reverse --border'
+  FZF_CTRL_T_COMMAND= FZF_ALT_C_COMMAND= source <(fzf --zsh)
+fi
+
 # Start starship CLI https://starship.rs/
 if (( $+commands[starship] )); then
   eval "$(starship init zsh)"
