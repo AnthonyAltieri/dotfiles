@@ -1,6 +1,6 @@
 ---
 name: spawn-orchestrator
-description: Use a Claude Code Fable session to orchestrate headless Codex CLI workers, one `codex exec` process per issue, each running gpt-6-astra at xhigh in an isolated worktree with Codex's automatic approval reviewer. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; use --max to fill the dependency-ready frontier beyond the default worker cap and --min-tests to verify only affected code. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
+description: Use a Claude Code Fable session to orchestrate headless Codex CLI workers, one `codex exec` process per issue, each running gpt-6-sol at xhigh in an isolated worktree with Codex's automatic approval reviewer, or Opus 5.5 Claude subagents when the user asks for Opus workers. End at draft PRs by default; explicit --automerge lets workers merge verified PRs into main. Refill available slots with ready issues as workers finish; use --max to fill the dependency-ready frontier beyond the default worker cap and --min-tests to verify only affected code. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
@@ -12,7 +12,7 @@ Run the backlog from this Fable session while Codex workers implement it. One is
 - The `codex` CLI on `PATH`, logged in, version 0.153 or newer. Check with `codex --version`.
 - `python3` for the helper script deployed beside this skill at `~/.claude/skills/spawn-orchestrator/scripts/codex_worker.py`. Call it as `python3 <that path> <subcommand>`; the rest of this skill writes it as `codex_worker.py`.
 
-If either is missing, stop and report which setup is missing. Do not substitute ordinary Claude implementation subagents, the Codex Claude plugin, or an MCP bridge to the Codex app.
+If either is missing, stop and report which setup is missing. Do not substitute ordinary Claude implementation subagents, the Codex Claude plugin, or an MCP bridge to the Codex app. Opus Workers, below, are the one exception, and only when the user asks for them.
 
 ## Worker Ownership
 
@@ -33,10 +33,21 @@ The orchestrator owns every worktree and every worker process directly. There is
    python3 codex_worker.py start --run-dir "$RUN" --worktree .claude/worktrees/<issue-key> --brief /path/to/brief.md
    ```
 
-   `start` runs `codex exec --json` with `-m gpt-6-astra`, `model_reasoning_effort=xhigh`, the `--approve-for-me` approval triple, and outbound network enabled. It feeds the brief through stdin, records the thread id from the first event, appends the event stream to `$RUN/events.jsonl`, and writes the worker's final message to `$RUN/last.md`.
+   `start` runs `codex exec --json` with `-m gpt-6-sol`, `model_reasoning_effort=xhigh`, the `--approve-for-me` approval triple, and outbound network enabled. It feeds the brief through stdin, records the thread id from the first event, appends the event stream to `$RUN/events.jsonl`, and writes the worker's final message to `$RUN/last.md`.
 3. Record the issue key, run directory, worktree, branch, and thread id in orchestrator state as soon as `$RUN/thread_id` appears.
 
 Invoking this skill is the user's explicit request to spawn workers over the requested backlog. Do not request separate permission per worker. Closing this Claude Code session kills every live worker process; their threads remain resumable from the recorded run directories.
+
+## Opus Workers
+
+When the user asks for Opus subagents or Opus workers, each issue's worker is a background Claude subagent running Opus 5.5 instead of a Codex process. The Codex CLI and the helper are not required in this mode. Everything else in this skill applies unchanged, except for the mechanics below:
+
+- **Launch:** create the worktree as in Worker Ownership, then start the worker with the Agent tool: `model: "opus"`, a `general-purpose` subagent, and the brief as its prompt. Do not pass `isolation: "worktree"`; the orchestrator already owns the worktree. The brief must also name the worktree's absolute path as the only directory the worker may edit and run commands in.
+- **Record:** the agent ID replaces the thread id and run directory in orchestrator state.
+- **Completion:** the subagent's completion notification is the worker's single final report. Verify it exactly as for a Codex worker.
+- **Monitor and redirect:** there is no event stream. Judge progress with Stalled Work from the worktree's commits and the PR. Stop a worker with `TaskStop`. Resume it with `SendMessage` to its agent ID, under the same resume rules as `codex_worker.py resume`.
+- **Denials:** workers run under this session's permission mode, not Codex's automatic reviewer. A worker whose tool call is denied reports `blocked` with the denied action. Raise it with the Sandbox Denials message, putting the permission mode's decision in the **Reviewer's reason** row.
+- **Archive:** there is no thread to archive. After verification, record the final report and release capacity.
 
 ## Inputs and Defaults
 
@@ -46,7 +57,7 @@ Invoking this skill is the user's explicit request to spawn workers over the req
 - **Concurrency:** without `--max`, use up to 3 active issue workers unless the user sets a limit, with a ceiling of 5. Explicit `--max` removes the default three-worker limit and five-worker ceiling: fill the current dependency-ready frontier as described below. An explicit numeric concurrency limit still bounds `--max`. Count pending creation/worktree setup and workers in review, remediation, or verification/merge queues as active; host/platform capacity and explicit user task/wave limits still apply. Every worker is a separate Codex process sharing one account and one `~/.codex`; treat repeated rate-limit errors in `stderr.log` as a concrete capacity constraint.
 - **Advancement:** rolling refill by default — after verifying a completion or safely parking blocked work, fill the available slot with the next eligible issue without waiting for unrelated workers. Explicit fixed waves wait for the whole wave to report and settle before the next starts. Honor user task/wave limits and stop requests in either mode.
 - **Verification mode:** `default` unless the user selects `--min-tests`. With `--min-tests`, workers and their subagents run only tests for affected code, including final verification. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. It combines with `--max` and `--automerge`, and is a skill option conveyed in the brief, not a child-executable flag.
-- **Worker model:** always `gpt-6-astra` with `xhigh` reasoning. The helper passes both explicitly on every turn; do not override them from local Codex defaults.
+- **Worker model:** `gpt-6-sol` with `xhigh` reasoning by default. The helper passes both explicitly on every turn; do not override them from local Codex defaults. When the user asks for Opus subagents or Opus workers, use Opus 5.5 Claude workers instead, as described in Opus Workers.
 - **Approvals:** every worker runs under Codex's automatic approval reviewer. Sandbox escalations are decided by that reviewer, never by the orchestrator or the user mid-task. The reviewer treats the brief as the user's authorization, so briefs must never contain blanket permission language such as "do whatever is needed".
 
 ## Plan the Backlog

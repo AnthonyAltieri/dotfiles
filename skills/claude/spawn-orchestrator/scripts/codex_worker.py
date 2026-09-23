@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-DEFAULT_MODEL = "gpt-6-astra"
+DEFAULT_MODEL = "gpt-6-sol"
 DEFAULT_EFFORT = "xhigh"
 THREAD_MISMATCH_EXIT = 3
 WORKER_STATUSES = ("pr-opened", "merged", "blocked", "failed")
