@@ -81,7 +81,9 @@ in
     ];
 
     casks = [
-      "1password-cli"
+      # The beta channel ships `op environment` (1Password Environments). It conflicts with the
+      # stable cask, so run `brew uninstall --cask 1password-cli` once before switching.
+      "1password-cli@beta"
       "codex"
       "ghostty"
       "raycast"
