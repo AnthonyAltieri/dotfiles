@@ -206,6 +206,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for personal"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal"
+    assert_jq '.agentManagedTargets | index(".claude-anthropic2/skills/handoff") != null' "Expected Claude skills in the second account's config dir for personal"
+    assert_jq '.activationEntries | index("dotfilesClaudeSharedSessions") != null' "Expected shared Claude session history for personal"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers | has("notion") | not' "Did not expect Notion MCP server for personal"
     assert_jq '.claudeSettings.enabledPlugins | has("slack@claude-plugins-official") | not' "Did not expect Slack plugin for personal"
@@ -218,6 +220,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for work"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work"
+    assert_jq '[.agentManagedTargets[] | select(startswith(".claude-anthropic2/"))] | length == 0' "Did not expect a second Claude config dir for work"
+    assert_jq '.activationEntries | index("dotfilesClaudeSharedSessions") == null' "Did not expect shared Claude session history for work"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers.notion == "https://mcp.notion.com/mcp"' "Expected Notion MCP server for work"
     assert_jq '.claudeSettings.enabledPlugins["slack@claude-plugins-official"] == true' "Expected Slack plugin enabled for work"
@@ -242,6 +246,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for personal-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") == null' "Did not expect Codex observe skill for personal-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") == null' "Did not expect Claude observe skill for personal-linux"
+    assert_jq '.agentManagedTargets | index(".claude-anthropic2/skills/handoff") != null' "Expected Claude skills in the second account's config dir for personal-linux"
+    assert_jq '.activationEntries | index("dotfilesClaudeSharedSessions") != null' "Expected shared Claude session history for personal-linux"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers | has("notion") | not' "Did not expect Notion MCP server for personal-linux"
     assert_jq '.claudeSettings.enabledPlugins | has("slack@claude-plugins-official") | not' "Did not expect Slack plugin for personal-linux"
@@ -254,6 +260,8 @@ case "$profile" in
     assert_jq '.packages | index("rustc") != null' "Expected rustc in home.packages for work-linux"
     assert_jq '.agentManagedTargets | index(".codex/skills/observe") != null' "Expected Codex observe skill for work-linux"
     assert_jq '.agentManagedTargets | index(".claude/skills/observe") != null' "Expected Claude observe skill for work-linux"
+    assert_jq '[.agentManagedTargets[] | select(startswith(".claude-anthropic2/"))] | length == 0' "Did not expect a second Claude config dir for work-linux"
+    assert_jq '.activationEntries | index("dotfilesClaudeSharedSessions") == null' "Did not expect shared Claude session history for work-linux"
     assert_agent_mcp_servers
     assert_jq '.agentMcpServers.notion == "https://mcp.notion.com/mcp"' "Expected Notion MCP server for work-linux"
     assert_jq '.claudeSettings.enabledPlugins["slack@claude-plugins-official"] == true' "Expected Slack plugin enabled for work-linux"
