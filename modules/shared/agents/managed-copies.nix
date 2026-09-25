@@ -49,19 +49,23 @@ let
     (!(lib.elem skillName workOnlySkillNames) || role == "work")
     && (!(lib.elem skillName darwinOnlySkillNames) || platform == "darwin");
 
-  agentSkillCopies = agentName: audienceDir: skillNames:
+  agentSkillCopies = configDir: audienceDir: skillNames:
     map (
       skillName:
-      managedDirectory ".${agentName}/skills/${skillName}" (audienceDir + "/${skillName}")
+      managedDirectory "${configDir}/skills/${skillName}" (audienceDir + "/${skillName}")
     ) (lib.filter skillEnabled skillNames);
 
   codexSkillCopies =
-    agentSkillCopies "codex" ../../../skills/shared sharedSkillNames
-    ++ agentSkillCopies "codex" ../../../skills/codex codexOnlySkillNames;
+    agentSkillCopies ".codex" ../../../skills/shared sharedSkillNames
+    ++ agentSkillCopies ".codex" ../../../skills/codex codexOnlySkillNames;
 
-  claudeSkillCopies =
-    agentSkillCopies "claude" ../../../skills/shared sharedSkillNames
-    ++ agentSkillCopies "claude" ../../../skills/claude claudeOnlySkillNames;
+  # Every Claude config directory gets the same skills, so each account's
+  # CLAUDE_CONFIG_DIR sees them. The first entry is the default ~/.claude.
+  claudeSkillCopies = lib.concatMap (
+    configDir:
+    agentSkillCopies configDir ../../../skills/shared sharedSkillNames
+    ++ agentSkillCopies configDir ../../../skills/claude claudeOnlySkillNames
+  ) config.dotfiles.claudeConfigDirs;
 
   sharedAgentManagedCopies =
     [
@@ -150,6 +154,17 @@ let
   );
 in
 {
+  options.dotfiles.claudeConfigDirs = lib.mkOption {
+    type = lib.types.listOf lib.types.str;
+    default = [ ".claude" ];
+    description = ''
+      Claude config directories, relative to the home directory, that receive
+      the managed Claude skills. Add one per extra account whose sessions run
+      with `CLAUDE_CONFIG_DIR` pointing at it. Extra directories also share the
+      first one's session history (see claude-shared-sessions.nix).
+    '';
+  };
+
   options.dotfiles.agentManagedCopies = lib.mkOption {
     type = manifestType;
     readOnly = true;
