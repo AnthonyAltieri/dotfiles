@@ -27,6 +27,7 @@ let
       "${pkgs.gcc}/bin"
       "${pkgs.tree-sitter}/bin"
       "${pkgs.unzip}/bin"
+      "${pkgs.python3}/bin"
       "/usr/bin"
       "/bin"
     ]
@@ -36,6 +37,9 @@ let
   );
 in
 {
+  # Mason creates Python venvs; Debian's base Python can lack ensurepip.
+  home.packages = lib.optionals (platform != "darwin") [ pkgs.python3 ];
+
   home.activation.dotfilesPrewarmNeovim = lib.hm.dag.entryAfter [
     "linkGeneration"
     "installPackages"
