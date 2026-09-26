@@ -72,6 +72,8 @@ First-time prerequisite install:
 ./bootstrap.sh work
 ```
 
+On macOS, activation also ensures your nvm default Node version is installed. It preserves an existing default alias (including an LTS alias), reuses an installed default without upgrading it, and installs an LTS default when none is configured. After the first install, open a new terminal or run `source ~/.zshrc` so the current shell can find Node. Dry runs do not install Node.
+
 Preview without switching:
 
 ```bash
