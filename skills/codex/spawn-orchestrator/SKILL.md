@@ -62,7 +62,7 @@ For each eligible issue admitted by the selected concurrency mode and current ca
 - the issue key and URL, the intended outcome, and its acceptance criteria;
 - constraints, non-goals, and the verification the child must run, including any review it must run on its own PR (for example `$adversarial-review` when the user requested it); the child spawns, reads, and closes those reviews itself;
 - owned paths and APIs, and any repository-declared exclusive resource the issue must not use (the orchestrator has already scheduled around it);
-- the Worker Autonomy block below, verbatim;
+- the Worker Autonomy and Worker Evidence and Completion blocks below, verbatim; include both in initial and resume briefs and pass the evidence/completion defaults to worker-created subagents;
 - the common Worker Testing Guidance block and exactly one verification-mode block below, verbatim; include the selected mode in every resume brief and pass it to any worker-created subagents;
 - the branch to work on (`codex/<issue-key>-<slug>`) and the base branch to target;
 - this thread's identity, the original invocation reference and scope, completion mode, and selected merge actor: by default, changes verified under the testing policy, branch pushed, draft PR opened against the base branch, and Linear issue updated; with `--automerge`, include the Optional Automerge procedure below and tell the child who performs the merge;
@@ -80,13 +80,25 @@ Every child brief carries this block verbatim. It is what keeps the child from t
 Autonomy contract (non-negotiable):
 - You work alone in your own worktree. Nobody will answer a question mid-task: do not ask the orchestrator, do not wait for a reply, do not pause for approval that this brief already grants.
 - Make routine judgment calls yourself and record each one in the PR description. Stop and report `blocked` only when every plausible assumption would be unsafe or would make the work useless.
-- Sandbox escalations are decided by the automatic approval reviewer. If it denies an action, do not work around it or retry it: finish the work the denial does not affect, then report `blocked` with the denied command and the reviewer's reason.
+- Sandbox escalations are decided by the automatic approval reviewer. If it denies an action, stop that action and its dependents without retrying or working around it. Finish unaffected authorized work, then report the exact denied action and reason separately from delivery status: use `blocked` if a requested deliverable or required gate is blocked. Use `pr-opened`/`merge-ready` with a separate pending action only when the PR and required artifacts are verified complete and the denial concerns optional evidence copying or bookkeeping.
 - Do not coordinate with other workers. Do not look for, wait on, or message other threads or branches.
 - Edit files outside your owned paths only when the acceptance criteria require it, keep the edit minimal, and list every such file in your final report.
 - Work you discover outside your issue goes in the final report, not into your branch.
 - Run your own checks in your own worktree whenever you need them; you never wait for a slot.
 - Reviews are yours to close. Any review you spawn as a subagent (adversarial review, code review, security review) reports to you, not to the orchestrator: read its findings, fix or explicitly dismiss each one in the PR description, and rerun it if the fix was substantial. Do not report until the reviews you spawned are addressed.
 - Report exactly once, at the end, with a terminal status. No progress messages, no status pings, no questions.
+```
+
+## Worker Evidence and Completion
+
+Every initial and resume brief carries this block verbatim; workers pass it to any subagents they create.
+
+```text
+Evidence and completion defaults:
+- Keep detailed verification, review ledgers, research results and logs on the PR at the reviewed SHA. When a Linear update is authorized, post only a short outcome/status, PR link, reviewed or merged SHA, and actionable blockers; link to details instead of copying full reports, raw logs or local paths. Use a fuller ticket report only when explicitly requested.
+- Reopen or read back saved deliverables where applicable, preserve required outputs beyond worktree cleanup, and include recoverable paths or links in the final handoff.
+- Report delivery readiness separately from pending administrative actions. Complete all unaffected authorized implementation, verification and PR preparation; an administrative denial does not by itself block the designated merge actor from an already-authorized merge with passing required gates.
+- A denied action stays pending for the required user decision. Do not retry it through another actor, tool, destination or reduced payload, and do not treat these defaults as approval for a previously denied action. Include the exact action, reason and dependency impact in the final report; never claim the pending action succeeded.
 ```
 
 ## Schedule Verification and Integration
@@ -105,16 +117,16 @@ Child procedure (in the brief):
 
 1. Prepare and verify the draft PR under the testing policy, then audit your own new or changed tests against the Worker Testing Guidance and fix violations before continuing.
 2. Fetch current `main`. If it moved since your last verification, update the branch under repository rules and rerun the affected checks under the selected verification mode. Leave the PR as a draft unless you are the merge actor.
-3. Update the Linear issue to reflect a PR awaiting merge, then report `merge-ready` once with the PR URL, head SHA, and review/check evidence. Your task is complete; do not wait for the merge.
+3. Give Linear the short status and PR link defined in Worker Evidence and Completion, then report `merge-ready` once with the PR URL, head SHA, and review/check evidence. If only that administrative update is denied, report `merge-ready` with the exact pending action and denial; do not retry it. Your task is complete; do not wait for the merge.
 
 Orchestrator procedure, one issue at a time:
 
 4. Verify the pushed PR, its target, and the reported head. Audit changed tests with `$test-audit`.
 5. Mark the PR ready and obtain the required reviews and checks for that head against current `main`. Merge through the repository's supported strategy with an expected-head guard. Recheck head, base, and required gates immediately before submission. Honor branch protection, required reviews, and merge queues. Never use an administrative bypass, force-push `main`, or push directly to `main`.
-6. A scheduled or queued merge is still pending: monitor it until the provider confirms `merged`. Then read back the PR's merged state, target, and merge commit, fetch `main`, and verify that commit is reachable there. Complete the Linear issue yourself, record the merge commit, archive the child with `set_thread_archived`, and release/refill capacity. A merged child is finished by default; anything found afterwards is a new issue, not a message to the archived thread.
-7. If the merge needs code changes (conflicts with current `main`, failing required checks, or test-audit violations), send the child one message with the complete concrete list and wait for a fresh `merge-ready` report. Do not iterate finding by finding. Unresolved failures, actual approval denials, missing required repository approval, or unavailable merge permissions or tools leave the issue `blocked` with its PR and resume condition. Follow the denial handling above; never move a rejected merge to another actor as a fallback. Before parking or honoring a stop/revoked authorization, cancel any pending queued merge and verify cancellation or an already-completed merge; if cancellation cannot be confirmed, retain merge ownership and report it as pending.
+6. A scheduled or queued merge is still pending: monitor it until the provider confirms `merged`. Then read back the PR's merged state, target, and merge commit, fetch `main`, and verify that commit is reachable there. Complete authorized Linear updates, record the merge commit, and archive the child with `set_thread_archived` only when no user decision remains pending. Retain any denied administrative action and its task until resolved; release/refill capacity for independent work. A merged child is finished by default; anything found afterwards is a new issue, not a message to the archived thread.
+7. If the merge needs code changes (conflicts with current `main`, failing required checks, or test-audit violations), send the child one message with the complete concrete list and wait for a fresh `merge-ready` report. Do not iterate finding by finding. Unresolved required-gate failures, denial of the merge or its prerequisites, missing required repository approval, or unavailable merge permissions or tools leave delivery `blocked` with its PR and resume condition. A denial limited to an administrative action leaves that action pending while the designated merge actor continues an independently authorized, verified merge; retain truthful issue status and the pending user decision. Follow the denial handling above; never move a rejected merge to another actor as a fallback. Before parking or honoring a stop/revoked authorization, cancel any pending queued merge and verify cancellation or an already-completed merge; if cancellation cannot be confirmed, retain merge ownership and report it as pending.
 
-If the user explicitly chose the children as merge actor, the child instead performs steps 5 and 6 itself with the same guards, completes the Linear issue, and reports `merged` with the merge commit SHA; the orchestrator verifies the merge on `main` afterwards, archives the child, and audits the merged tests, turning any violation into a new follow-up issue.
+If the user explicitly chose the children as merge actor, the child instead performs steps 5 and 6 itself with the same guards, completes the Linear issue, and reports `merged` with the merge commit SHA; the orchestrator verifies the merge on `main` afterwards, archives the child only when no user decision remains pending, and audits the merged tests, turning any violation into a new follow-up issue.
 
 ## Worker Testing Guidance
 
@@ -157,11 +169,11 @@ Monitoring is passive. Read; do not message.
 
 - Use `read_thread` and `list_threads` to inspect a child. Never message a child to ask for status, progress, or an ETA, and never answer a question it should decide itself. If a child goes silent, read its thread; a long-running check is not itself a blocker. While reading, also judge progress against Stalled Work below and look for auto-review denials, which Sandbox Denials below turns into a question for the user.
 - Message a child only for: a user-directed stop or scope change; the single completion-time correction described here or in Optional Automerge; the user's answer to a Stalled Work question; or a genuinely big decision the child has stopped on, such as target branch, destructive action, or a scope conflict with another issue. If a child stops on anything smaller, send one message telling it to decide itself and record the decision in the PR description.
-- When a child messages `merge-ready` with automerge enabled, run the orchestrator procedure in Optional Automerge. Without automerge, treat it as `pr-opened`.
+- When a child messages `merge-ready` with automerge enabled, run the orchestrator procedure in Optional Automerge. Without automerge, treat it as `pr-opened`. When its report also contains an administrative denial, handle that denial separately through Sandbox Denials; do not hold independent delivery or claim the denied step completed. Preserve required outputs before archiving or cleaning a worktree, and retain the task while its user decision remains pending.
 - When a child messages completion:
   1. Verify the claim — in default mode the PR exists, targets the base branch, and is a draft; in automerge mode verify the merged PR and commit on `main` as above. Confirm the branch was pushed and Linear reflects reality. A child's "done" is a claim, not evidence. Do not re-run or re-check reviews the child spawned itself; its report lists how each finding was closed.
   2. Audit the PR's new or changed tests with `$test-audit`. In default mode, on violations message the child once with the complete list and wait for the fix before archiving.
-  3. Archive the child with `set_thread_archived`.
+  3. Archive the child with `set_thread_archived` only when no user decision remains pending; otherwise retain it with the completed delivery and pending action recorded separately.
   4. Release its resource slots and refill eligible capacity immediately in rolling mode; explicit fixed waves retain their barrier.
 - For confirmed blocked work, record the issue, dependency, branch/PR, and resume condition; confirm any queued merge is cancelled or complete, ensure execution has stopped, and preserve recoverable work before releasing its slot. Keep its ownership recorded even while parked. Resume it only after capacity and dependency/overlap checks pass again; do not start a second worker for that issue.
 - Repository lifecycle rules control whether a parked thread is retained or archived. Pending administrative updates or approvals on one issue do not block unrelated authorized work once its resources are released; preserve the pending action rather than bypassing it.
@@ -189,7 +201,7 @@ Reading a thread to judge progress is not a status ping, and this question to th
 
 ## Sandbox Denials
 
-A child asked to cross a sandbox boundary and the automatic reviewer said no. The child cannot appeal and must not work around it, so the decision is the user's. A denial shows up in the child's thread as a declined command followed by the reviewer's `Reason:` line, and in the child's final message when it reports `blocked`. Report each denial once, as soon as it is seen, in this exact shape:
+A child asked to cross a sandbox boundary and the automatic reviewer said no. The child cannot appeal and must not work around it, so the decision is the user's. A denial shows up in the child's thread as a declined command followed by the reviewer's `Reason:` line, and in the child's final report as either a delivery blocker or a separate pending administrative action. Report each denial once, as soon as it is seen, in this exact shape:
 
 ```markdown
 **Auto-review denied an escalation: <issue-key>** (child <n> of <active>, others unaffected)
@@ -207,7 +219,7 @@ A child asked to cross a sandbox boundary and the automatic reviewer said no. Th
 Reply with a number:
 1. **Skip it (recommended).** Message the child to finish without it and note it in the PR as follow-up.
 2. **Redirect.** Tell me the alternative and I message the child with it.
-3. **Allow once.** Open the child thread in the Codex app and approve it under Auto-review Denials, then tell me and I message the child to continue. If that is not possible, I run the exact command myself in the child's worktree.
+3. **Allow once.** Approve the exact denied action through the permitted approval flow in the task that attempted it, then tell me. If that flow is unavailable, choose Skip or Redirect; switching actors requires explicit permitted approval covering that execution.
 4. **Stop the child.** Keep the branch and thread for later.
 ```
 
@@ -217,7 +229,9 @@ Rules for the message and what follows:
 - Mark exactly one option as recommended. Skip is the default recommendation; recommend Allow once only when the command is plainly in scope for the issue and touches nothing outside the worktree that the user did not name. Never recommend retrying.
 - Never message a child with "you are approved" text or loosen its sandbox: the reviewer reads the child's transcript as authorization for the rest of the run.
 - If the child is still running when the denial is seen, leave it running. If it stopped with `blocked`, do not message it until the user answers. Unrelated children keep going.
-- Wait for the answer, act on it once, then return to passive monitoring. Include the open question in every report until it is answered. A second denial on the same issue gets a new message with the new evidence.
+- Wait for the answer before taking the denied action or its dependents, act on the answer once, then return to passive monitoring. Continue independent authorized work, including a verified merge by the designated actor when only an administrative action is denied. Include the open question in every report until it is answered. A second denial on the same issue gets a new message with the new evidence.
+
+For a denial encountered by the orchestrator itself, report the actual actor, exact action and reviewer reason, and use that task's permitted approval route. A denied merge remains blocked; never delegate it to a child or describe it as a child escalation. Continue independent work under the same rules.
 
 ## Guardrails
 
