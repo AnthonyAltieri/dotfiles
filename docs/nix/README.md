@@ -137,7 +137,7 @@ Today `personal.nix` and `work.nix` are intentionally thin. That is deliberate. 
 `modules/platforms/darwin/` owns the macOS-only policy, split by evaluation target:
 
 - `system/` holds the `nix-darwin` system modules: `homebrew.nix` (Homebrew packages and casks, plus work-only private taps and casks from ignored env state) and `defaults.nix` (macOS defaults like keyboard repeat settings).
-- `home/` holds the Home Manager modules that only apply to non-sandbox Darwin roles: `packages.nix`, `ghostty.nix`, and `pnpm.nix`.
+- `home/` holds the Home Manager modules that only apply to non-sandbox Darwin roles: `packages.nix`, `ghostty.nix`, `nvm.nix`, and `pnpm.nix`. The nvm activation provisions a missing default Node runtime after Homebrew installs nvm; an installed default is reused without upgrading it.
 
 `modules/platforms/linux/` owns the Linux-only package layer:
 
