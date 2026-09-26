@@ -167,6 +167,26 @@ Press **Esc** or **Ctrl+C** to cancel. Ctrl+T and Alt+C keep their existing bind
 Every profile already installs fzf. Shell startup skips the integration when fzf
 is unavailable, leaving the default history search in place.
 
+## Open Markdown in Obsidian
+
+Use `omd <file path>` in Zsh to open an existing file in Obsidian, including files
+outside a vault. Relative and absolute paths work; quote paths containing spaces:
+
+```zsh
+omd ./README.md
+omd "$HOME/Documents/My notes.md"
+```
+
+The command resolves the absolute path and calls `obsidian open "path=file:..."`,
+then brings Obsidian forward on macOS. Keep Obsidian running with **Settings →
+General → Command line interface** enabled. Files outside a vault require Obsidian
+1.14.2 or newer. The command uses `obsidian` from PATH, with the bundled macOS CLI
+as a fallback.
+
+After applying your profile, open a new terminal to load `omd`. To try it before
+applying, run `source home/.config/zsh/functions/omd.zsh` from this repository in
+your current Zsh session.
+
 ## Package strategy
 
 - **Darwin** uses Homebrew through `modules/platforms/darwin/system/homebrew.nix`.
