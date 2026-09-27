@@ -14,6 +14,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # gh only: 25.05 ships gh 2.72, which lacks `gh pr create/edit --attach` (used by the
+    # gh-manage-pr skill for PR screenshots). Everything else stays on the stable channel.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     # herdr builds against zig_0_15, which nixpkgs 25.05 does not ship, so it
     # deliberately keeps its own nixpkgs pin instead of following ours.
     herdr.url = "github:herdrdev/herdr/v0.8.2";
@@ -52,6 +56,7 @@
     forAllSystems = lib.genAttrs supportedSystems;
   in {
     overlays.default = final: prev: {
+      gh = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.gh;
       codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
