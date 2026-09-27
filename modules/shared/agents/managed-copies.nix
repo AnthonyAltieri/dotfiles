@@ -131,8 +131,11 @@ let
     }
   );
 
-  # Sources can be derivation outputs (for example, generated Claude settings).
-  # writeText retains those build dependencies until activation consumes them.
+  # Sources are repository paths or derivation outputs (for example, generated Claude
+  # settings). Interpolating each one gives the manifest a store dependency on it, so
+  # writeText keeps every source in the activation closure. `toString` on a repository
+  # path would only name a location inside the flake's source tree, which is absent
+  # when activating from a fresh checkout or worktree.
   currentManifestFile = pkgs.writeText "dotfiles-agent-managed-copies.tsv" (
     lib.concatStringsSep "\n" (
       map (
@@ -141,7 +144,7 @@ let
           entry.target
           entry.kind
           (if entry.executable then "1" else "0")
-          (toString entry.source)
+          "${entry.source}"
         ]
       ) agentManagedCopies
     )
