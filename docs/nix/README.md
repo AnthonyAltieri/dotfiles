@@ -298,6 +298,7 @@ bash tests/bootstrap-platform-smoke.sh
 bash tests/nvim-external-write-merge-smoke.sh
 bash tests/nvim-monorepo-routing-smoke.sh
 bash scripts/test-skill-helpers.sh
+bash tests/agent-managed-copies-closure-smoke.sh   # builds personal-linux; pass another config name to check it
 ```
 
 The Neovim checks expect the relevant lazy.nvim plugin checkouts to already exist under `~/.local/share/nvim/lazy`. `scripts/test-skill-helpers.sh` expects Rust and the helper crates' offline dependencies to be available.
