@@ -57,6 +57,9 @@
   in {
     overlays.default = final: prev: {
       gh = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.gh;
+      # nixpkgs 25.05 stops at PostgreSQL 17; the personal trading stack runs 18.
+      postgresql_18 =
+        inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.postgresql_18;
       codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
