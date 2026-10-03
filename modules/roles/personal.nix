@@ -1,4 +1,9 @@
+{ pkgs, ... }:
 {
+  # PostgreSQL 18 client tools match the personal trading stack's PostgreSQL 18 servers;
+  # pg_dump refuses to back up a newer server major.
+  home.packages = [ pkgs.postgresql_18 ];
+
   home.sessionVariables = {
     DOTFILES_PROFILE = "personal";
   };

@@ -4,7 +4,6 @@
     awscli2
     docker
     glow
-    postgresql
     ripgrep
   ];
 
