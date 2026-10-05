@@ -126,7 +126,7 @@ Use these placement rules:
 `modules/roles/` is where profile intent lives:
 
 - `common.nix` carries shared `personal`/`work` behavior, including Oh My Zsh enablement and shared CLI packages such as `docker` and `ripgrep`. PostgreSQL client tools are per profile: `personal.nix` installs `postgresql_18` to match the PostgreSQL 18 trading stack, and `work.nix` keeps the nixpkgs default `postgresql`.
-- `personal.nix` is the personal overlay.
+- `personal.nix` is the personal overlay. It also installs the Pulumi CLI (`pulumi-bin`).
 - `work.nix` is the work overlay.
 - `sandbox.nix` is intentionally separate and stays lean.
 
