@@ -42,6 +42,7 @@ from typing import Iterable
 
 DEFAULT_MODEL = "gpt-6.1-sol"
 DEFAULT_EFFORT = "xhigh"
+DEFAULT_SERVICE_TIER = "fast"
 THREAD_MISMATCH_EXIT = 3
 WORKER_STATUSES = ("pr-opened", "merged", "blocked", "failed")
 
@@ -366,8 +367,8 @@ def approval_overrides(network: bool) -> list[str]:
     ]
 
 
-def model_overrides(model: str, effort: str) -> list[str]:
-    return ["-m", model, "-c", f"model_reasoning_effort={effort}"]
+def model_overrides(model: str, effort: str, service_tier: str) -> list[str]:
+    return ["-m", model, "-c", f"model_reasoning_effort={effort}", "-c", f'service_tier="{service_tier}"']
 
 
 def run_turn(command: list[str], stdin_path: Path, worktree: Path, run_dir: Path, expected_thread: str | None) -> int:
@@ -456,7 +457,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     command = [
         "codex", "exec", "--json",
         "-C", str(worktree),
-        *model_overrides(args.model, args.effort),
+        *model_overrides(args.model, args.effort, args.service_tier),
         *approval_overrides(not args.no_network),
         "--thread-source", "subagent",
         "-",
@@ -481,7 +482,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
     shutil.copyfile(prompt, saved_prompt)
     command = [
         "codex", "exec", "resume", thread_id, "--json",
-        *model_overrides(args.model, args.effort),
+        *model_overrides(args.model, args.effort, args.service_tier),
         *approval_overrides(not args.no_network),
         "-",
     ]
@@ -555,6 +556,7 @@ def build_parser() -> argparse.ArgumentParser:
     def add_model(p: argparse.ArgumentParser) -> None:
         p.add_argument("--model", default=DEFAULT_MODEL)
         p.add_argument("--effort", default=DEFAULT_EFFORT)
+        p.add_argument("--service-tier", default=DEFAULT_SERVICE_TIER, help="Codex service tier; `fast` is fast mode")
         p.add_argument("--no-network", action="store_true", help="disable outbound network in the sandbox")
 
     start = sub.add_parser("start", help="launch the first turn and wait")
