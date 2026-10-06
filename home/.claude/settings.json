@@ -1,5 +1,5 @@
 {
-  "model": "fable",
+  "model": "opus",
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
   "enabledPlugins": {

@@ -6,7 +6,7 @@ the sidebar and tab bar. No custom notification hooks are needed for that.
 
 ## Codex implementation workers
 
-Managed settings use Fable for the Claude orchestration session and enable
+Managed settings default Claude sessions to Opus and enable
 OpenAI's `codex@openai-codex` plugin. On Darwin, the `codex-threads` MCP server
 adds persistent Codex App thread lifecycle controls. The Claude
 `spawn-orchestrator` skill combines them by keeping an isolated Claude agent
