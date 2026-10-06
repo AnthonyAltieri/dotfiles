@@ -39,6 +39,7 @@ done
 cat > "$TEST_CLOSURE/activate" <<'EOF'
 #!/bin/bash
 printf 'activate backup=%s\n' "${HOME_MANAGER_BACKUP_EXT:-unset}" >> "$TEST_LOG"
+printf 'activate nix-config=%s\n' "${NIX_CONFIG:-unset}" >> "$TEST_LOG"
 exit "${TEST_ACTIVATE_FAIL:-0}"
 EOF
 chmod +x "$TEST_CLOSURE/activate"
@@ -86,6 +87,13 @@ HOME_MANAGER_BACKUP_EXT=inherited run_bootstrap work --overwrite
 assert_contains "$TEST_LOG" '#homeConfigurations.work-linux-overwrite.activationPackage'
 assert_contains "$TEST_LOG" 'activate backup=unset'
 echo 'ok backup and overwrite activation policies'
+
+# Home Manager's installPackages step runs a bare `nix profile`, which fails on
+# a Debian Nix whose nix.conf does not enable nix-command.
+NIX_CONFIG='max-jobs = 2' run_bootstrap personal
+assert_contains "$TEST_LOG" 'activate nix-config=max-jobs = 2'
+assert_contains "$TEST_LOG" 'extra-experimental-features = nix-command flakes'
+echo 'ok activation enables the experimental Nix features it needs'
 
 run_bootstrap personal --diff --dry-run
 assert_contains "$TMP_DIR/output" 'No active Home Manager generation'

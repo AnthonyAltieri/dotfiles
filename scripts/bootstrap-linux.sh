@@ -100,12 +100,20 @@ bootstrap_linux() {
     return
   fi
 
+  # Activation's installPackages step runs a bare `nix profile`. Debian's Nix
+  # does not enable nix-command by default (nix-darwin does on macOS), so pass
+  # the features through NIX_CONFIG, keeping any settings the caller set.
+  local activation_nix_config="extra-experimental-features = $EXPERIMENTAL_FEATURES"
+  if [[ -n "${NIX_CONFIG:-}" ]]; then
+    activation_nix_config="$NIX_CONFIG"$'\n'"$activation_nix_config"
+  fi
+
   log "Applying Linux role: $ROLE"
   if (( OVERWRITE )); then
     log "Overwrite mode enabled. Managed files will be replaced without .hm-backup copies."
-    env -u HOME_MANAGER_BACKUP_EXT "$home_path/activate"
+    env -u HOME_MANAGER_BACKUP_EXT NIX_CONFIG="$activation_nix_config" "$home_path/activate"
   else
-    HOME_MANAGER_BACKUP_EXT=hm-backup "$home_path/activate"
+    HOME_MANAGER_BACKUP_EXT=hm-backup NIX_CONFIG="$activation_nix_config" "$home_path/activate"
   fi
   log "Done."
 }
