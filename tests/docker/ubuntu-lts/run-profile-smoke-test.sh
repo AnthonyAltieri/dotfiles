@@ -143,7 +143,7 @@ assert_jq '.agentManagedTargets | index(".codex/skills/linear-claim-work") != nu
 assert_jq '.agentManagedTargets | index(".codex/skills/test-audit") != null' "Expected shared Codex test-audit skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/settings.json") != null' "Expected Claude settings to be managed"
 assert_jq '.claudeSettings.enabledPlugins["codex@openai-codex"] == true' "Expected Codex plugin enabled in Claude settings"
-assert_jq '.claudeSettings.model == "fable"' "Expected Claude settings to keep the base model"
+assert_jq '.claudeSettings.model == "opus"' "Expected Claude settings to keep the base model"
 assert_jq '.agentManagedTargets | index(".claude/skills/adversarial-review") != null' "Expected Claude adversarial-review skill to be managed"
 assert_jq '.agentManagedTargets | index(".claude/skills/atlas") == null' "Did not expect Claude Atlas skill on Linux"
 assert_jq '.agentManagedTargets | index(".claude/skills/gh-address-comments") != null' "Expected shared Claude GitHub address-comments skill to be managed"
