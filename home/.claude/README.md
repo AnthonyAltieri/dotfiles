@@ -79,7 +79,7 @@ CLAUDE_CONFIG_DIR="$HOME/.claude-anthropic2" claude --resume
 `statusline-command.sh` renders two rows:
 
 ```
-dotfiles-e2 · Fable [ctx: 93%] in dotfiles on main
+dotfiles-e2 · Opus [ctx: 93%] in dotfiles on main
 PRs  #166  #165  #164  #163  #162
 ```
 

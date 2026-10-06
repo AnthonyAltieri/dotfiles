@@ -64,7 +64,7 @@ EOF_GH
 chmod +x "$WORK/bin/gh"
 
 input=$(cat <<JSON
-{"session_id":"this-session","cwd":"$WORK/cwd","model":{"display_name":"Fable"},
+{"session_id":"this-session","cwd":"$WORK/cwd","model":{"display_name":"Opus"},
  "context_window":{"remaining_percentage":42},
  "workspace":{"current_dir":"$WORK/cwd","repo":{"host":"github.com","owner":"me","name":"app"}}}
 JSON
@@ -76,7 +76,7 @@ run() { printf '%s' "$input" | PATH="$WORK/bin:$PATH" bash "$SCRIPT"; }
 out="$(run)"
 line1="$(sed -n 1p <<<"$out")"
 line2="$(sed -n 2p <<<"$out")"
-[[ "$line1" == "app-1a · Fable [ctx: 42%] in cwd" ]] \
+[[ "$line1" == "app-1a · Opus [ctx: 42%] in cwd" ]] \
   || fail "Expected the session name from the registry on line 1, got: $line1"
 g() { jq -rn "\"\\u$1\""; }
 pr=$(g f407) merged=$(g f419) closed=$(g f4dc) draft=$(g f4dd)
@@ -119,10 +119,10 @@ out="$(printf '%s' "$input" | PATH="$WORK/nogh-bin" bash "$SCRIPT")"
 # A session the registry does not know falls back to the stdin session_name,
 # then to the session id prefix.
 named=$(jq -c '.session_id = "unknown" | .session_name = "renamed"' <<<"$input")
-[[ "$(printf '%s' "$named" | PATH="$WORK/nogh-bin" bash "$SCRIPT")" == "renamed · Fable [ctx: 42%] in cwd" ]] \
+[[ "$(printf '%s' "$named" | PATH="$WORK/nogh-bin" bash "$SCRIPT")" == "renamed · Opus [ctx: 42%] in cwd" ]] \
   || fail "Expected the stdin session_name fallback"
 anon=$(jq -c '.session_id = "0123456789abcdef"' <<<"$input")
-[[ "$(printf '%s' "$anon" | PATH="$WORK/nogh-bin" bash "$SCRIPT")" == "01234567 · Fable [ctx: 42%] in cwd" ]] \
+[[ "$(printf '%s' "$anon" | PATH="$WORK/nogh-bin" bash "$SCRIPT")" == "01234567 · Opus [ctx: 42%] in cwd" ]] \
   || fail "Expected the session id prefix fallback"
 
 echo "Claude status line smoke test passed."
