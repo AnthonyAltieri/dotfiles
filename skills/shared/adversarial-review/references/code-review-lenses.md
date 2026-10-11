@@ -15,7 +15,7 @@ Assign different secondary lenses to reduce correlated blind spots. Every review
 3. **Type and boundary safety:** unsafe casts, unchecked deserialization, unvalidated JSON/env/config, missing exhaustiveness, primitive replacement of canonical domain types, runtime-only invariants that fit the type system.
 4. **Proportionality:** code that defends against threats outside the contract, hand-rolled low-level mechanics (raw descriptors, `dir_fd`, `fcntl`, manual atomicity) where a standard primitive suffices, and modules or tests whose size is out of proportion to the requirement. Report these as material when they create the surface that other findings live in.
 
-With two reviewers, pair lenses 1+4 and 2+3.
+At light tier, give the single reviewer the lenses relevant to the change. With two reviewers, pair lenses 1+4 and 2+3. At critical tier, keep distinct lenses mandatory and distribute them across any additional reviewers. Never reduce the selected tier's reviewer count to fit available capacity.
 
 ## Code-Specific Evidence
 
