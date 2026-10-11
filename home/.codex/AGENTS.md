@@ -13,9 +13,16 @@ These are user-level preferences that apply across repos.
    - resource owners, effect ordering, and locks/clocks/retries/cancellation when the change is stateful.
    Reviews are judged against this contract; anything outside it becomes follow-up work, not remediation.
 3. **Plan in `tasks/todo.md`**: for non-trivial work write checkable steps there and verify the plan before implementing. `tasks/todo.md` is per-task scratch and is not committed; it holds only the ticket in flight. If something goes sideways, stop and re-plan instead of pushing through.
-4. **Evidence lives on the PR and the ticket, not in commits**: verification results, review ledgers, and completion notes go in the PR description, PR comments, or Linear comments against the final reviewed SHA. Never add evidence-only or worklog-only commits. Do not commit `tasks/todo.md` churn.
+4. **Evidence lives on the PR, with a short ticket summary**: keep detailed verification results, review ledgers, research reports, and completion evidence in the PR description or comments against the final reviewed SHA. By default, Linear gets only a short outcome/status, PR link, reviewed or merged SHA, and any actionable blocker; link to detailed evidence instead of copying reports, raw logs, or local paths. Honor an explicit request for a fuller ticket report. Never add evidence-only or worklog-only commits. Do not commit `tasks/todo.md` churn.
 5. **Capture lessons as guardrails**: after a user correction, add one line to `tasks/lessons.md` under the matching section — the guardrail only, in the imperative, with the why in a clause. Prefer converting the lesson into a lint rule, fixture, shared helper, or regression test and linking it; delete prose once the guardrail is enforced by code. Read the sections of `tasks/lessons.md` relevant to the ticket at session start, not the whole file.
 6. **Verify cheaply, then expensively**: targeted lint/tests while editing; one full affected gate before review; targeted tests during remediation; one final full gate on the final head.
+
+## Delegated Work Defaults
+
+- Apply these evidence and completion defaults to subagents and separate worker tasks; include them in initial and resume briefs so workers receive them even without parent history. These defaults do not authorize external writes or merges beyond the user's request.
+- Before reporting completion, reopen or read back saved deliverables where applicable and preserve required outputs beyond temporary worktree cleanup. Include their recoverable paths or links in the handoff.
+- Track deliverable readiness separately from pending administrative actions. A blocked report copy or status update does not stop independent implementation, verification, or an already-authorized merge by its designated actor when all required gates pass. Report the completed work and the pending action separately; do not claim the latter succeeded.
+- After an approval denial, stop the denied action and anything that depends on it, preserve the exact action and reason, and follow the required user-decision path. Continue unaffected authorized work. Never retry a denied outcome through another actor, tool, destination, or reduced payload without the required approval.
 
 ## Definition of Done
 
