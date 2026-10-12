@@ -2,7 +2,9 @@
 # Claude Code status line.
 #
 # Line 1: <session name> · <model> [ctx: N%] in <dir> on <branch>
-# Line 2: PRs  #123  #124 …   (the user's most recent PRs in the cwd's repo)
+# Line 2: Run 4 running · 9 merged …   (only while a spawn-orchestrator run in
+#         this repo has a status file; see below)
+# Line 3: PRs  #123  #124 …   (the user's most recent PRs in the cwd's repo)
 #
 # The session name is the short peer-messaging name other local Claude
 # sessions use to address this one (what ListAgents / SendMessage show). It
@@ -42,7 +44,9 @@ jq_field() {
 
 file_age() {
     local mtime
-    mtime=$(stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null) || return 1
+    # GNU first: GNU `stat -f` reads file-system info and prints it even on
+    # failure, which would corrupt the BSD fallback's output.
+    mtime=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null) || return 1
     echo $(( $(date +%s) - mtime ))
 }
 
@@ -74,9 +78,11 @@ model=$(jq_field '.model.display_name')
 remaining=$(jq_field '.context_window.remaining_percentage')
 
 git_branch=""
+git_common_dir=""
 if [ -n "$cwd" ] && git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1; then
     git_branch=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null || echo "")
     [ -n "$git_branch" ] && git_branch=" on $git_branch"
+    git_common_dir=$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "")
 fi
 
 dir=$(basename "${cwd:-/}")
@@ -85,6 +91,23 @@ context=""
 
 printf '%s%s%s · %s%s in %s%s\n' \
     "$c_name" "$session_name" "$c_reset" "$model" "$context" "$dir" "$git_branch"
+
+# --- spawn-orchestrator run ---------------------------------------------------
+
+# The orchestrator rewrites this one-line file after each merge, blocker, or
+# dispatch and deletes it when its run settles. It lives in the git common dir
+# so every worktree of the repo sees it and it is never committed.
+run_file="${git_common_dir:+$git_common_dir/spawn-orchestrator-status}"
+if [ -n "$run_file" ] && [ -f "$run_file" ]; then
+    run_line=$(head -n 1 "$run_file" | tr -d '\033')
+    run_line=${run_line#Run: }
+    if [ -n "$run_line" ]; then
+        run_age=$(file_age "$run_file" 2>/dev/null || echo 0)
+        run_stale=""
+        [ "$run_age" -ge 1800 ] && run_stale=" ${c_dim}(stale $(( run_age / 60 ))m)${c_reset}"
+        printf '%sRun%s %s%s\n' "$c_dim" "$c_reset" "$run_line" "$run_stale"
+    fi
+fi
 
 # --- recent pull requests ----------------------------------------------------
 

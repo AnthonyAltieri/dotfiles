@@ -61,7 +61,7 @@ A frontend-only issue's worker is a background Claude subagent running Opus 5.5 
 
 ## Inputs and Defaults
 
-- **Work source:** a Linear epic/parent issue or an explicit issue list. Resolve children and relations through connected Linear tools.
+- **Work source:** a Linear epic/parent issue, an explicit issue list, or work agreed in this conversation ("for this work", "the remaining work", "1, 2 and 4"). Resolve children and relations through connected Linear tools. For conversation work without issues, file one Linear issue per independently mergeable change before dispatch: outcome, acceptance criteria, non-goals, owned paths, and blocked-by relations, plus links and screenshots of any design artifact the work implements. Use the team and project the conversation or recent issues in this repository use. Report the filed keys in the first status update.
 - **Base branch:** an explicitly named base, else the repository default. Workers merge into this branch. Fetch before spawning so every worktree starts from the current remote base; report a missing target branch.
 - **Completion:** invoking this skill authorizes spawned workers to mark their PRs ready, merge them into the base branch, and complete their issues after verification, without asking again per issue. Every brief includes the Merge Procedure below. Concurrency state never appears in a brief.
 - **Concurrency:** fully parallel. Fill the current dependency-ready frontier as described in Ready-Work Concurrency, bounded only by an explicit user limit, ownership conflicts, and concrete host or platform capacity. Count pending creation/worktree setup and workers in review, remediation, or merge queues as active. Codex workers share one account and one `~/.codex`; treat repeated rate-limit errors in `stderr.log` as a concrete capacity constraint.
@@ -92,6 +92,7 @@ Run fully parallel. Preserve any explicit user limit in run state; workers never
 Put the complete implementation contract inside each worker's brief file. The brief is the only communication the worker will receive, so it must be self-contained:
 
 - issue key, URL, intended outcome, acceptance criteria, constraints, and non-goals;
+- for UI work that implements a design artifact, the artifact links and screenshots, and this requirement: open the changed pages in a browser, compare them with the artifact side by side at the same viewport, fix every visible difference other than bugs the issue says to fix, and put the comparison screenshots in the PR description;
 - required verification and repository instructions, including any review the worker must run on its own PR (for example `$adversarial-review` when the user requested it); the worker spawns, reads, and closes those reviews itself;
 - owned paths and APIs, and any repository-declared exclusive resource the issue must not use (the orchestrator has already scheduled around it);
 - the Worker Autonomy block below, verbatim;
@@ -236,7 +237,20 @@ Reading events to judge progress is not a status ping, and these questions to th
 
 ## Report
 
-At meaningful completions or blocker changes, and at the end, return the epic and base branch plus a table of issue → worker model → thread or agent ID → branch → PR → status (with merge commit for `merged`). Include active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, blocked or parked work with resume conditions and run directories, any open Sandbox Denials or Stalled Work question, and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
+Keep the user informed without being asked:
+
+- After every verified merge, new blocker, or dispatch, post a status in exactly this shape, then continue:
+
+  ```text
+  Run: <n> running · <n> merged · <n> blocked · <n> queued
+  Idle capacity: <none | n slots, because <concrete reason>>
+  Next: <the next dispatch or what the run waits on>
+  ```
+
+- Mirror the first line into `$(git rev-parse --git-common-dir)/spawn-orchestrator-status`, replacing the file each time; the status line shows it. Delete the file when the run is settled.
+- Send a `PushNotification` when a worker is blocked or stalled, when a Sandbox Denials or Stalled Work question needs the user, and when the run is settled. Keep it to one sentence naming the issue and what is needed.
+
+At meaningful completions or blocker changes, and at the end, also return the epic and base branch plus a table of issue → worker model → thread or agent ID → branch → PR → status (with merge commit for `merged`). Include active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, blocked or parked work with resume conditions and run directories, any open Sandbox Denials or Stalled Work question, and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
 
 ## Composition
 
