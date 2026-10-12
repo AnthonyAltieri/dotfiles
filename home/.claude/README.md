@@ -20,6 +20,25 @@ interactive source, `vscode`, rather than `appServer`. In the Desktop they show
 up under chronological sort or search after the window regains focus; the
 by-project sidebar only groups threads the Desktop created itself.
 
+## Claude accounts
+
+Every account uses the single `~/.claude` home, so settings, skills, and
+history are shared and one account is signed in at a time. Switching applies to
+every terminal. Use the numbered helper to switch:
+
+```zsh
+cc-login 1 # primary account
+cc-login 2 # second account
+```
+
+Each number remembers the email it last signed in with, in
+`~/.local/state/cc-login/accounts.json`, and prefills it on the login page. On
+a first login, choose that account in the browser. For an account created with
+Apple sign-in and Hide My Email, use the `@privaterelay.appleid.com` address shown
+under Settings in Claude for iOS and choose **Continue with email**. If the
+browser picks the wrong account, open the authorization URL in a private window.
+Check who is signed in with `claude auth status --text`.
+
 ## Status line
 
 `statusline-command.sh` renders two rows:
