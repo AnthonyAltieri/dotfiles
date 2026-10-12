@@ -80,16 +80,11 @@ let
     agentSkillCopies ".codex" (skillSourceIn ../../../skills/shared) sharedSkillNames
     ++ agentSkillCopies ".codex" (skillSourceIn ../../../skills/codex) codexOnlySkillNames;
 
-  # Every Claude config directory gets the same skills, so each account's
-  # CLAUDE_CONFIG_DIR sees them. The first entry is the default ~/.claude.
   claudeSkillCopies =
     assert lib.assertMsg (lib.all (name: lib.elem name claudeOnlySkillNames) claudePersonalOverlayNames)
       "skills/claude-personal entries must overlay an existing skills/claude skill";
-    lib.concatMap (
-      configDir:
-      agentSkillCopies configDir (skillSourceIn ../../../skills/shared) sharedSkillNames
-      ++ agentSkillCopies configDir claudeSkillSource claudeOnlySkillNames
-    ) config.dotfiles.claudeConfigDirs;
+    agentSkillCopies ".claude" (skillSourceIn ../../../skills/shared) sharedSkillNames
+    ++ agentSkillCopies ".claude" claudeSkillSource claudeOnlySkillNames;
 
   sharedAgentManagedCopies =
     [
@@ -181,17 +176,6 @@ let
   );
 in
 {
-  options.dotfiles.claudeConfigDirs = lib.mkOption {
-    type = lib.types.listOf lib.types.str;
-    default = [ ".claude" ];
-    description = ''
-      Claude config directories, relative to the home directory, that receive
-      the managed Claude skills. Add one per extra account whose sessions run
-      with `CLAUDE_CONFIG_DIR` pointing at it. Extra directories also share the
-      first one's session history (see claude-shared-sessions.nix).
-    '';
-  };
-
   options.dotfiles.agentManagedCopies = lib.mkOption {
     type = manifestType;
     readOnly = true;
