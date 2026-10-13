@@ -8,10 +8,6 @@
     DOTFILES_PROFILE = "personal";
   };
 
-  # The second Claude account runs with CLAUDE_CONFIG_DIR=~/.claude-anthropic2.
-  # This is a profile label, independent of its login email or provider.
-  dotfiles.claudeConfigDirs = [ ".claude" ".claude-anthropic2" ];
-
   # Without these, auto mode blocks routine operations on the user's own hub
   # (restarts, stuck processes, scratch caches) and sessions hand the command
   # back for the user to run.
