@@ -125,7 +125,13 @@ Environment knobs: `CLAUDE_STATUSLINE_PR_LIMIT` (default 5),
 `CLAUDE_STATUSLINE_SYNC=1` to refresh in the foreground, `CLAUDE_STATUSLINE_LINKS=0`
 for plain numbers, `CLAUDE_STATUSLINE_ICONS=unicode`, and `NO_COLOR`.
 `tests/claude-statusline-smoke.sh` covers the registry lookup, every glyph in both
-sets, the hyperlinks, and the cache contract with a stubbed `gh`.
+sets, the hyperlinks, and the cache contract with a stubbed `gh`, and the run line.
+
+While a `spawn-orchestrator` run is active in the cwd's repository, a `Run` row
+above the PRs shows its progress (`4 running · 9 merged · 1 blocked · 3 queued`).
+The orchestrator writes that line to `spawn-orchestrator-status` in the git common
+dir, so every worktree of the repository sees it, and deletes the file when the
+run settles. A row older than 30 minutes is marked `(stale Nm)`.
 
 ## Session identity hook
 

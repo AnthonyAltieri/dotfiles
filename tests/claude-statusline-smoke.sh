@@ -4,7 +4,8 @@
 # Bugs this catches: the session name not being read from the registry file,
 # the wrong icon for a PR state, `gh` running on the synchronous path, a fresh
 # cache being refetched, a stale cache not being refreshed, and the status
-# line failing when `gh` is missing.
+# line failing when `gh` is missing, and a spawn-orchestrator run line missing
+# from the main checkout or a linked worktree.
 
 set -euo pipefail
 
@@ -124,5 +125,22 @@ named=$(jq -c '.session_id = "unknown" | .session_name = "renamed"' <<<"$input")
 anon=$(jq -c '.session_id = "0123456789abcdef"' <<<"$input")
 [[ "$(printf '%s' "$anon" | PATH="$WORK/nogh-bin" bash "$SCRIPT")" == "01234567 · Fable [ctx: 42%] in cwd" ]] \
   || fail "Expected the session id prefix fallback"
+
+# A spawn-orchestrator status file in the repo's git common dir appears as
+# its own line, from the main checkout and from a linked worktree alike.
+repo="$WORK/repo"
+git init -q "$repo"
+git -C "$repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
+git -C "$repo" worktree add -q "$WORK/wt" 2>/dev/null
+printf 'Run: 4 running · 9 merged · 1 blocked · 3 queued\n' > "$repo/.git/spawn-orchestrator-status"
+for dir in "$repo" "$WORK/wt"; do
+  in_repo=$(jq -c --arg d "$dir" '.cwd = $d | .workspace.current_dir = $d' <<<"$input")
+  out="$(printf '%s' "$in_repo" | PATH="$WORK/nogh-bin" bash "$SCRIPT" | sed -n 2p)"
+  [[ "$out" == "Run 4 running · 9 merged · 1 blocked · 3 queued" ]] \
+    || fail "Expected the orchestrator run line from $dir, got: $out"
+done
+rm "$repo/.git/spawn-orchestrator-status"
+[[ "$(printf '%s' "$in_repo" | PATH="$WORK/nogh-bin" bash "$SCRIPT" | wc -l | tr -d ' ')" == "1" ]] \
+  || fail "Expected no run line once the orchestrator deletes its status file"
 
 echo "Claude status line smoke test passed."

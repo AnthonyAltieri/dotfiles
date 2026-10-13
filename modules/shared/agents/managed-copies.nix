@@ -31,7 +31,8 @@ let
   # The skills tree is the source of truth for which agent gets a skill:
   # skills/shared deploys to both agents, skills/claude and skills/codex to
   # one. A name present in both skills/claude and skills/codex is a per-agent
-  # variant deployed under the same skill name. Adding a skill is mkdir +
+  # variant deployed under the same skill name. skills/claude-personal holds
+  # personal-role overlays for skills/claude entries (see claudeSkillSource). Adding a skill is mkdir +
   # commit; there is no name list here to keep in sync.
   skillNamesIn = dir:
     lib.attrNames (lib.filterAttrs (_name: kind: kind == "directory") (builtins.readDir dir));
@@ -49,23 +50,46 @@ let
     (!(lib.elem skillName workOnlySkillNames) || role == "work")
     && (!(lib.elem skillName darwinOnlySkillNames) || platform == "darwin");
 
-  agentSkillCopies = configDir: audienceDir: skillNames:
+  # skills/claude-personal/<name> overlays files onto skills/claude/<name> on
+  # the personal role only; files it omits (such as scripts) come from the base.
+  claudePersonalOverlayNames = skillNamesIn ../../../skills/claude-personal;
+
+  claudeSkillSource = skillName:
+    let
+      base = ../../../skills/claude + "/${skillName}";
+      overlay = ../../../skills/claude-personal + "/${skillName}";
+    in
+      if role == "personal" && lib.elem skillName claudePersonalOverlayNames then
+        pkgs.runCommand "claude-skill-${skillName}-personal" { } ''
+          cp -R ${base} $out
+          chmod -R u+w $out
+          cp -R ${overlay}/. $out/
+        ''
+      else
+        base;
+
+  agentSkillCopies = configDir: sourceFor: skillNames:
     map (
       skillName:
-      managedDirectory "${configDir}/skills/${skillName}" (audienceDir + "/${skillName}")
+      managedDirectory "${configDir}/skills/${skillName}" (sourceFor skillName)
     ) (lib.filter skillEnabled skillNames);
 
+  skillSourceIn = audienceDir: skillName: audienceDir + "/${skillName}";
+
   codexSkillCopies =
-    agentSkillCopies ".codex" ../../../skills/shared sharedSkillNames
-    ++ agentSkillCopies ".codex" ../../../skills/codex codexOnlySkillNames;
+    agentSkillCopies ".codex" (skillSourceIn ../../../skills/shared) sharedSkillNames
+    ++ agentSkillCopies ".codex" (skillSourceIn ../../../skills/codex) codexOnlySkillNames;
 
   # Every Claude config directory gets the same skills, so each account's
   # CLAUDE_CONFIG_DIR sees them. The first entry is the default ~/.claude.
-  claudeSkillCopies = lib.concatMap (
-    configDir:
-    agentSkillCopies configDir ../../../skills/shared sharedSkillNames
-    ++ agentSkillCopies configDir ../../../skills/claude claudeOnlySkillNames
-  ) config.dotfiles.claudeConfigDirs;
+  claudeSkillCopies =
+    assert lib.assertMsg (lib.all (name: lib.elem name claudeOnlySkillNames) claudePersonalOverlayNames)
+      "skills/claude-personal entries must overlay an existing skills/claude skill";
+    lib.concatMap (
+      configDir:
+      agentSkillCopies configDir (skillSourceIn ../../../skills/shared) sharedSkillNames
+      ++ agentSkillCopies configDir claudeSkillSource claudeOnlySkillNames
+    ) config.dotfiles.claudeConfigDirs;
 
   sharedAgentManagedCopies =
     [

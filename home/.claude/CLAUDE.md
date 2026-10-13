@@ -28,6 +28,7 @@ These are user-level preferences that apply across repos.
 - **Simplicity first**: make every change as simple as possible; minimize impact and code surface area.
 - **No laziness**: find root causes; no temporary fixes.
 - **Proportional hardening**: defend against the ticket's threat model, not every imaginable one. Root-causing a bug is mandatory; adopting a stronger threat model mid-ticket is a scope change that needs a decision.
+- **Run it yourself**: when a permission check blocks an in-scope command, ask one yes/no question naming the exact command (for example "Run `./scripts/cli.py stack up`? (y/n)") and run it yourself on yes. Do not paste `!` commands for me to run unless the command needs my interactive input, such as a login.
 
 ## Programming Defaults
 
