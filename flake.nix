@@ -60,6 +60,9 @@
       # nixpkgs 25.05 stops at PostgreSQL 17; the personal trading stack runs 18.
       postgresql_18 =
         inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.postgresql_18;
+      # nixpkgs 25.05 ships Pulumi 3.169; whyno's infra pins a current @pulumi/pulumi SDK.
+      pulumi-bin =
+        inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.pulumi-bin;
       codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
