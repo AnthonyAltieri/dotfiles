@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orchestrator status</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#2350B8}a:hover{color:#163A8C}
+</style>
+</helmet>
+<div style="min-height: 100%; background: #F4F5F2; color: #15171C; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; line-height: 1.45">
+<div style="max-width: 1232px; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.04em; color: #5A5F6B">ORCHESTRATOR · SESSION {{run.session}}</div>
+<h1 style="margin: 0; font-size: 30px; line-height: 1.15; font-weight: 600">{{run.run}} <span style="color: #5A5F6B; font-weight: 400">· <a href="{{run.epicUrl}}" style="color: inherit">{{run.epic}}</a> {{run.epicTitle}}</span></h1>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5A5F6B">{{run.repo}} → {{run.base}} · {{run.mode}} · tests {{run.tests}}</div>
+</div>
+<div style="text-align: right; font-size: 13px; color: #5A5F6B">
+<div style="font-weight: 600; color: #15171C">Updated {{run.updated}}</div>
+<div>Started {{run.started}} · {{run.elapsed}}</div>
+</div>
+</header>
+
+<sc-if value="{{hasNeeds}}" hint-placeholder-val="{{true}}">
+<section aria-labelledby="needs-h" style="background: #FFF7EE; border: 1px solid #E8B98A; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 id="needs-h" style="margin: 0; font-size: 15px; font-weight: 600; color: #8A3D05">Needs you · {{needsCount}}</h2>
+<sc-for list="{{needs}}" as="d" hint-placeholder-count="1">
+<div style="display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; align-items: start">
+<div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 16px; color: #8A3D05">{{d.n}}.</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div><span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600">{{d.key}}</span> · {{d.kind}} · open {{d.age}}{{d.exampleTag}}</div>
+<div>{{d.ask}}</div>
+<div style="color: #5A5F6B">Options: {{d.optionsText}} · Recommended: {{d.rec}}</div>
+</div>
+</div>
+</sc-for>
+</section>
+</sc-if>
+<sc-if value="{{noNeeds}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 8px; color: #1E6B4E; font-weight: 500">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"></path></svg>
+Nothing needs you.
+</div>
+</sc-if>
+
+<section aria-label="Run summary" style="background: #FFFFFF; border: 1px solid #D6D9D1; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{counts}}" as="c" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-size: 12px; color: #5A5F6B; font-weight: 500">{{c.label}}</div>
+<div style="{{c.style}}">{{c.value}}</div>
+</div>
+</sc-for>
+</div>
+<div style="height: 1px; background: #E6E8E2"></div>
+<dl style="margin: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 16px">
+<dt style="color: #5A5F6B">Idle capacity</dt>
+<dd style="margin: 0">{{run.idle}}</dd>
+<dt style="color: #5A5F6B">Next</dt>
+<dd style="margin: 0">{{run.next}}</dd>
+</dl>
+</section>
+
+<section aria-labelledby="issues-h" style="background: #FFFFFF; border: 1px solid #D6D9D1; border-radius: 8px; display: flex; flex-direction: column">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #E6E8E2">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
+<h2 id="issues-h" style="margin: 0; font-size: 15px; font-weight: 600">Issues</h2>
+<div role="group" aria-label="View" style="display: flex; padding: 3px; gap: 2px; background: #EEF0EC; border-radius: 8px">
+<sc-for list="{{views}}" as="v" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{v.pressed}}" onClick="{{v.pick}}" style="{{v.style}}">{{v.label}}</button>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{isTable}}" hint-placeholder-val="{{true}}">
+<div role="group" aria-label="Filter issues by state" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}}</button>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{isTimeline}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #5A5F6B">
+<sc-for list="{{legend}}" as="l" hint-placeholder-count="4">
+<span style="display: flex; align-items: center; gap: 6px"><span style="{{l.swatch}}"></span>{{l.label}}</span>
+</sc-for>
+</div>
+</sc-if>
+</div>
+
+<sc-if value="{{isTable}}" hint-placeholder-val="{{true}}">
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 900px; border-collapse: collapse; font-size: 13px">
+<thead>
+<tr style="text-align: left; color: #5A5F6B; font-size: 12px">
+<th scope="col" style="padding: 10px 20px; font-weight: 500">Issue</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 500">Title</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 500">State</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 500">Worker</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 500">Time</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 500">PR</th>
+<th scope="col" style="padding: 10px 20px; font-weight: 500">Merge / waits on</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{tableRows}}" as="r" hint-placeholder-count="20">
+<tr style="border-top: 1px solid #EDEEE9">
+<td style="padding: 9px 20px; font-family: 'IBM Plex Mono', monospace; white-space: nowrap"><a href="{{r.issueUrl}}">{{r.key}}</a></td>
+<td style="padding: 9px 12px">{{r.title}}</td>
+<td style="padding: 9px 12px; white-space: nowrap"><span style="{{r.chipStyle}}">{{r.stateLabel}}</span></td>
+<td style="padding: 9px 12px; color: #5A5F6B">{{r.model}}</td>
+<td style="padding: 9px 12px; font-family: 'IBM Plex Mono', monospace; white-space: nowrap">{{r.timeText}}</td>
+<td style="padding: 9px 12px; font-family: 'IBM Plex Mono', monospace; white-space: nowrap"><a href="{{r.prUrl}}">{{r.prText}}</a></td>
+<td style="padding: 9px 20px; font-family: 'IBM Plex Mono', monospace; color: #5A5F6B; white-space: nowrap">{{r.tail}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+
+<sc-if value="{{isLanes}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; padding: 16px 20px 20px">
+<sc-for list="{{lanes}}" as="lane" hint-placeholder-count="4">
+<section aria-label="{{lane.name}}" style="flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px; padding: 0 4px">
+<span style="{{lane.dot}}"></span>
+<h3 style="margin: 0; font-size: 14px; font-weight: 600">{{lane.name}}</h3>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #5A5F6B">{{lane.count}}</span>
+</div>
+<div style="{{lane.wellStyle}}">
+<sc-if value="{{lane.empty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 14px; font-size: 13px; color: #5A5F6B; text-align: center">{{lane.emptyText}}</div>
+</sc-if>
+<sc-for list="{{lane.cards}}" as="c" hint-placeholder-count="3">
+<article style="{{c.cardStyle}}">
+<button type="button" aria-expanded="{{c.expanded}}" onClick="{{c.toggle}}" style="all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box; padding: 12px 14px; min-height: 44px">
+<span style="display: flex; justify-content: space-between; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 12px">
+<span style="font-weight: 600">{{c.key}}</span>
+<span style="color: #5A5F6B">{{c.meta}}</span>
+</span>
+<span style="font-size: 14px">{{c.title}}</span>
+<sc-if value="{{c.hasAsk}}" hint-placeholder-val="{{false}}">
+<span style="font-size: 13px; color: #8A3D05">{{c.ask}}</span>
+</sc-if>
+</button>
+<sc-if value="{{c.open}}" hint-placeholder-val="{{false}}">
+<dl style="margin: 0; padding: 0 14px 12px; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 10px; font-size: 12px">
+<dt style="color: #5A5F6B">Worker</dt><dd style="margin: 0">{{c.model}}</dd>
+<dt style="color: #5A5F6B">PR</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace"><a href="{{c.prUrl}}">{{c.prText}}</a></dd>
+<dt style="color: #5A5F6B">Detail</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace">{{c.detail}}</dd>
+<dt style="color: #5A5F6B">Linear</dt><dd style="margin: 0"><a href="{{c.issueUrl}}">open issue</a></dd>
+</dl>
+</sc-if>
+</article>
+</sc-for>
+<sc-if value="{{lane.canMore}}" hint-placeholder-val="{{false}}">
+<button type="button" onClick="{{lane.more}}" style="min-height: 36px; border: 1px dashed #B9BDB4; background: transparent; border-radius: 6px; font: 500 13px 'IBM Plex Sans', sans-serif; color: #3B3F48; cursor: pointer">{{lane.moreLabel}}</button>
+</sc-if>
+</div>
+</section>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{isTimeline}}" hint-placeholder-val="{{false}}">
+<div style="padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 13px">
+<span style="font-weight: 600">Workers active</span>
+<span style="color: #5A5F6B">peak {{peak}} · now {{nowActive}} · per 10 min</span>
+</div>
+<div style="display: flex; align-items: flex-end; gap: 2px; height: 56px; border-bottom: 1px solid #D6D9D1; margin-left: 108px">
+<sc-for list="{{buckets}}" as="b" hint-placeholder-count="27">
+<div title="{{b.tip}}" style="{{b.style}}"></div>
+</sc-for>
+</div>
+</div>
+<div style="overflow-x: auto">
+<div style="min-width: 720px; display: flex; flex-direction: column; gap: 3px">
+<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px">
+<div></div>
+<div style="position: relative; height: 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #5A5F6B">
+<sc-for list="{{ticks}}" as="t" hint-placeholder-count="5"><span style="{{t.style}}">{{t.label}}</span></sc-for>
+</div>
+</div>
+<sc-for list="{{bars}}" as="r" hint-placeholder-count="20">
+<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center">
+<a href="{{r.issueUrl}}" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-align: right">{{r.key}}</a>
+<div title="{{r.tip}}" style="position: relative; height: 18px; background: #F4F5F2; border-radius: 3px">
+<span style="{{r.nowLine}}"></span>
+<span style="{{r.barStyle}}"></span>
+<span style="{{r.labelStyle}}">{{r.inlineLabel}}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"showExample":{"editor":"boolean","default":true},"$preview":{"width":1280,"height":1560}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { view: 'table', filter: 'all', open: null, allDone: false };
+  }
+  run() {
+    // RUN:BEGIN — the orchestrator replaces everything between these markers on each refresh.
+    return {
+      run: 'example-run', epic: 'ENG-100', epicTitle: 'Example epic', epicUrl: 'https://linear.app/example/issue/ENG-100',
+      repo: 'example/app', base: 'main', mode: 'automerge', tests: 'default', session: '00000000',
+      started: '09:00', now: '10:30', updated: '10:30 EDT', elapsed: '1h 30m',
+      idle: '1 slot: ENG-106 waits on ENG-104',
+      next: 'Verify ENG-104 when its worker reports, then dispatch ENG-106.',
+      issueUrlBase: 'https://linear.app/example/issue/', prUrlBase: 'https://github.com/example/app/pull/',
+      needs: [
+        { n: 1, key: 'ENG-105', kind: 'Sandbox denial', age: '4m', example: true, ask: 'Auto-review denied a network call the worker wanted for a manual check. The worker stopped and reported blocked.', rec: 'Skip it: the check is optional for this issue.', options: ['Skip it', 'Redirect', 'Allow once', 'Stop the worker'] }
+      ],
+      issues: [
+        { key: 'ENG-101', title: 'Example: domain types', state: 'merged', model: 'codex', start: '09:00', end: '09:20', pr: 11, merge: 'aaaaaaa' },
+        { key: 'ENG-102', title: 'Example: storage layer', state: 'merged', model: 'codex', start: '09:00', end: '09:45', pr: 12, merge: 'bbbbbbb' },
+        { key: 'ENG-103', title: 'Example: settings screen', state: 'merged', model: 'opus', start: '09:22', end: '10:05', pr: 13, merge: 'ccccccc' },
+        { key: 'ENG-104', title: 'Example: sync API', state: 'running', model: 'codex', start: '09:46', pr: 14 },
+        { key: 'ENG-105', title: 'Example: import job', state: 'blocked', model: 'codex', start: '10:06', end: '10:26', pr: 15 },
+        { key: 'ENG-106', title: 'Example: sync screen', state: 'queued', model: 'opus', waits: 'ENG-104' }
+      ]
+    };
+    // RUN:END
+  }
+  renderVals() {
+    var self = this, RUN = this.run();
+    var showExample = this.props.showExample ?? true;
+    var needs = RUN.needs.filter(function (d) { return showExample || !d.example; }).map(function (d) {
+      return Object.assign({}, d, { exampleTag: d.example ? ' · example' : '', optionsText: (d.options || []).join(' / ') });
+    });
+    var needBy = {};
+    needs.forEach(function (d) { needBy[d.key] = d; });
+    var mins = function (t) { var p = t.split(':'); return Number(p[0]) * 60 + Number(p[1]); };
+    var fmt = function (m) { var h = Math.floor(m / 60), r = m % 60; return h ? h + 'h ' + (r < 10 ? '0' : '') + r + 'm' : r + 'm'; };
+    var NOW = mins(RUN.now);
+    // state → [label, chip background, chip text, lane, solid color]
+    var S = {
+      running: ['running', '#E7EEFB', '#1D449E', 'running', '#2350B8'],
+      queued: ['queued', '#EEEFEC', '#4A4F59', 'queued', '#9AA0A9'],
+      blocked: ['blocked', '#FCEBDD', '#8A3D05', 'needs', '#B4530A'],
+      parked: ['parked', '#FCEBDD', '#8A3D05', 'needs', '#B4530A'],
+      'pr-opened': ['draft PR', '#E3F0E9', '#1E6B4E', 'done', '#1E6B4E'],
+      merged: ['merged', '#E3F0E9', '#1E6B4E', 'done', '#1E6B4E']
+    };
+    var issues = RUN.issues.map(function (i) {
+      var s = S[i.state] || S.queued;
+      var startMin = i.start ? mins(i.start) : null;
+      var endMin = i.end ? mins(i.end) : (i.start ? NOW : null);
+      var dur = i.start ? fmt(endMin - startMin) : '';
+      return Object.assign({}, i, {
+        s: s, startMin: startMin, endMin: endMin, dur: dur,
+        lane: needBy[i.key] ? 'needs' : s[3],
+        issueUrl: RUN.issueUrlBase + i.key,
+        prUrl: i.pr ? RUN.prUrlBase + i.pr : '',
+        prText: i.pr ? '#' + i.pr : '',
+        stateLabel: s[0]
+      });
+    });
+    var n = function (lane) { return issues.filter(function (i) { return i.lane === lane; }).length; };
+    var byState = function (st) { return issues.filter(function (i) { return i.state === st; }).length; };
+    var counts = [
+      { label: 'Running', value: byState('running'), color: '#2350B8' },
+      { label: 'Done', value: byState('merged') + byState('pr-opened'), color: '#1E6B4E' },
+      { label: 'Needs you', value: n('needs'), color: n('needs') ? '#B4530A' : '#9AA0A9' },
+      { label: 'Queued', value: byState('queued'), color: '#4A4F59' }
+    ].map(function (c) { return Object.assign(c, { style: 'font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; color: ' + c.color }); });
+
+    var pill = function (on) {
+      return 'min-height: 32px; padding: 4px 12px; border-radius: 16px; font: 500 13px/1 \'IBM Plex Sans\', sans-serif; cursor: pointer; ' + (on ? 'background: #15171C; color: #FFFFFF; border: 1px solid #15171C;' : 'background: #FFFFFF; color: #15171C; border: 1px solid #D6D9D1;');
+    };
+    var views = [['table', 'Table'], ['lanes', 'Lanes'], ['timeline', 'Timeline']].map(function (v) {
+      var on = self.state.view === v[0];
+      return {
+        label: v[1], pressed: on ? 'true' : 'false',
+        pick: function () { self.setState({ view: v[0] }); },
+        style: 'min-height: 32px; padding: 4px 14px; border: 0; border-radius: 6px; font: 500 13px/1 \'IBM Plex Sans\', sans-serif; cursor: pointer; ' + (on ? 'background: #FFFFFF; color: #15171C; box-shadow: 0 1px 2px rgba(21,23,28,0.12);' : 'background: transparent; color: #4A4F59;')
+      };
+    });
+
+    // Table
+    var rank = { needs: 0, running: 1, queued: 2, done: 3 };
+    var f = this.state.filter;
+    var filters = [['all', 'All', issues.length], ['needs', 'Needs you', n('needs')], ['running', 'Running', n('running')], ['queued', 'Queued', n('queued')], ['done', 'Done', n('done')]]
+      .filter(function (x) { return x[0] === 'all' || x[2] > 0; })
+      .map(function (x) { return { label: x[1] + ' ' + x[2], pressed: f === x[0] ? 'true' : 'false', style: pill(f === x[0]), pick: function () { self.setState({ filter: x[0] }); } }; });
+    var tableRows = issues.slice().sort(function (a, b) { return rank[a.lane] - rank[b.lane]; })
+      .filter(function (i) { return f === 'all' || i.lane === f; })
+      .map(function (i) {
+        return Object.assign({}, i, {
+          chipStyle: 'display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 500; background: ' + i.s[1] + '; color: ' + i.s[2],
+          timeText: i.state === 'running' ? i.dur + ' so far' : i.start ? i.dur : '—',
+          tail: i.state === 'merged' ? i.merge : i.waits ? 'waits on ' + i.waits : i.state === 'pr-opened' ? 'head ' + (i.head || '') : ''
+        });
+      });
+
+    // Lanes
+    var laneDefs = [
+      { id: 'needs', name: 'Needs you', color: '#B4530A', well: '#FBE9D8', emptyText: 'Nothing needs you.' },
+      { id: 'running', name: 'Running', color: '#2350B8', well: '#E2E8F3', emptyText: 'No workers running.' },
+      { id: 'queued', name: 'Queued', color: '#4A4F59', well: '#ECEDEA', emptyText: 'Nothing queued.' },
+      { id: 'done', name: 'Done', color: '#1E6B4E', well: '#E0EBE4', emptyText: 'Nothing done yet.' }
+    ];
+    var lanes = laneDefs.map(function (def) {
+      var items = issues.filter(function (i) { return i.lane === def.id; });
+      if (def.id === 'done') items = items.slice().sort(function (a, b) { return b.endMin - a.endMin; });
+      var limit = def.id === 'done' && !self.state.allDone ? 5 : items.length;
+      return {
+        name: def.name, count: items.length,
+        dot: 'width: 10px; height: 10px; border-radius: 50%; background: ' + def.color,
+        wellStyle: 'background: ' + def.well + '; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 8px; min-height: 72px',
+        empty: items.length === 0, emptyText: def.emptyText,
+        canMore: def.id === 'done' && items.length > 5,
+        moreLabel: self.state.allDone ? 'Show fewer' : 'Show all ' + items.length,
+        more: function () { self.setState({ allDone: !self.state.allDone }); },
+        cards: items.slice(0, limit).map(function (i) {
+          var open = self.state.open === i.key, need = needBy[i.key];
+          return {
+            key: i.key, title: i.title, model: i.model, issueUrl: i.issueUrl, prUrl: i.prUrl || i.issueUrl,
+            prText: i.pr ? '#' + i.pr : 'none yet',
+            meta: i.state === 'running' ? i.model + ' · ' + i.dur : i.lane === 'done' ? i.dur + ' · #' + i.pr : i.waits ? 'after ' + i.waits : i.stateLabel,
+            detail: i.state === 'merged' ? 'merge ' + i.merge : i.waits ? 'waits on ' + i.waits : i.start ? 'started ' + i.start : i.stateLabel,
+            hasAsk: !!need, ask: need ? need.n + '. ' + need.kind + ': recommended ' + need.options[0].toLowerCase() : '',
+            open: open, expanded: open ? 'true' : 'false',
+            toggle: function () { self.setState({ open: open ? null : i.key }); },
+            cardStyle: 'background: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 0 rgba(21,23,28,0.08); ' + (need ? 'outline: 1.5px solid #B4530A;' : '')
+          };
+        })
+      };
+    });
+
+    // Timeline
+    var started = issues.filter(function (i) { return i.start; });
+    var A0 = Math.floor(Math.min.apply(null, started.map(function (i) { return i.startMin; }).concat([NOW])) / 60) * 60;
+    var A1 = Math.ceil((NOW + 30) / 60) * 60;
+    var span = A1 - A0;
+    var pct = function (m) { return ((m - A0) / span * 100).toFixed(2) + '%'; };
+    var ticks = [];
+    for (var h = A0; h <= A1; h += 60) ticks.push({ label: Math.floor(h / 60) % 24 + ':00', style: 'position: absolute; left: ' + pct(h) + '; transform: translateX(-50%)' });
+    var tl = issues.slice().sort(function (a, b) { return (a.startMin == null ? 1e9 : a.startMin) - (b.startMin == null ? 1e9 : b.startMin); });
+    var bars = tl.map(function (i) {
+      var bar, label = '', labelStyle = 'display: none';
+      if (i.start == null) {
+        bar = 'position: absolute; top: 3px; bottom: 3px; left: ' + pct(NOW) + '; width: 5%; border: 1px dashed #4A4F59; border-radius: 3px; box-sizing: border-box';
+        label = i.waits ? 'after ' + i.waits : i.stateLabel;
+        labelStyle = 'position: absolute; top: 1px; left: calc(' + pct(NOW) + ' + 6%); font-size: 11px; color: #5A5F6B; white-space: nowrap';
+      } else {
+        var fill = i.lane === 'needs' ? 'background: #B4530A;' : i.state === 'running' ? 'background: #2350B8;' : 'background: #A9C6B7; box-shadow: inset 0 0 0 1px #1E6B4E;';
+        bar = 'position: absolute; top: 3px; bottom: 3px; left: ' + pct(i.startMin) + '; width: max(4px, calc(' + pct(i.endMin) + ' - ' + pct(i.startMin) + ')); border-radius: 3px; ' + fill;
+      }
+      return {
+        key: i.key, issueUrl: i.issueUrl, barStyle: bar, inlineLabel: label, labelStyle: labelStyle,
+        tip: i.key + ' · ' + i.title + (i.start ? ' · ' + i.start + '–' + (i.end || 'now') + ' · ' + i.dur : ''),
+        nowLine: 'position: absolute; top: 0; bottom: 0; left: ' + pct(NOW) + '; width: 1px; background: #B9BDB4'
+      };
+    });
+    var buckets = [], peak = 0;
+    for (var t = A0; t < A1; t += 10) {
+      var c = started.filter(function (i) { return i.startMin < t + 10 && i.endMin > t; }).length;
+      peak = Math.max(peak, c);
+      buckets.push({ t: t, c: c });
+    }
+    buckets = buckets.map(function (b) {
+      var future = b.t > NOW, hh = Math.floor(b.t / 60) % 24, mm = b.t % 60;
+      return {
+        tip: hh + ':' + (mm < 10 ? '0' : '') + mm + ' · ' + b.c + ' active',
+        style: 'flex: 1 1 0; height: ' + (future ? 2 : Math.max(2, b.c / Math.max(peak, 1) * 52)) + 'px; border-radius: 2px 2px 0 0; background: ' + (future ? '#E4E6E1' : b.c <= 1 ? '#C9B79F' : '#2350B8')
+      };
+    });
+    var legend = [['done', 'background: #A9C6B7; box-shadow: inset 0 0 0 1px #1E6B4E'], ['running', 'background: #2350B8'], ['queued', 'border: 1px dashed #4A4F59; box-sizing: border-box'], ['needs you', 'background: #B4530A']]
+      .map(function (l) { return { label: l[0], swatch: 'width: 14px; height: 8px; border-radius: 2px; ' + l[1] }; });
+
+    var v = this.state.view;
+    return {
+      run: RUN, needs: needs, needsCount: needs.length, hasNeeds: needs.length > 0, noNeeds: needs.length === 0,
+      counts: counts, views: views,
+      isTable: v === 'table', isLanes: v === 'lanes', isTimeline: v === 'timeline',
+      filters: filters, tableRows: tableRows, lanes: lanes,
+      ticks: ticks, bars: bars, buckets: buckets, peak: peak, nowActive: byState('running'), legend: legend
+    };
+  }
+}
+</script>
+</body>
+</html>
