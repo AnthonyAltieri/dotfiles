@@ -31,24 +31,9 @@ A canvas holds at most 40 pages. When adding this session's page would exceed th
 
 ## Write the Dashboard
 
-Copy `assets/status.dc.html` beside this skill to the artboard path on first publish. It renders the run header, a pinned "Needs you" panel, counts with the `Idle capacity` and `Next` lines, and the issues in three switchable views: Table, Lanes (kanban), and Timeline (with a workers-active chart). Its markup and logic are fixed. On every write, change only the object between `// RUN:BEGIN` and `// RUN:END`, and set the `showExample` default in `data-props` to `false`:
+Copy `assets/status.dc.html` beside this skill to the artboard path on first publish. It renders the run header, a pinned "Needs you" panel, counts with the `Idle capacity` and `Next` lines, and the issues in three switchable views: Table, Lanes (kanban), and Timeline (with a workers-active chart). Its markup and logic are fixed. On every write, change only the object between `// RUN:BEGIN` and `// RUN:END`, and set the `showExample` default in `data-props` to `false`. That object is the run's `~/.cache/spawn-orchestrator/<run-id>/run.json`, which `$spawn-orchestrator` keeps current and documents under Session Name and Run File: write `return <its JSON>;` between the markers. Fields the template does not use are ignored.
 
-```js
-return {
-  run, epic, epicTitle, epicUrl,          // run id; Linear epic key, title, URL
-  repo, base, mode, tests, session,       // owner/name; base branch; 'automerge' | 'draft PRs'; 'default' | '--min-tests'; session key
-  started, now, updated, elapsed,         // 'HH:MM' local 24h (past midnight write 24:10, 25:30); updated adds the zone
-  idle, next,                             // the orchestrator's last Idle capacity and Next lines, verbatim
-  issueUrlBase, prUrlBase,                // prefixes the issue key and PR number are appended to
-  needs: [{ n, key, kind, age, ask, rec, options: [] }],
-  issues: [{ key, title, state, model, start, end, pr, merge, waits }]
-};
-```
-
-- `needs`: every open Sandbox Denials or Stalled Work question and every blocked or parked issue, with its resume condition in `ask`. `kind` is `Sandbox denial`, `Stalled`, `Blocked`, or `Parked`; `options` lists the choices offered in chat, recommended first.
-- `issues`: one entry per issue the run owns. `state` is `running`, `queued`, `blocked`, `parked`, `pr-opened`, or `merged`. `model` is `codex` or `opus`. Omit `start` until dispatch and `end` until terminal. `merge` is the short merge SHA, set only for `merged`. `waits` names the blocking issue for queued work.
-
-Take each value from the run ledger (`~/.cache/spawn-orchestrator/<run id>/state.md`), `codex_worker.py status`, `gh pr view`, and Linear. Never fill a value from a worker's claim the orchestrator has not verified; show it as pending instead. Keep each "Needs you" item's number stable until it is answered, because the user replies by number.
+If `run.json` is missing or stale, refresh it first from the run ledger (`state.md`), `codex_worker.py status`, `gh pr view`, and Linear. Never fill a value from a worker's claim the orchestrator has not verified.
 
 ## Keep It Current
 
