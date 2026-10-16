@@ -38,13 +38,14 @@ SETTLED_VISIBLE_FOR = 12 * 3600
 
 ACTIVE_STATES = ("running", "queued")
 DONE_STATES = ("merged", "pr-opened")
-GROUP_ORDER = ("dead", "hung", "needs-you", "drift", "stalled", "no-ledger", "ok", "settled")
+GROUP_ORDER = ("dead", "hung", "needs-you", "drift", "stalled", "blocked", "no-ledger", "ok", "settled")
 GROUP_TITLES = {
     "dead": "DEAD",
     "hung": "HUNG",
     "needs-you": "NEEDS YOU",
     "drift": "DRIFT",
     "stalled": "STALLED",
+    "blocked": "BLOCKED",
     "no-ledger": "NO LEDGER",
     "ok": "OK",
     "settled": "DONE",
@@ -69,6 +70,7 @@ class Need:
     key: str
     kind: str
     opened_at: float | None
+    awaits: str = "user"  # user | external: only "user" needs make an orchestrator need-you
 
 
 @dataclass(frozen=True)
@@ -137,9 +139,10 @@ def classify(view: View, now: float) -> Health:
         return Health("dead", f"session gone · last update {age(now - (run.updated_at or now))} ago", alert=True)
     if session.busy and session.transcript_mtime is not None and now - session.transcript_mtime > HUNG_AFTER:
         return Health("hung", f"busy but silent for {age(now - session.transcript_mtime)}", alert=True)
-    if run.needs:
-        oldest = min((n.opened_at for n in run.needs if n.opened_at is not None), default=now)
-        kinds = ", ".join(f"{n.n}. {n.key} {n.kind.lower()}" for n in run.needs)
+    asks = [n for n in run.needs if n.awaits == "user"]
+    if asks:
+        oldest = min((n.opened_at for n in asks if n.opened_at is not None), default=now)
+        kinds = ", ".join(f"{n.n}. {n.key} {n.kind.lower()}" for n in asks)
         return Health("needs-you", f"{kinds} · open {age(now - oldest)} → answer in {view.name}", alert=now - oldest > NEEDS_ALERT_AFTER)
     drifted = [(key, at) for key, at in run.exited if now - at > DRIFT_AFTER]
     if drifted:
@@ -151,6 +154,10 @@ def classify(view: View, now: float) -> Health:
         quiet = "ever" if progress is None else age(now - progress)
         return Health("stalled", f"{count_line(run.counts)} · nothing moved for {quiet}", alert=True)
     moved = "never" if progress is None else f"{age(now - progress)} ago"
+    waiting = [n for n in run.needs if n.awaits != "user"]
+    if waiting:
+        kinds = ", ".join(f"{n.n}. {n.key} {n.kind.lower()}" for n in waiting)
+        return Health("blocked", f"{count_line(run.counts)} · {kinds} · not waiting on you · moved {moved}")
     return Health("ok", f"{count_line(run.counts)} · moved {moved}")
 
 
@@ -214,13 +221,27 @@ def parse_time(value: object) -> float | None:
     return None
 
 
+def awaits_of(need: dict) -> str:
+    """Who a need waits on. Older ledgers lack the field: Blocked means an external dependency, the rest are questions."""
+    awaits = need.get("awaits")
+    if awaits in ("user", "external"):
+        return str(awaits)
+    return "external" if str(need.get("kind")) == "Blocked" else "user"
+
+
 def parse_run(path: Path, data: dict, events_mtime: float | None, written_at: float | None = None, exited: dict[str, float] | None = None) -> Run:
     counts: dict[str, int] = {}
     for issue in data.get("issues", []):
         state = str(issue.get("state", "queued"))
         counts[state] = counts.get(state, 0) + 1
     needs = tuple(
-        Need(int(n.get("n", i + 1)), str(n.get("key", "?")), str(n.get("kind", "decision")), parse_time(n.get("openedAt")))
+        Need(
+            int(n.get("n", i + 1)),
+            str(n.get("key", "?")),
+            str(n.get("kind", "decision")),
+            parse_time(n.get("openedAt")),
+            awaits_of(n),
+        )
         for i, n in enumerate(data.get("needs", []))
     )
     return Run(

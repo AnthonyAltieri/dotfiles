@@ -39,6 +39,7 @@ TERMINAL = ("pr-opened", "merged")
 SETTLED_STATES = (*TERMINAL, "parked")
 PROGRESS_STATES = ("running", *TERMINAL)
 NEED_KINDS = ("Sandbox denial", "Stalled", "Blocked", "Parked")
+NEED_AWAITS = ("user", "external")
 HEADER_FIELDS = ("epic", "epicTitle", "epicUrl", "repo", "base", "mode", "tests", "issueUrlBase", "prUrlBase")
 
 Data = dict
@@ -121,12 +122,20 @@ def set_issue(data: Data, key: str, state: str, now: datetime, **fields: object)
     return data
 
 
-def add_need(data: Data, kind: str, key: str, ask: str, rec: str, options: list[str], now: datetime) -> tuple[Data, int]:
+def add_need(
+    data: Data, kind: str, key: str, ask: str, rec: str, options: list[str], now: datetime, awaits: str | None = None
+) -> tuple[Data, int]:
     if kind not in NEED_KINDS:
         raise UsageError(f"kind must be one of {', '.join(NEED_KINDS)}")
     needs = list(data.get("needs", []))
     n = max((int(d.get("n", 0)) for d in needs), default=0) + 1
-    needs.append({"n": n, "key": key, "kind": kind, "openedAt": iso(now), "ask": ask, "rec": rec, "options": options})
+    if awaits is None:
+        awaits = "external" if kind == "Blocked" else "user"
+    if awaits not in NEED_AWAITS:
+        raise UsageError(f"awaits must be one of {', '.join(NEED_AWAITS)}")
+    needs.append(
+        {"n": n, "key": key, "kind": kind, "awaits": awaits, "openedAt": iso(now), "ask": ask, "rec": rec, "options": options}
+    )
     return {**data, "needs": needs}, n
 
 
@@ -250,7 +259,7 @@ def cmd_need(args: argparse.Namespace, run_dir: Path, now: datetime) -> str:
         opened: list[int] = []
 
         def change(d: Data) -> Data:
-            d, n = add_need(d, args.kind, args.key, args.ask, args.rec, args.option, now)
+            d, n = add_need(d, args.kind, args.key, args.ask, args.rec, args.option, now, args.awaits)
             opened.append(n)
             return d
 
@@ -299,6 +308,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("action", choices=("add", "close"))
     p.add_argument("n", nargs="?", type=int, help="need number (close)")
     p.add_argument("--kind", choices=NEED_KINDS)
+    p.add_argument(
+        "--awaits",
+        choices=NEED_AWAITS,
+        help="who must act: user (shows as NEEDS YOU) or external (BLOCKED); default external for Blocked, else user",
+    )
     p.add_argument("--key")
     p.add_argument("--ask", help="the question and its resume condition")
     p.add_argument("--rec", help="the recommendation")

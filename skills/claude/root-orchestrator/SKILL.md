@@ -41,7 +41,7 @@ OK
   trading-portfolio  portfolio-v1  ▶1 ✓47 ◻3 · moved 0m ago
 ```
 
-Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, DRIFT, STALLED, NO LEDGER, OK, DONE. Post it every fire, even when nothing changed; add commentary only about changes since the last summary. When the user asks for the table, run `python3 fleet.py snapshot --format table` and post its markdown table.
+Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, DRIFT, STALLED, BLOCKED, NO LEDGER, OK, DONE. Post it every fire, even when nothing changed; add commentary only about changes since the last summary. When the user asks for the table, run `python3 fleet.py snapshot --format table` and post its markdown table.
 
 ## Health
 
@@ -52,9 +52,10 @@ Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, DRIF
 | `settled` | `run.json` says the run is settled |
 | `dead` | the session is gone or its process exited, run not settled |
 | `hung` | the session shows busy, but its transcript has been silent for 20 minutes |
-| `needs-you` | the orchestrator has open decisions; alerts once the oldest is 30 minutes old |
+| `needs-you` | the orchestrator has open decisions that wait on the user (`awaits: user`, the default for every kind except `Blocked`); alerts once the oldest is 30 minutes old |
 | `drift` | `run.json` still says an issue is running 20 minutes after its Codex worker exited |
 | `stalled` | running or queued work, nothing has moved for 20 minutes, and no open decision explains it |
+| `blocked` | open needs exist but none waits on the user (`awaits: external`, the default for `Blocked`); informational, never an alert |
 | `ok` | otherwise |
 
 Progress is the newest of the orchestrator's `lastProgressAt`, `updatedAt` (or the file's write time, if later), any Codex worker's `events.jsonl`, and any Opus subagent transcript of that session.
