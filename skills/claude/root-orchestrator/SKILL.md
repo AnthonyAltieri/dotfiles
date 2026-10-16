@@ -19,7 +19,7 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 
 - By default the fleet is every orchestrator whose `run.json` names this repository (`repoPath`), plus runs settled within the last 12 hours.
 - When the user names sessions ("watch trading-research, trading-ui and trading-worker"), pass them with `--sessions`; a named session with no `run.json` shows as `no-ledger`.
-- An orchestrator appears only after it writes `run.json`. A session started before that requirement shows as `no-ledger` until its next report.
+- An orchestrator appears only after its `run_state.py init`. A session started before that requirement shows as `no-ledger` until it runs `$spawn-orchestrator` again.
 
 ## Start
 
@@ -41,7 +41,7 @@ OK
   trading-portfolio  portfolio-v1  ▶1 ✓47 ◻3 · moved 0m ago
 ```
 
-Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, STALLED, NO LEDGER, OK, DONE. Post it every fire, even when nothing changed; add commentary only about changes since the last summary. When the user asks for the table, run `python3 fleet.py snapshot --format table` and post its markdown table.
+Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, DRIFT, STALLED, NO LEDGER, OK, DONE. Post it every fire, even when nothing changed; add commentary only about changes since the last summary. When the user asks for the table, run `python3 fleet.py snapshot --format table` and post its markdown table.
 
 ## Health
 
@@ -53,10 +53,11 @@ Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, STAL
 | `dead` | the session is gone or its process exited, run not settled |
 | `hung` | the session shows busy, but its transcript has been silent for 20 minutes |
 | `needs-you` | the orchestrator has open decisions; alerts once the oldest is 30 minutes old |
+| `drift` | `run.json` still says an issue is running 20 minutes after its Codex worker exited |
 | `stalled` | running or queued work, nothing has moved for 20 minutes, and no open decision explains it |
 | `ok` | otherwise |
 
-Progress is the newest of the orchestrator's `lastProgressAt` and `updatedAt`, any Codex worker's `events.jsonl`, and any Opus subagent transcript of that session.
+Progress is the newest of the orchestrator's `lastProgressAt`, `updatedAt` (or the file's write time, if later), any Codex worker's `events.jsonl`, and any Opus subagent transcript of that session.
 
 ## Act on a Monitor Event
 
@@ -64,6 +65,7 @@ Each Monitor line is one health change. Post it at once, in one line, then:
 
 - **needs-you:** list the open decisions with their numbers and the recommendation from the orchestrator's page or report, and say which session to answer in. Answers must be given in that session: a message from this root carries no user authority there.
 - **stalled:** read the orchestrator's `state.md`, run directory, and page, then tell the user what is stuck and offer options with a recommendation, as `$spawn-orchestrator` does for a stalled worker. Message the orchestrator only with evidence it may lack (below).
+- **drift:** the orchestrator has not recorded what its worker finished. Message it once with the issue and exit time from `fleet.py` and ask it to verify the result and record it with `run_state.py`; say so in the next summary. Do not message it again for the same issue.
 - **hung:** report it with the silent duration. Do not message a hung session; the user decides whether to interrupt it.
 - **dead:** report the last update, the run directory, and the resume command `claude --resume <name>`.
 - **ok / settled:** post the change only.
@@ -72,11 +74,12 @@ Never resume, interrupt, rename, or restart another session yourself.
 
 ## Messages to Orchestrators
 
-Use `SendMessage` only to give an orchestrator a fact it cannot see from its own run, and say what to verify:
+Use `SendMessage` only to give an orchestrator a fact it cannot see from its own run or has missed, and say what to verify:
 
 - another orchestrator owns or is changing the same files or API;
 - an issue it is waiting on was merged by another orchestrator;
-- a shared resource (an exclusive test database, ports, the merge queue, disk) is contended by another orchestrator.
+- a shared resource (an exclusive test database, ports, the merge queue, disk) is contended by another orchestrator;
+- one of its Codex workers exited 20 minutes ago and its `run.json` still says running (drift).
 
 Write one short message with the evidence and the source (`trading-portfolio's run.json`, PR link, commit). Never ask an orchestrator for status, never relay the user's answers or approvals, and never tell it what to dispatch. It verifies the fact and decides itself.
 

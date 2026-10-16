@@ -40,6 +40,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+import run_state
+
 DEFAULT_MODEL = "gpt-6.1-sol"
 DEFAULT_EFFORT = "xhigh"
 DEFAULT_SERVICE_TIER = "fast"
@@ -441,6 +443,14 @@ def format_status(status: Status, run_dir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
+def record_dispatch(run_dir: Path) -> None:
+    """Mark the issue running in the run's run.json; never blocks the worker."""
+    try:
+        run_state.mark_running(run_dir.parent, run_dir.name, "codex")
+    except Exception as exc:
+        print(f"run.json not updated: {exc}", file=sys.stderr)
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     run_dir = Path(args.run_dir).expanduser().resolve()
     worktree = Path(args.worktree).expanduser().resolve()
@@ -462,6 +472,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "--thread-source", "subagent",
         "-",
     ]
+    record_dispatch(run_dir)
     return run_turn(command, paths["brief"], worktree, run_dir, expected_thread=None)
 
 
@@ -486,6 +497,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
         *approval_overrides(not args.no_network),
         "-",
     ]
+    record_dispatch(run_dir)
     return run_turn(command, saved_prompt, Path(worktree_text), run_dir, expected_thread=thread_id)
 
 

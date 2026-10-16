@@ -44,6 +44,12 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(fleet.classify(view(r, session(subagent_mtime=NOW - 60 * MIN)), NOW).state, "stalled")
         self.assertEqual(fleet.classify(view(r, session(subagent_mtime=NOW - 2 * MIN)), NOW).state, "ok")
 
+    def test_running_issue_whose_worker_exited_twenty_minutes_ago_is_drift(self):
+        recent = run(exited=(("AAL-1", NOW - 5 * MIN),))
+        old = run(exited=(("AAL-1", NOW - 25 * MIN),))
+        self.assertEqual(fleet.classify(view(recent, session()), NOW).state, "ok")
+        self.assertEqual(fleet.classify(view(old, session()), NOW).state, "drift")
+
     def test_settled_run_whose_session_closed_is_not_dead(self):
         r = run(settled=True, counts={"merged": 3})
         self.assertEqual(fleet.classify(view(r, None), NOW).state, "settled")
@@ -73,6 +79,11 @@ class LoadTests(unittest.TestCase):
                 fleet.RUNS_DIR = original
         self.assertEqual(list(runs), ["trading-ui"])
         self.assertEqual(len(warnings), 1)
+
+    def test_rewrite_with_stale_hand_written_updated_at_counts_as_fresh(self):
+        stale = {"run": "r", "sessionName": "trading-ui", "updatedAt": "2026-01-01T00:00:00Z", "issues": []}
+        parsed = fleet.parse_run(Path("r/run.json"), stale, None, written_at=NOW)
+        self.assertEqual(parsed.updated_at, NOW)
 
 
 if __name__ == "__main__":
