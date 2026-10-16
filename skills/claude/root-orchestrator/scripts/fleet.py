@@ -9,7 +9,7 @@ Sources, all written by the user's own Claude Code sessions:
 
 Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
-  snapshot  render the fleet as health groups, a table, or JSON
+  snapshot  render the fleet as a markdown table or JSON
   watch     print one line per health change, forever
 """
 
@@ -40,15 +40,17 @@ ACTIVE_STATES = ("running", "queued")
 DONE_STATES = ("merged", "pr-opened")
 GROUP_ORDER = ("dead", "hung", "needs-you", "drift", "stalled", "no-ledger", "ok", "settled")
 GROUP_TITLES = {
-    "dead": "DEAD",
-    "hung": "HUNG",
-    "needs-you": "NEEDS YOU",
-    "drift": "DRIFT",
-    "stalled": "STALLED",
-    "no-ledger": "NO LEDGER",
-    "ok": "OK",
-    "settled": "DONE",
+    "dead": "dead",
+    "hung": "hung",
+    "needs-you": "needs you",
+    "drift": "drift",
+    "stalled": "stalled",
+    "no-ledger": "no ledger",
+    "ok": "ok",
+    "settled": "done",
 }
+# Kinds older run.json files used for work waiting on something other than the user's answer.
+LEGACY_BLOCKER_KINDS = ("Blocked",)
 
 
 @dataclass(frozen=True)
@@ -116,31 +118,20 @@ def latest(*stamps: float | None) -> float | None:
     return max(present) if present else None
 
 
-def count_line(counts: dict[str, int]) -> str:
-    done = sum(counts.get(s, 0) for s in DONE_STATES)
-    blocked = counts.get("blocked", 0) + counts.get("parked", 0)
-    parts = [f"▶{counts.get('running', 0)}", f"✓{done}"]
-    if blocked:
-        parts.append(f"⚠{blocked}")
-    if counts.get("queued", 0):
-        parts.append(f"◻{counts['queued']}")
-    return " ".join(parts)
-
-
 def classify(view: View, now: float) -> Health:
     run, session = view.run, view.session
     if run is None:
         return Health("no-ledger", "no run.json names this session")
     if run.settled:
-        return Health("settled", f"{count_line(run.counts)} · settled {age(now - (run.updated_at or now))} ago")
+        return Health("settled", f"settled {age(now - (run.updated_at or now))} ago")
     if session is None or not session.alive:
         return Health("dead", f"session gone · last update {age(now - (run.updated_at or now))} ago", alert=True)
     if session.busy and session.transcript_mtime is not None and now - session.transcript_mtime > HUNG_AFTER:
         return Health("hung", f"busy but silent for {age(now - session.transcript_mtime)}", alert=True)
     if run.needs:
         oldest = min((n.opened_at for n in run.needs if n.opened_at is not None), default=now)
-        kinds = ", ".join(f"{n.n}. {n.key} {n.kind.lower()}" for n in run.needs)
-        return Health("needs-you", f"{kinds} · open {age(now - oldest)} → answer in {view.name}", alert=now - oldest > NEEDS_ALERT_AFTER)
+        asks = ", ".join(f"{n.n}. {n.key} {n.kind.lower()}" for n in run.needs)
+        return Health("needs-you", f"answer in {view.name}: {asks} · open {age(now - oldest)}", alert=now - oldest > NEEDS_ALERT_AFTER)
     drifted = [(key, at) for key, at in run.exited if now - at > DRIFT_AFTER]
     if drifted:
         keys = ", ".join(f"{key} exited {age(now - at)} ago" for key, at in drifted)
@@ -149,9 +140,9 @@ def classify(view: View, now: float) -> Health:
     active = sum(run.counts.get(s, 0) for s in ACTIVE_STATES)
     if active and (progress is None or now - progress > STALL_AFTER):
         quiet = "ever" if progress is None else age(now - progress)
-        return Health("stalled", f"{count_line(run.counts)} · nothing moved for {quiet}", alert=True)
+        return Health("stalled", f"nothing moved for {quiet}", alert=True)
     moved = "never" if progress is None else f"{age(now - progress)} ago"
-    return Health("ok", f"{count_line(run.counts)} · moved {moved}")
+    return Health("ok", f"moved {moved}")
 
 
 def transitions(previous: dict[str, Health], current: dict[str, Health]) -> list[str]:
@@ -167,39 +158,30 @@ def transitions(previous: dict[str, Health], current: dict[str, Health]) -> list
     return lines
 
 
-def render_groups(views: list[View], now: float, title: str) -> str:
-    rated = [(v, classify(v, now)) for v in views]
-    out = [f"{datetime.fromtimestamp(now).strftime('%H:%M')} · {title} · {len(views)} orchestrators"]
-    width = max((len(v.name) for v in views), default=0)
-    run_width = max((len(v.run.run_id) for v in views if v.run), default=1)
-    for state in GROUP_ORDER:
-        members = [(v, h) for v, h in rated if h.state == state]
-        if not members:
-            continue
-        out.append(GROUP_TITLES[state])
-        for v, h in members:
-            run_id = v.run.run_id if v.run else "—"
-            out.append(f"  {v.name:<{width}}  {run_id:<{run_width}}  {h.detail}")
-    return "\n".join(out)
-
-
-def render_table(views: list[View], now: float) -> str:
+def render_table(views: list[View], now: float, title: str) -> str:
+    """The fleet summary: one row per orchestrator, most urgent first."""
+    rated = sorted(((v, classify(v, now)) for v in views), key=lambda vh: (GROUP_ORDER.index(vh[1].state), vh[0].name))
     out = [
-        "| Orchestrator | Run | ▶ run | ✓ done | ⚠ you | ◻ queued | Last progress | Health |",
-        "|---|---|---|---|---|---|---|---|",
+        f"**{datetime.fromtimestamp(now).strftime('%H:%M')} · {title} · {len(views)} orchestrators**",
+        "",
+        "| Health | Orchestrator | Run | Running | Done | Blocked | Queued | Needs you | Note |",
+        "|---|---|---|--:|--:|--:|--:|--:|---|",
     ]
-    for v in views:
-        h = classify(v, now)
+    for v, h in rated:
+        health = f"**{GROUP_TITLES[h.state]}**" if h.alert else GROUP_TITLES[h.state]
         if v.run is None:
-            out.append(f"| {v.name} | — | ? | ? | ? | ? | — | {h.state} |")
-            continue
-        c = v.run.counts
-        progress = latest(v.run.last_progress_at, v.run.updated_at, v.run.events_mtime, v.session.subagent_mtime if v.session else None)
-        out.append(
-            f"| {v.name} | {v.run.run_id} | {c.get('running', 0)} | {sum(c.get(s, 0) for s in DONE_STATES)} "
-            f"| {max(len(v.run.needs), c.get('blocked', 0) + c.get('parked', 0))} | {c.get('queued', 0)} | {age(now - progress) if progress else '—'} "
-            f"| {'**' + h.state + '**' if h.alert else h.state} |"
-        )
+            cells = ["—"] * 6
+        else:
+            c = v.run.counts
+            tallies = (
+                c.get("running", 0),
+                sum(c.get(s, 0) for s in DONE_STATES),
+                c.get("blocked", 0) + c.get("parked", 0),
+                c.get("queued", 0),
+                len(v.run.needs),
+            )
+            cells = [v.run.run_id, *map(str, tallies)]
+        out.append("| " + " | ".join([health, v.name, *cells, h.detail.replace("|", "/")]) + " |")
     return "\n".join(out)
 
 
@@ -222,6 +204,7 @@ def parse_run(path: Path, data: dict, events_mtime: float | None, written_at: fl
     needs = tuple(
         Need(int(n.get("n", i + 1)), str(n.get("key", "?")), str(n.get("kind", "decision")), parse_time(n.get("openedAt")))
         for i, n in enumerate(data.get("needs", []))
+        if n.get("kind") not in LEGACY_BLOCKER_KINDS
     )
     return Run(
         run_id=str(data.get("run") or path.parent.name),
@@ -368,10 +351,8 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     views = collect(repo, args.sessions, now, warnings)
     if args.format == "json":
         print(json.dumps([{"name": v.name, "run": v.run.run_id if v.run else None, **classify(v, now).__dict__} for v in views], indent=2))
-    elif args.format == "table":
-        print(render_table(views, now))
     else:
-        print(render_groups(views, now, Path(repo).name))
+        print(render_table(views, now, Path(repo).name))
     for w in warnings:
         print(f"warning: {w}", file=sys.stderr)
     return 0
@@ -414,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--repo", help="repository the orchestrators work on (default: this checkout)")
         p.add_argument("--sessions", nargs="*", default=[], help="explicit orchestrator session names")
         p.set_defaults(func=func)
-    sub.choices["snapshot"].add_argument("--format", choices=("groups", "table", "json"), default="groups")
+    sub.choices["snapshot"].add_argument("--format", choices=("table", "json"), default="table")
     sub.choices["watch"].add_argument("--interval", type=int, default=60)
     args = parser.parse_args(argv)
     return args.func(args)

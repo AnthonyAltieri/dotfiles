@@ -80,6 +80,13 @@ class LoadTests(unittest.TestCase):
         self.assertEqual(list(runs), ["trading-ui"])
         self.assertEqual(len(warnings), 1)
 
+    def test_legacy_blocked_need_does_not_count_as_needing_the_user(self):
+        legacy = {"run": "r", "sessionName": "trading-ui", "issues": [], "needs": [
+            {"n": 1, "key": "AAL-1", "kind": "Blocked", "ask": "waits on a vendor"},
+            {"n": 2, "key": "AAL-2", "kind": "Parked", "ask": "which rule?", "options": ["a", "b"]},
+        ]}
+        self.assertEqual([n.key for n in fleet.parse_run(Path("r/run.json"), legacy, None).needs], ["AAL-2"])
+
     def test_rewrite_with_stale_hand_written_updated_at_counts_as_fresh(self):
         stale = {"run": "r", "sessionName": "trading-ui", "updatedAt": "2026-01-01T00:00:00Z", "issues": []}
         parsed = fleet.parse_run(Path("r/run.json"), stale, None, written_at=NOW)

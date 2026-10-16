@@ -8,6 +8,7 @@ from pathlib import Path
 
 import run_state as rs
 
+CHOICES = ["Skip it", "Stop the worker"]
 START = datetime(2026, 10, 15, 22, 0).astimezone()
 
 
@@ -42,14 +43,21 @@ class IssueTests(unittest.TestCase):
 
 class NeedTests(unittest.TestCase):
     def test_numbers_stay_stable_and_closing_counts_as_progress(self):
-        data, first = rs.add_need(fresh(), "Blocked", "Q-1", "ask", "rec", [], at(1))
-        data, second = rs.add_need(data, "Stalled", "Q-2", "ask", "rec", [], at(2))
+        data, first = rs.add_need(fresh(), "Decision", "Q-1", "ask", "rec", CHOICES, at(1))
+        data, second = rs.add_need(data, "Stalled", "Q-2", "ask", "rec", CHOICES, at(2))
         data = rs.close_need(data, first, at(40))
-        data, third = rs.add_need(data, "Parked", "Q-3", "ask", "rec", [], at(41))
+        data, third = rs.add_need(data, "Sandbox denial", "Q-3", "ask", "rec", CHOICES, at(41))
         out = rs.render(data, at(42))
         self.assertEqual([n["n"] for n in out["needs"]], [second, third])
         self.assertEqual(out["needs"][0]["age"], "40m")
         self.assertEqual(rs.parse(out["lastProgressAt"]), at(40))
+
+
+    def test_waiting_on_something_other_than_an_answer_is_not_a_need(self):
+        with self.assertRaises(rs.UsageError):
+            rs.add_need(fresh(), "Decision", "Q-1", "waits on the SSH rule", "rec", [], at(1))
+        out = rs.render(rs.set_issue(fresh(), "Q-1", "blocked", at(1), waits="the tailnet SSH rule"), at(2))
+        self.assertEqual((out["issues"][0]["waits"], out["needs"]), ("the tailnet SSH rule", []))
 
 
 class DispatchHookTests(unittest.TestCase):
