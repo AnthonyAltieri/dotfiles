@@ -4,7 +4,7 @@
 Sources, all written by the user's own Claude Code sessions:
 - ~/.claude/sessions/<pid>.json: live session registry (name, nameSource, status, sessionId).
 - ~/.cache/spawn-orchestrator/<run>/run.json: each orchestrator's run state, written on every report.
-- Worker activity: <run>/<issue>/events.jsonl (Codex) and
+- Worker activity: <run>/<issue>/{events.jsonl,pid,exit_code} (Codex) and
   ~/.claude/projects/*/<sessionId>/subagents/*.jsonl (Opus subagents).
 
 Subcommands:
@@ -32,16 +32,18 @@ RUNS_DIR = Path.home() / ".cache" / "spawn-orchestrator"
 
 STALL_AFTER = 20 * 60
 HUNG_AFTER = 20 * 60
+DRIFT_AFTER = 20 * 60
 NEEDS_ALERT_AFTER = 30 * 60
 SETTLED_VISIBLE_FOR = 12 * 3600
 
 ACTIVE_STATES = ("running", "queued")
 DONE_STATES = ("merged", "pr-opened")
-GROUP_ORDER = ("dead", "hung", "needs-you", "stalled", "no-ledger", "ok", "settled")
+GROUP_ORDER = ("dead", "hung", "needs-you", "drift", "stalled", "no-ledger", "ok", "settled")
 GROUP_TITLES = {
     "dead": "DEAD",
     "hung": "HUNG",
     "needs-you": "NEEDS YOU",
+    "drift": "DRIFT",
     "stalled": "STALLED",
     "no-ledger": "NO LEDGER",
     "ok": "OK",
@@ -80,6 +82,7 @@ class Run:
     counts: dict[str, int]
     needs: tuple[Need, ...]
     events_mtime: float | None
+    exited: tuple[tuple[str, float], ...] = ()  # (issue, exit time) of Codex workers run.json still calls running
 
 
 @dataclass(frozen=True)
@@ -138,6 +141,10 @@ def classify(view: View, now: float) -> Health:
         oldest = min((n.opened_at for n in run.needs if n.opened_at is not None), default=now)
         kinds = ", ".join(f"{n.n}. {n.key} {n.kind.lower()}" for n in run.needs)
         return Health("needs-you", f"{kinds} · open {age(now - oldest)} → answer in {view.name}", alert=now - oldest > NEEDS_ALERT_AFTER)
+    drifted = [(key, at) for key, at in run.exited if now - at > DRIFT_AFTER]
+    if drifted:
+        keys = ", ".join(f"{key} exited {age(now - at)} ago" for key, at in drifted)
+        return Health("drift", f"run.json says running: {keys} → refresh in {view.name}", alert=True)
     progress = latest(run.last_progress_at, run.updated_at, run.events_mtime, session.subagent_mtime)
     active = sum(run.counts.get(s, 0) for s in ACTIVE_STATES)
     if active and (progress is None or now - progress > STALL_AFTER):
@@ -207,7 +214,7 @@ def parse_time(value: object) -> float | None:
     return None
 
 
-def parse_run(path: Path, data: dict, events_mtime: float | None) -> Run:
+def parse_run(path: Path, data: dict, events_mtime: float | None, written_at: float | None = None, exited: dict[str, float] | None = None) -> Run:
     counts: dict[str, int] = {}
     for issue in data.get("issues", []):
         state = str(issue.get("state", "queued"))
@@ -221,11 +228,12 @@ def parse_run(path: Path, data: dict, events_mtime: float | None) -> Run:
         session_name=str(data["sessionName"]),
         repo_path=str(data.get("repoPath", "")),
         settled=bool(data.get("settled", False)),
-        updated_at=parse_time(data.get("updatedAt")),
+        updated_at=latest(parse_time(data.get("updatedAt")), written_at),
         last_progress_at=parse_time(data.get("lastProgressAt")),
         counts=counts,
         needs=needs,
         events_mtime=events_mtime,
+        exited=tuple((str(i["key"]), exited[str(i["key"])]) for i in data.get("issues", []) if i.get("state") == "running" and str(i.get("key")) in (exited or {})),
     )
 
 
@@ -276,11 +284,31 @@ def load_sessions(warnings: list[str]) -> dict[str, Session]:
     return sessions
 
 
+def exited_workers(run_dir: Path) -> dict[str, float]:
+    """Exit time of each Codex worker in the run whose turn has ended."""
+    out = {}
+    for exit_file in run_dir.glob("*/exit_code"):
+        pid_file = exit_file.parent / "pid"
+        try:
+            live = pid_file.exists() and pid_alive(int(pid_file.read_text().strip()))
+            if not live:
+                out[exit_file.parent.name] = exit_file.stat().st_mtime
+        except (OSError, ValueError):
+            continue
+    return out
+
+
 def load_runs(warnings: list[str]) -> dict[str, Run]:
     runs: dict[str, Run] = {}
     for path in sorted(RUNS_DIR.glob("*/run.json")):
         try:
-            run = parse_run(path, json.loads(path.read_text()), newest_mtime(path.parent.glob("*/events.jsonl")))
+            run = parse_run(
+                path,
+                json.loads(path.read_text()),
+                newest_mtime(path.parent.glob("*/events.jsonl")),
+                written_at=path.stat().st_mtime,
+                exited=exited_workers(path.parent),
+            )
         except (OSError, ValueError, KeyError, TypeError) as exc:
             warnings.append(f"skipped {path}: {exc}")
             continue

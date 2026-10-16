@@ -31,9 +31,9 @@ A canvas holds at most 40 pages. When adding this session's page would exceed th
 
 ## Write the Dashboard
 
-Copy `assets/status.dc.html` beside this skill to the artboard path on first publish. It renders the run header, a pinned "Needs you" panel, counts with the `Idle capacity` and `Next` lines, and the issues in three switchable views: Table, Lanes (kanban), and Timeline (with a workers-active chart). Its markup and logic are fixed. On every write, change only the object between `// RUN:BEGIN` and `// RUN:END`, and set the `showExample` default in `data-props` to `false`. That object is the run's `~/.cache/spawn-orchestrator/<run-id>/run.json`, which `$spawn-orchestrator` keeps current and documents under Session Name and Run File: write `return <its JSON>;` between the markers. Fields the template does not use are ignored.
+Copy `assets/status.dc.html` beside this skill to the artboard path on first publish. It renders the run header, a pinned "Needs you" panel, counts with the `Idle capacity` and `Next` lines, and the issues in three switchable views: Table, Lanes (kanban), and Timeline (with a workers-active chart). Its markup and logic are fixed. On every write, change only the object between `// RUN:BEGIN` and `// RUN:END`, and set the `showExample` default in `data-props` to `false`. That object is the output of `python3 ~/.claude/skills/spawn-orchestrator/scripts/run_state.py --run <run-id> show`, the run's `run.json` with fresh time fields: write `return <that JSON>;` between the markers. Fields the template does not use are ignored.
 
-If `run.json` is missing or stale, refresh it first from the run ledger (`state.md`), `codex_worker.py status`, `gh pr view`, and Linear. Never fill a value from a worker's claim the orchestrator has not verified.
+If `run.json` is missing or behind the run, record the missing events with `run_state.py` first, as `$spawn-orchestrator` describes under Session Name and Run File, verified from the run ledger (`state.md`), `codex_worker.py status`, `gh pr view`, and Linear. Never edit `run.json` by hand, and never record a worker's claim the orchestrator has not verified.
 
 ## Keep It Current
 
