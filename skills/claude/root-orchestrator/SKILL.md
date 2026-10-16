@@ -29,19 +29,19 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 
 ## The 10-Minute Summary
 
-On each cron fire, run `python3 fleet.py snapshot` and post it in a code block, exactly as printed:
+On each cron fire, run `python3 fleet.py snapshot` and post its output as printed, a markdown table with one row per orchestrator, most urgent first:
 
 ```text
-17:21 · trading · 4 orchestrators
-NEEDS YOU
-  trading-research   discovery     1. AAL-2988 blocked · open 40m → answer in trading-research
-STALLED
-  trading-worker     i5-worker     ▶0 ✓3 ⚠1 ◻1 · nothing moved for 36h
-OK
-  trading-portfolio  portfolio-v1  ▶1 ✓47 ◻3 · moved 0m ago
+**17:21 · trading · 4 orchestrators**
+
+| Health | Orchestrator | Run | Running | Done | Blocked | Queued | Needs you | Note |
+|---|---|---|--:|--:|--:|--:|--:|---|
+| **needs you** | trading-research | discovery | 2 | 8 | 1 | 3 | 1 | answer in trading-research: 4. QUANT-444 decision · open 40m |
+| **stalled** | trading-worker | i5-worker | 0 | 3 | 1 | 1 | 0 | nothing moved for 36h |
+| ok | trading-portfolio | portfolio-v1 | 1 | 47 | 2 | 3 | 0 | moved 0m ago |
 ```
 
-Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, DRIFT, STALLED, NO LEDGER, OK, DONE. Post it every fire, even when nothing changed; add commentary only about changes since the last summary. When the user asks for the table, run `python3 fleet.py snapshot --format table` and post its markdown table.
+Rows sort by health: dead, hung, needs you, drift, stalled, no ledger, ok, done; a bold health is an alert. **Needs you** counts only questions the user must answer by typing in that orchestrator's session. **Blocked** counts issues waiting on anything else (another issue, CI, a third party, an action the user takes elsewhere); it never makes an orchestrator need the user. Post the table every fire, even when nothing changed; add commentary only about changes since the last summary.
 
 ## Health
 
@@ -52,7 +52,7 @@ Groups appear in this order and only when non-empty: DEAD, HUNG, NEEDS YOU, DRIF
 | `settled` | `run.json` says the run is settled |
 | `dead` | the session is gone or its process exited, run not settled |
 | `hung` | the session shows busy, but its transcript has been silent for 20 minutes |
-| `needs-you` | the orchestrator has open decisions; alerts once the oldest is 30 minutes old |
+| `needs-you` | the orchestrator has open questions the user must answer in its session; alerts once the oldest is 30 minutes old. Blocked work never counts. |
 | `drift` | `run.json` still says an issue is running 20 minutes after its Codex worker exited |
 | `stalled` | running or queued work, nothing has moved for 20 minutes, and no open decision explains it |
 | `ok` | otherwise |

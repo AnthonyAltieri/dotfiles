@@ -9,7 +9,7 @@ atomically, because codex_worker.py writes the same file on dispatch.
 
   init     create or adopt the run header (safe to repeat after a resume)
   issue    set one issue's state and details
-  need     add or close an open decision
+  need     add or close a question the user must answer in this session
   report   record the report's Idle capacity and Next lines
   show     print run.json with the time fields refreshed, without writing
 
@@ -38,7 +38,8 @@ STATES = ("running", "queued", "blocked", "parked", "pr-opened", "merged")
 TERMINAL = ("pr-opened", "merged")
 SETTLED_STATES = (*TERMINAL, "parked")
 PROGRESS_STATES = ("running", *TERMINAL)
-NEED_KINDS = ("Sandbox denial", "Stalled", "Blocked", "Parked")
+NEED_KINDS = ("Sandbox denial", "Stalled", "Decision")
+WAITING_STATES = ("queued", "blocked", "parked")
 HEADER_FIELDS = ("epic", "epicTitle", "epicUrl", "repo", "base", "mode", "tests", "issueUrlBase", "prUrlBase")
 
 Data = dict
@@ -113,7 +114,7 @@ def set_issue(data: Data, key: str, state: str, now: datetime, **fields: object)
     if state not in TERMINAL:
         issue.pop("endAt", None)
         issue.pop("end", None)
-    if state != "queued":
+    if state not in WAITING_STATES:
         issue.pop("waits", None)
     data = {**data, "issues": issues}
     if state in PROGRESS_STATES and previous != state:
@@ -124,6 +125,11 @@ def set_issue(data: Data, key: str, state: str, now: datetime, **fields: object)
 def add_need(data: Data, kind: str, key: str, ask: str, rec: str, options: list[str], now: datetime) -> tuple[Data, int]:
     if kind not in NEED_KINDS:
         raise UsageError(f"kind must be one of {', '.join(NEED_KINDS)}")
+    if len(options) < 2:
+        raise UsageError(
+            "a need is a question the user answers in this session: give at least two --option choices; "
+            "record work that waits on anything else as `issue <key> blocked --waits <what>`"
+        )
     needs = list(data.get("needs", []))
     n = max((int(d.get("n", 0)) for d in needs), default=0) + 1
     needs.append({"n": n, "key": key, "kind": kind, "openedAt": iso(now), "ask": ask, "rec": rec, "options": options})
@@ -292,10 +298,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--model", choices=("codex", "opus"))
     p.add_argument("--pr", type=int)
     p.add_argument("--merge", help="short merge SHA")
-    p.add_argument("--waits", help="the issue this queued issue waits on")
+    p.add_argument("--waits", help="what the issue waits on: an issue key when queued, the blocker when blocked or parked")
     p.set_defaults(func=cmd_issue)
 
-    p = sub.add_parser("need", help="add or close an open decision")
+    p = sub.add_parser("need", help="add or close a question the user must answer in this session")
     p.add_argument("action", choices=("add", "close"))
     p.add_argument("n", nargs="?", type=int, help="need number (close)")
     p.add_argument("--kind", choices=NEED_KINDS)

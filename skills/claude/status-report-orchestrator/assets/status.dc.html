@@ -234,7 +234,8 @@ class Component extends DCLogic {
         { key: 'ENG-103', title: 'Example: settings screen', state: 'merged', model: 'opus', start: '09:22', end: '10:05', pr: 13, merge: 'ccccccc' },
         { key: 'ENG-104', title: 'Example: sync API', state: 'running', model: 'codex', start: '09:46', pr: 14 },
         { key: 'ENG-105', title: 'Example: import job', state: 'blocked', model: 'codex', start: '10:06', end: '10:26', pr: 15 },
-        { key: 'ENG-106', title: 'Example: sync screen', state: 'queued', model: 'opus', waits: 'ENG-104' }
+        { key: 'ENG-106', title: 'Example: sync screen', state: 'queued', model: 'opus', waits: 'ENG-104' },
+        { key: 'ENG-107', title: 'Example: billing export', state: 'parked', model: 'codex', waits: 'a vendor sandbox account' }
       ]
     };
     // RUN:END
@@ -254,8 +255,8 @@ class Component extends DCLogic {
     var S = {
       running: ['running', '#E7EEFB', '#1D449E', 'running', '#2350B8'],
       queued: ['queued', '#EEEFEC', '#4A4F59', 'queued', '#9AA0A9'],
-      blocked: ['blocked', '#FCEBDD', '#8A3D05', 'needs', '#B4530A'],
-      parked: ['parked', '#FCEBDD', '#8A3D05', 'needs', '#B4530A'],
+      blocked: ['blocked', '#FCEBDD', '#8A3D05', 'blocked', '#B4530A'],
+      parked: ['parked', '#FCEBDD', '#8A3D05', 'blocked', '#B4530A'],
       'pr-opened': ['draft PR', '#E3F0E9', '#1E6B4E', 'done', '#1E6B4E'],
       merged: ['merged', '#E3F0E9', '#1E6B4E', 'done', '#1E6B4E']
     };
@@ -279,6 +280,7 @@ class Component extends DCLogic {
       { label: 'Running', value: byState('running'), color: '#2350B8' },
       { label: 'Done', value: byState('merged') + byState('pr-opened'), color: '#1E6B4E' },
       { label: 'Needs you', value: n('needs'), color: n('needs') ? '#B4530A' : '#9AA0A9' },
+      { label: 'Blocked', value: n('blocked'), color: n('blocked') ? '#7A5A3A' : '#9AA0A9' },
       { label: 'Queued', value: byState('queued'), color: '#4A4F59' }
     ].map(function (c) { return Object.assign(c, { style: 'font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; color: ' + c.color }); });
 
@@ -295,9 +297,9 @@ class Component extends DCLogic {
     });
 
     // Table
-    var rank = { needs: 0, running: 1, queued: 2, done: 3 };
+    var rank = { needs: 0, blocked: 1, running: 2, queued: 3, done: 4 };
     var f = this.state.filter;
-    var filters = [['all', 'All', issues.length], ['needs', 'Needs you', n('needs')], ['running', 'Running', n('running')], ['queued', 'Queued', n('queued')], ['done', 'Done', n('done')]]
+    var filters = [['all', 'All', issues.length], ['needs', 'Needs you', n('needs')], ['blocked', 'Blocked', n('blocked')], ['running', 'Running', n('running')], ['queued', 'Queued', n('queued')], ['done', 'Done', n('done')]]
       .filter(function (x) { return x[0] === 'all' || x[2] > 0; })
       .map(function (x) { return { label: x[1] + ' ' + x[2], pressed: f === x[0] ? 'true' : 'false', style: pill(f === x[0]), pick: function () { self.setState({ filter: x[0] }); } }; });
     var tableRows = issues.slice().sort(function (a, b) { return rank[a.lane] - rank[b.lane]; })
@@ -313,6 +315,7 @@ class Component extends DCLogic {
     // Lanes
     var laneDefs = [
       { id: 'needs', name: 'Needs you', color: '#B4530A', well: '#FBE9D8', emptyText: 'Nothing needs you.' },
+      { id: 'blocked', name: 'Blocked', color: '#7A5A3A', well: '#F1ECE6', emptyText: 'Nothing blocked.' },
       { id: 'running', name: 'Running', color: '#2350B8', well: '#E2E8F3', emptyText: 'No workers running.' },
       { id: 'queued', name: 'Queued', color: '#4A4F59', well: '#ECEDEA', emptyText: 'Nothing queued.' },
       { id: 'done', name: 'Done', color: '#1E6B4E', well: '#E0EBE4', emptyText: 'Nothing done yet.' }
@@ -334,7 +337,7 @@ class Component extends DCLogic {
           return {
             key: i.key, title: i.title, model: i.model, issueUrl: i.issueUrl, prUrl: i.prUrl || i.issueUrl,
             prText: i.pr ? '#' + i.pr : 'none yet',
-            meta: i.state === 'running' ? i.model + ' · ' + i.dur : i.lane === 'done' ? i.dur + ' · #' + i.pr : i.waits ? 'after ' + i.waits : i.stateLabel,
+            meta: i.state === 'running' ? i.model + ' · ' + i.dur : i.lane === 'done' ? i.dur + ' · #' + i.pr : i.waits ? (i.state === 'queued' ? 'after ' : 'waits on ') + i.waits : i.stateLabel,
             detail: i.state === 'merged' ? 'merge ' + i.merge : i.waits ? 'waits on ' + i.waits : i.start ? 'started ' + i.start : i.stateLabel,
             hasAsk: !!need, ask: need ? need.n + '. ' + need.kind + ': recommended ' + need.options[0].toLowerCase() : '',
             open: open, expanded: open ? 'true' : 'false',
@@ -361,7 +364,7 @@ class Component extends DCLogic {
         label = i.waits ? 'after ' + i.waits : i.stateLabel;
         labelStyle = 'position: absolute; top: 1px; left: calc(' + pct(NOW) + ' + 6%); font-size: 11px; color: #5A5F6B; white-space: nowrap';
       } else {
-        var fill = i.lane === 'needs' ? 'background: #B4530A;' : i.state === 'running' ? 'background: #2350B8;' : 'background: #A9C6B7; box-shadow: inset 0 0 0 1px #1E6B4E;';
+        var fill = i.lane === 'needs' ? 'background: #B4530A;' : i.lane === 'blocked' ? 'background: #D9B48F;' : i.state === 'running' ? 'background: #2350B8;' : 'background: #A9C6B7; box-shadow: inset 0 0 0 1px #1E6B4E;';
         bar = 'position: absolute; top: 3px; bottom: 3px; left: ' + pct(i.startMin) + '; width: max(4px, calc(' + pct(i.endMin) + ' - ' + pct(i.startMin) + ')); border-radius: 3px; ' + fill;
       }
       return {
@@ -383,7 +386,7 @@ class Component extends DCLogic {
         style: 'flex: 1 1 0; height: ' + (future ? 2 : Math.max(2, b.c / Math.max(peak, 1) * 52)) + 'px; border-radius: 2px 2px 0 0; background: ' + (future ? '#E4E6E1' : b.c <= 1 ? '#C9B79F' : '#2350B8')
       };
     });
-    var legend = [['done', 'background: #A9C6B7; box-shadow: inset 0 0 0 1px #1E6B4E'], ['running', 'background: #2350B8'], ['queued', 'border: 1px dashed #4A4F59; box-sizing: border-box'], ['needs you', 'background: #B4530A']]
+    var legend = [['done', 'background: #A9C6B7; box-shadow: inset 0 0 0 1px #1E6B4E'], ['running', 'background: #2350B8'], ['queued', 'border: 1px dashed #4A4F59; box-sizing: border-box'], ['needs you', 'background: #B4530A'], ['blocked', 'background: #D9B48F']]
       .map(function (l) { return { label: l[0], swatch: 'width: 14px; height: 8px; border-radius: 2px; ' + l[1] }; });
 
     var v = this.state.view;
