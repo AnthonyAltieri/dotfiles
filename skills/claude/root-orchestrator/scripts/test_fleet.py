@@ -35,6 +35,14 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(fleet.classify(view(h=fresh), NOW), fleet.Health("needs-you", "question: Merge now? · 5m"))
         self.assertTrue(fleet.classify(view(h=old), NOW).alert)
 
+    def test_parked_turn_triage_decides_needs_you_or_done(self):
+        you = hooked(triage=fleet.Triage("you", "Approve merging #2212", NOW - 2 * MIN))
+        done = hooked(triage=fleet.Triage("done", "All six issues merged", NOW - 30 * MIN))
+        failed = hooked(status_at=NOW - 30 * MIN, triage=fleet.Triage("failed", "timeout", NOW - 30 * MIN))
+        self.assertEqual(fleet.classify(view(h=you), NOW), fleet.Health("needs-you", "Approve merging #2212 · 2m"))
+        self.assertEqual(fleet.classify(view(h=done), NOW).state, "settled")
+        self.assertEqual(fleet.classify(view(h=failed), NOW).state, "stalled")
+
     def test_idle_session_waiting_on_live_workers_is_not_stalled(self):
         idle = hooked(status_at=NOW - 60 * MIN)
         self.assertEqual(fleet.classify(view(h=idle, running=2), NOW).state, "ok")
