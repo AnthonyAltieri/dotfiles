@@ -79,7 +79,7 @@ class Hooked:
     session_id: str
     name: str
     cwd: str
-    status: str  # busy | idle | ended
+    status: str  # busy | idle | ended, or "" before the hook has seen a turn start or end
     status_at: float | None
     waiting: Waiting | None
     orchestrator: bool
@@ -151,10 +151,12 @@ def classify(view: View, now: float) -> Health:
         what = "question" if h.waiting.kind == "question" else "permission"
         open_for = now - h.waiting.since
         return Health("needs-you", f"{what}: {h.waiting.text} · {age(open_for)}", alert=open_for > NEEDS_ALERT_AFTER)
-    busy = h.status == "busy" if h is not None else s.busy
+    # A session that loaded the hook mid-turn has no status yet; the registry knows.
+    known = h is not None and h.status in ("busy", "idle")
+    busy = h.status == "busy" if known else s.busy
     if busy and s.transcript_mtime is not None and now - s.transcript_mtime > HUNG_AFTER and not w.running:
         return Health("hung", f"busy but silent for {age(now - s.transcript_mtime)}", alert=True)
-    idle_since = (h.status_at if h is not None else s.status_at) or now
+    idle_since = (h.status_at if known else s.status_at) or now
     quiet_since = latest(idle_since, s.subagent_mtime)
     if not busy and not w.running and now - (quiet_since or now) > STALL_AFTER:
         return Health("stalled", f"idle, nothing running for {age(now - (quiet_since or now))}", alert=True)
@@ -240,7 +242,7 @@ def parse_hooked(data: dict) -> Hooked:
         session_id=str(data["sessionId"]),
         name=str(data.get("name") or ""),
         cwd=str(data.get("cwd") or ""),
-        status=str(data.get("status") or "idle"),
+        status=str(data.get("status") or ""),
         status_at=parse_time(data.get("statusAt")),
         waiting=Waiting(str(waiting.get("kind")), str(waiting.get("text") or ""), float(waiting.get("since") or 0)) if waiting else None,
         orchestrator=bool(data.get("orchestrator")),
