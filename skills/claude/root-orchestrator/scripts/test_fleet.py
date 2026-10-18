@@ -1,6 +1,7 @@
 """Unit tests for fleet.py health classification and change detection."""
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,47 +13,41 @@ MIN = 60
 
 
 def session(**overrides):
-    base = dict(name="trading-ui", session_id="s1", cwd="/repo", alive=True, busy=False,
+    base = dict(name="trading-ui", session_id="s1", cwd="/repo", alive=True, busy=False, status_at=NOW,
                 named_by_user=True, transcript_mtime=NOW, subagent_mtime=None)
     return fleet.Session(**{**base, **overrides})
 
 
-def run(**overrides):
-    base = dict(run_id="mobile-web", session_name="trading-ui", repo_path="/repo", settled=False,
-                updated_at=NOW, last_progress_at=NOW, counts={"running": 1}, needs=(), events_mtime=None)
-    return fleet.Run(**{**base, **overrides})
+def hooked(**overrides):
+    base = dict(session_id="s1", name="trading-ui", cwd="/repo", status="idle", status_at=NOW, waiting=None,
+                orchestrator=True, codex_dirs=(), opus_running=0, opus_done=0, updated_at=NOW)
+    return fleet.Hooked(**{**base, **overrides})
 
 
-def view(run_=None, session_=None):
-    return fleet.View("trading-ui", run_, session_)
+def view(s=None, h=None, run=None, running=0):
+    return fleet.View("trading-ui", s or session(), h, run, fleet.Workers(running, 0))
 
 
 class ClassifyTests(unittest.TestCase):
-    def test_open_decision_alerts_only_after_thirty_minutes(self):
-        fresh = run(needs=(fleet.Need(1, "AAL-1", "Blocked", NOW - 10 * MIN),))
-        old = run(needs=(fleet.Need(1, "AAL-1", "Blocked", NOW - 40 * MIN),))
-        self.assertFalse(fleet.classify(view(fresh, session()), NOW).alert)
-        self.assertTrue(fleet.classify(view(old, session()), NOW).alert)
+    def test_question_waiting_on_the_user_alerts_after_ten_minutes(self):
+        fresh = hooked(waiting=fleet.Waiting("question", "Merge now?", NOW - 5 * MIN))
+        old = hooked(waiting=fleet.Waiting("question", "Merge now?", NOW - 15 * MIN))
+        self.assertEqual(fleet.classify(view(h=fresh), NOW), fleet.Health("needs-you", "question: Merge now? · 5m"))
+        self.assertTrue(fleet.classify(view(h=old), NOW).alert)
 
-    def test_busy_session_with_silent_transcript_is_hung_even_with_open_decisions(self):
-        r = run(needs=(fleet.Need(1, "AAL-1", "Blocked", NOW),))
-        s = session(busy=True, transcript_mtime=NOW - 25 * MIN)
-        self.assertEqual(fleet.classify(view(r, s), NOW).state, "hung")
+    def test_idle_session_waiting_on_live_workers_is_not_stalled(self):
+        idle = hooked(status_at=NOW - 60 * MIN)
+        self.assertEqual(fleet.classify(view(h=idle, running=2), NOW).state, "ok")
+        self.assertEqual(fleet.classify(view(h=idle), NOW).state, "stalled")
 
-    def test_opus_subagent_activity_counts_as_progress(self):
-        r = run(updated_at=NOW - 60 * MIN, last_progress_at=NOW - 60 * MIN)
-        self.assertEqual(fleet.classify(view(r, session(subagent_mtime=NOW - 60 * MIN)), NOW).state, "stalled")
-        self.assertEqual(fleet.classify(view(r, session(subagent_mtime=NOW - 2 * MIN)), NOW).state, "ok")
+    def test_busy_session_with_silent_transcript_and_no_workers_is_hung(self):
+        s = session(transcript_mtime=NOW - 25 * MIN)
+        self.assertEqual(fleet.classify(view(s=s, h=hooked(status="busy")), NOW).state, "hung")
 
-    def test_running_issue_whose_worker_exited_twenty_minutes_ago_is_drift(self):
-        recent = run(exited=(("AAL-1", NOW - 5 * MIN),))
-        old = run(exited=(("AAL-1", NOW - 25 * MIN),))
-        self.assertEqual(fleet.classify(view(recent, session()), NOW).state, "ok")
-        self.assertEqual(fleet.classify(view(old, session()), NOW).state, "drift")
-
-    def test_settled_run_whose_session_closed_is_not_dead(self):
-        r = run(settled=True, counts={"merged": 3})
-        self.assertEqual(fleet.classify(view(r, None), NOW).state, "settled")
+    def test_ended_session_is_dead_but_settled_run_is_done(self):
+        run = fleet.Run("r", "trading-ui", "/repo", True, NOW, {"merged": 3})
+        self.assertEqual(fleet.classify(view(h=hooked(status="ended")), NOW).state, "dead")
+        self.assertEqual(fleet.classify(view(s=session(alive=False), run=run), NOW).state, "settled")
 
 
 class TransitionTests(unittest.TestCase):
@@ -64,33 +59,27 @@ class TransitionTests(unittest.TestCase):
 
 
 class LoadTests(unittest.TestCase):
-    def test_malformed_run_file_is_skipped_and_reported(self):
+    def test_codex_workers_count_live_pids_and_finished_turns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, done = Path(tmp) / "Q-1", Path(tmp) / "Q-2"
+            live.mkdir()
+            done.mkdir()
+            (live / "pid").write_text(str(os.getpid()))
+            (done / "exit_code").write_text("0")
+            self.assertEqual(fleet.codex_workers([live, done]), fleet.Workers(1, 1))
+
+    def test_malformed_hook_state_is_skipped_and_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "good").mkdir()
-            (root / "good" / "run.json").write_text(json.dumps({"run": "good", "sessionName": "trading-ui", "issues": [{"state": "running"}]}))
-            (root / "bad").mkdir()
-            (root / "bad" / "run.json").write_text("{not json")
-            original, fleet.RUNS_DIR = fleet.RUNS_DIR, root
+            (root / "good.json").write_text(json.dumps({"sessionId": "s1", "status": "busy"}))
+            (root / "bad.json").write_text("{not json")
+            original, fleet.STATE_DIR = fleet.STATE_DIR, root
             try:
                 warnings = []
-                runs = fleet.load_runs(warnings)
+                states = fleet.load_hooked(warnings)
             finally:
-                fleet.RUNS_DIR = original
-        self.assertEqual(list(runs), ["trading-ui"])
-        self.assertEqual(len(warnings), 1)
-
-    def test_legacy_blocked_need_does_not_count_as_needing_the_user(self):
-        legacy = {"run": "r", "sessionName": "trading-ui", "issues": [], "needs": [
-            {"n": 1, "key": "AAL-1", "kind": "Blocked", "ask": "waits on a vendor"},
-            {"n": 2, "key": "AAL-2", "kind": "Parked", "ask": "which rule?", "options": ["a", "b"]},
-        ]}
-        self.assertEqual([n.key for n in fleet.parse_run(Path("r/run.json"), legacy, None).needs], ["AAL-2"])
-
-    def test_rewrite_with_stale_hand_written_updated_at_counts_as_fresh(self):
-        stale = {"run": "r", "sessionName": "trading-ui", "updatedAt": "2026-01-01T00:00:00Z", "issues": []}
-        parsed = fleet.parse_run(Path("r/run.json"), stale, None, written_at=NOW)
-        self.assertEqual(parsed.updated_at, NOW)
+                fleet.STATE_DIR = original
+        self.assertEqual((list(states), len(warnings)), (["s1"], 1))
 
 
 if __name__ == "__main__":

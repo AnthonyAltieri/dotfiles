@@ -234,7 +234,7 @@ Managed agent files include:
 - `~/.claude/CLAUDE.md`
 - `~/.claude/README.md`
 - `~/.claude/settings.json`
-- `~/.claude/statusline-command.sh` and `~/.claude/hooks/herdr-agent-state.sh`
+- `~/.claude/statusline-command.sh`, `~/.claude/hooks/herdr-agent-state.sh`, and `~/.claude/hooks/session_state.py`
 
 Darwin profiles additionally manage `~/.codex/skills/atlas` and `~/.claude/skills/atlas`. The work profile also manages `~/.codex/skills/observe` and `~/.claude/skills/observe`. On the personal profile, files in `skills/claude-personal/<name>` overlay `skills/claude/<name>`: the Claude `spawn-orchestrator` there always runs fully parallel, merges verified PRs, has workers add no new tests and verify manually, and sends frontend-only issues to Opus 5.5 and backend or mixed issues to Codex `gpt-6.1-sol` at `xhigh` in fast mode.
 

@@ -115,3 +115,16 @@ plain terminal.
 
 When bumping herdr, refresh the script from
 `src/integration/assets/claude/herdr-agent-state.sh` in the matching release.
+
+## Session state hook
+
+`hooks/session_state.py` keeps one small file per main session in
+`~/.cache/claude-sessions/<session id>.json` for `$root-orchestrator`: busy or
+idle, the `AskUserQuestion` question or permission prompt waiting on the user,
+whether the session is an orchestrator, and the Codex and Opus workers it
+dispatched. It runs on `SessionStart`, `UserPromptSubmit`, `PreToolUse`
+(`AskUserQuestion`, `Skill`), `PostToolUse`, `PostToolUseFailure`,
+`PermissionRequest`, `PermissionDenied`, `Notification` (`permission_prompt`),
+`SubagentStop`, `Stop`, and `SessionEnd`. It prints nothing, so it adds no
+tokens to any context, takes about 30 ms, and always exits 0. Unit tests:
+`python3 -m unittest discover -s home/.claude/hooks`.
