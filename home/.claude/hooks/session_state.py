@@ -38,6 +38,7 @@ import time
 from pathlib import Path
 
 STATE_DIR = Path.home() / ".cache" / "claude-sessions"
+RUNS_DIR = Path.home() / ".cache" / "spawn-orchestrator"
 
 DISPATCH = re.compile(r"codex_worker\.py\s+(?:start|resume)\b")
 RUN_DIR_ARG = re.compile(r"--run-dir[=\s]+([\"']?)(\S+?)\1(?=\s|;|&|$)")
@@ -228,11 +229,31 @@ def triage(session_id: str, since: float) -> None:
     update(session_id, change)
 
 
+def named_in_a_run(session_id: str, name: str | None) -> bool:
+    """Whether a spawn-orchestrator run.json names this session, for sessions that ran before the hook existed."""
+    for path in RUNS_DIR.glob("*/run.json"):
+        try:
+            run = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if run.get("sessionId") == session_id or (name and run.get("sessionName") == name):
+            return True
+    return False
+
+
 def record(event: dict, now: float) -> None:
     session_id = str(event.get("session_id") or "")
     if not re.fullmatch(r"[A-Za-z0-9-]+", session_id):
         return
-    state = update(session_id, lambda s: apply(s, event, now))
+
+    def change(state: dict) -> dict:
+        if event.get("hook_event_name") == "Stop" and not event.get("agent_id") and not state.get("orchestrator"):
+            name = event.get("session_title") or state.get("name")
+            if named_in_a_run(session_id, name):
+                state = {**state, "orchestrator": True}
+        return apply(state, event, now)
+
+    state = update(session_id, change)
     pending = state.get("triage") or {}
     if pending.get("verdict") == "pending" and pending.get("since") == now:
         start_triage(session_id, str(event.get("last_assistant_message", "")), now)
