@@ -31,6 +31,12 @@ class WaitingTests(unittest.TestCase):
         self.assertEqual(fold(ask, other)["waiting"]["text"], "Merge now?")
         self.assertIsNone(fold(ask, other, answered)["waiting"])
 
+    def test_permission_prompt_for_a_question_keeps_the_question_text(self):
+        # Regression: the AskUserQuestion permission prompt replaced the question with "allow AskUserQuestion".
+        ask = ev("PreToolUse", tool_name="AskUserQuestion", tool_use_id="q1", tool_input={"questions": [{"question": "Merge now?"}]})
+        prompt = ev("PermissionRequest", tool_name="AskUserQuestion", tool_input={})
+        self.assertEqual(fold(ask, prompt)["waiting"]["text"], "Merge now?")
+
     def test_worker_permission_prompt_waits_until_the_tool_resolves(self):
         prompt = ev("PermissionRequest", agent_id="a1", agent_type="general-purpose", tool_name="Bash", tool_input={"command": "rm -rf build"})
         state = fold(prompt)
