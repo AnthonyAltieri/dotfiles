@@ -74,6 +74,32 @@ class PaneTests(unittest.TestCase):
         self.assertEqual(fleet.herdr_split_ratio(fleet.pane_rows(40), 54), 0.5)
 
 
+class VelocityTests(unittest.TestCase):
+    HISTORY = [fleet.Job(f"Q-{i}", NOW - 5 * 3600, NOW - 5 * 3600 + 20 * MIN) for i in range(3)]
+
+    def test_pace_flags_a_worker_far_past_this_orchestrators_usual_time(self):
+        slow = fleet.Job("Q-9", NOW - 70 * MIN, active_at=NOW)
+        on_time = fleet.Job("Q-9", NOW - 30 * MIN, active_at=NOW)
+        self.assertEqual(fleet.pace(self.HISTORY + [slow], NOW), "Q-9 3.5× usual (1h)")
+        self.assertEqual(fleet.pace(self.HISTORY + [on_time], NOW), "on pace")
+
+    def test_running_worker_with_no_output_for_twenty_minutes_is_silent_not_slow(self):
+        stuck = fleet.Job("Q-9", NOW - 30 * MIN, active_at=NOW - 25 * MIN)
+        self.assertEqual(fleet.pace(self.HISTORY + [stuck], NOW), "Q-9 silent 25m")
+
+    def test_sparkline_counts_finished_workers_per_hour_on_a_fleet_wide_scale(self):
+        counts = fleet.finished_per_hour(self.HISTORY + [fleet.Job("Q-8", NOW - 2 * MIN - 1, NOW - MIN)], NOW)
+        self.assertEqual(counts, [0, 0, 0, 3, 0, 0, 0, 1])
+        self.assertEqual(fleet.sparkline(counts, 4), "···▆···▂")
+
+
+class RowsTests(unittest.TestCase):
+    def test_dead_orchestrator_leaves_the_table_an_hour_after_it_ended(self):
+        recent = fleet.View("a", session(alive=False, status_at=NOW - 30 * MIN), hooked(updated_at=NOW - 30 * MIN), None)
+        old = fleet.View("b", session(alive=False, status_at=NOW - 2 * 3600), hooked(updated_at=NOW - 2 * 3600), None)
+        self.assertEqual([v.name for v, _ in fleet.shown([recent, old], NOW)], ["a"])
+
+
 class TransitionTests(unittest.TestCase):
     def test_reports_only_changed_states_and_new_alerts(self):
         before = {"a": fleet.Health("ok", "x"), "b": fleet.Health("needs-you", "y"), "c": fleet.Health("ok", "z")}

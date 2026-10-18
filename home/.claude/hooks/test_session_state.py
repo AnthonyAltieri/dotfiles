@@ -54,8 +54,9 @@ class WorkerTests(unittest.TestCase):
     def test_opus_worker_runs_until_its_subagent_stops(self):
         launch = ev("PostToolUse", tool_name="Agent", tool_input={"description": "QUANT-7 worker"}, tool_response={"agentId": "a9", "status": "async_launched"})
         start = ev("UserPromptSubmit", prompt="/spawn-orchestrator QUANT-1")
-        self.assertEqual(fold(start, launch)["opus"]["a9"], {"key": "QUANT-7", "state": "running"})
-        self.assertEqual(fold(start, launch, ev("SubagentStop", agent_id="a9"))["opus"]["a9"]["state"], "done")
+        self.assertEqual(fold(start, launch)["opus"]["a9"], {"key": "QUANT-7", "state": "running", "startedAt": T + 1})
+        stopped = fold(start, launch, ev("SubagentStop", agent_id="a9"))["opus"]["a9"]
+        self.assertEqual((stopped["state"], stopped["startedAt"], stopped["endedAt"]), ("done", T + 1, T + 2))
 
 
 class StatusTests(unittest.TestCase):

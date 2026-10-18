@@ -11,7 +11,7 @@ main session, ~/.cache/claude-sessions/<session_id>.json:
   backgroundTasks how many background tasks were running when the last turn ended
   orchestrator    true once the session runs $spawn-orchestrator or dispatches a worker
   codex           issue -> Codex run directory, from codex_worker.py start/resume
-  opus            agent id -> {key, state}, for Opus workers launched with the Agent tool
+  opus            agent id -> {key, state, startedAt, endedAt}, for Opus workers launched with the Agent tool
   triage          Haiku's verdict on an orchestrator's last message when its turn ends,
                   {verdict: pending | you | wait | done | failed, summary, since}
 
@@ -157,12 +157,15 @@ def apply(state: dict, event: dict, now: float) -> dict:
                 agent_id = response.get("agentId") if isinstance(response, dict) else None
                 key = ISSUE_KEY.search(f"{tool_input.get('description', '')} {tool_input.get('prompt', '')[:400]}")
                 if agent_id and key:
-                    done = isinstance(response, dict) and response.get("status") == "completed"
-                    state["opus"] = {**state.get("opus", {}), agent_id: {"key": key.group(0), "state": "done" if done else "running"}}
+                    done = response.get("status") == "completed"
+                    record = {"key": key.group(0), "state": "done" if done else "running", "startedAt": now}
+                    if done:  # a foreground agent reports only when it finishes
+                        record |= {"startedAt": now - float(response.get("totalDurationMs") or 0) / 1000, "endedAt": now}
+                    state["opus"] = {**state.get("opus", {}), agent_id: record}
     elif name == "SubagentStop":
         agent_id = event.get("agent_id")
         if agent_id in state.get("opus", {}):
-            state["opus"] = {**state["opus"], agent_id: {**state["opus"][agent_id], "state": "done"}}
+            state["opus"] = {**state["opus"], agent_id: {**state["opus"][agent_id], "state": "done", "endedAt": now}}
     return state
 
 

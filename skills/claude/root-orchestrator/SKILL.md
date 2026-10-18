@@ -31,7 +31,7 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 
 1. Run `python3 fleet.py snapshot` and post the markdown table it prints.
 2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one, sized to the table, running `watch` on it every minute. If it exits 3, give the user the command it printed to run in a terminal.
-3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires, without comment. A re-armed watch resumes from what the last one reported, so it stays silent until something changes; its first run ever lists every orchestrator once.
+3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires, without comment. A re-armed watch resumes from what the last one reported, so it stays silent until something changes; its first run ever lists every orchestrator once. The watch also raises a desktop notification (herdr, or `notify-send`) when an orchestrator starts needing the user, so the user hears about it without watching this session.
 
 Do not schedule a recurring summary. The pane is the periodic view.
 
@@ -40,16 +40,22 @@ Do not schedule a recurring summary. The pane is the periodic view.
 When the user asks for status, run `python3 fleet.py snapshot` and post its markdown table as printed:
 
 ```text
-**17:21 · trading · 4 orchestrators**
+**17:21 · trading · 3 orchestrators · 1 done or dead hidden**
 
-| Health | Orchestrator | Running | Done | Note |
-|---|---|--:|--:|---|
-| **needs you** | trading-research | 2 | 8 | question: Use the :59 gate population? · 40m |
-| **stalled** | trading-worker | 0 | 3 | idle, nothing running for 36h |
-| ok | trading-portfolio | 1 | 47 | waiting on 1 worker |
+| Health | Orchestrator | Running | Last 8h | Pace | Note |
+|---|---|--:|---|---|---|
+| **needs you** | trading-research | 2 | ···▂··▁· | QUANT-525 7.8× usual (3h) | question: Use the :59 gate population? · 40m |
+| **stalled** | trading-worker | 0 | ········ | — | idle, nothing running for 36h |
+| ok | trading-portfolio | 1 | ▁▃·▃▃█▄· | on pace | waiting on 1 worker |
 ```
 
-Rows sort by health; a bold health is an alert. **Running** and **Done** count workers from their own files (Codex run directories, Opus subagents). **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked or parked work never makes an orchestrator need the user; for an orchestrator's blocked and parked issues, read its own report or dashboard.
+Rows sort by health; a bold health is an alert. Dead and done orchestrators leave the table an hour after they change; the title counts them. The columns come from the workers' own files (Codex run directories, Opus records in the hook state):
+
+- **Running:** workers running now.
+- **Last 8h:** workers finished per hour, oldest first, on one scale across the fleet, so a row that flattens is slowing down. `·` is an hour with none.
+- **Pace:** the longest-running worker against this orchestrator's own median worker time over the last 7 days, shown when it is at least 2× (`on pace` otherwise, `—` with no running worker or under 3 finished ones). Orchestrators do different work, so pace never compares one orchestrator with another. `<issue> silent <age>` means a running worker has written nothing for 20 minutes: probably stuck, not slow. Pace is not a health state and never alerts; mention a silent or slow worker only when the user asks for status.
+
+ **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked or parked work never makes an orchestrator need the user; for an orchestrator's blocked and parked issues, read its own report or dashboard.
 
 When the user asks what is blocked, queued, or unattended, `run.json` issue states are a starting point, not the answer: they are written by hand and lag. Before calling work unattended, read the orchestrator's latest `waiting:` Note (Haiku's summary of its last message) and its last message; an orchestrator that names the issue and why it holds it is attending to it. Say "held by <orchestrator>: <reason>" instead of "nobody is working on it".
 
