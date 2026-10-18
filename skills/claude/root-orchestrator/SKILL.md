@@ -15,7 +15,7 @@ The helper `fleet.py` is deployed beside this skill at `~/.claude/skills/root-or
 
 - `~/.cache/claude-sessions/<session id>.json`, kept by the `session_state.py` hook in every session: busy or idle, the question or permission prompt waiting on the user, whether the session is an orchestrator, and the workers it dispatched;
 - the session registry (`~/.claude/sessions/*.json`) and worker files (Codex run directories, Opus subagent transcripts);
-- an orchestrator's `run.json`, when it keeps one, for queued and blocked counts and the settled flag.
+- an orchestrator's `run.json`, when it keeps one, for the settled flag only. Its issue states are written by hand and drift, so the table never reads them.
 
 ## Name Gate
 
@@ -42,14 +42,14 @@ When the user asks for status, run `python3 fleet.py snapshot` and post its mark
 ```text
 **17:21 · trading · 4 orchestrators**
 
-| Health | Orchestrator | Running | Done | Queued | Blocked | Note |
-|---|---|--:|--:|--:|--:|---|
-| **needs you** | trading-research | 2 | 8 | 3 | 1 | question: Use the :59 gate population? · 40m |
-| **stalled** | trading-worker | 0 | 3 | 1 | 1 | idle, nothing running for 36h |
-| ok | trading-portfolio | 1 | 47 | 3 | 2 | waiting on 1 worker |
+| Health | Orchestrator | Running | Done | Note |
+|---|---|--:|--:|---|
+| **needs you** | trading-research | 2 | 8 | question: Use the :59 gate population? · 40m |
+| **stalled** | trading-worker | 0 | 3 | idle, nothing running for 36h |
+| ok | trading-portfolio | 1 | 47 | waiting on 1 worker |
 ```
 
-Rows sort by health; a bold health is an alert. **Running** and **Done** count workers from their own files. **Queued** and **Blocked** come from `run.json` and show `—` without one. **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked work never makes an orchestrator need the user.
+Rows sort by health; a bold health is an alert. **Running** and **Done** count workers from their own files (Codex run directories, Opus subagents). **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked or parked work never makes an orchestrator need the user; for an orchestrator's blocked and parked issues, read its own report or dashboard.
 
 ## Health
 
