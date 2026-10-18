@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """Read-only view of the spawn-orchestrator sessions on this machine.
 
-Sources, all written by the user's own Claude Code sessions:
-- ~/.claude/sessions/<pid>.json: live session registry (name, nameSource, status, sessionId).
-- ~/.cache/spawn-orchestrator/<run>/run.json: each orchestrator's run state, written on every report.
-- Worker activity: <run>/<issue>/{events.jsonl,pid,exit_code} (Codex) and
-  ~/.claude/projects/*/<sessionId>/subagents/*.jsonl (Opus subagents).
+Every source is a file the user's own sessions already write, so building the
+view costs no model tokens:
+- ~/.cache/claude-sessions/<sessionId>.json: per-session state from the
+  session_state.py hook (status, the question or permission prompt waiting on
+  the user, orchestrator role, dispatched workers).
+- ~/.claude/sessions/<pid>.json: the live session registry (name, process, status).
+- Worker files: <run>/<issue>/{pid,exit_code,events.jsonl} for Codex workers and
+  ~/.claude/projects/*/<sessionId>/subagents/*.jsonl for Opus workers.
+- ~/.cache/spawn-orchestrator/<run>/run.json, when an orchestrator keeps one:
+  queued and blocked counts and the settled flag only.
 
 Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
-  snapshot  render the fleet as a markdown table or JSON
+  snapshot  render the fleet as a markdown table, a terminal table, or JSON
   watch     print one line per health change, forever
+  pane      open a herdr or tmux pane that redraws the terminal table every 10 minutes
 """
 
 from __future__ import annotations
@@ -18,80 +24,96 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
 SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 PROJECTS_DIR = Path.home() / ".claude" / "projects"
+STATE_DIR = Path.home() / ".cache" / "claude-sessions"
 RUNS_DIR = Path.home() / ".cache" / "spawn-orchestrator"
 
 STALL_AFTER = 20 * 60
 HUNG_AFTER = 20 * 60
-DRIFT_AFTER = 20 * 60
-NEEDS_ALERT_AFTER = 30 * 60
-SETTLED_VISIBLE_FOR = 12 * 3600
+NEEDS_ALERT_AFTER = 10 * 60
+GONE_VISIBLE_FOR = 12 * 3600
 
-ACTIVE_STATES = ("running", "queued")
 DONE_STATES = ("merged", "pr-opened")
-GROUP_ORDER = ("dead", "hung", "needs-you", "drift", "stalled", "no-ledger", "ok", "settled")
-GROUP_TITLES = {
-    "dead": "dead",
-    "hung": "hung",
-    "needs-you": "needs you",
-    "drift": "drift",
-    "stalled": "stalled",
-    "no-ledger": "no ledger",
-    "ok": "ok",
-    "settled": "done",
-}
-# Kinds older run.json files used for work waiting on something other than the user's answer.
-LEGACY_BLOCKER_KINDS = ("Blocked",)
+GROUP_ORDER = ("dead", "hung", "needs-you", "stalled", "ok", "settled")
+GROUP_TITLES = {"dead": "dead", "hung": "hung", "needs-you": "needs you", "stalled": "stalled", "ok": "ok", "settled": "done"}
+COLUMNS = ("Health", "Orchestrator", "Running", "Done", "Queued", "Blocked", "Note")
 
 
 @dataclass(frozen=True)
 class Session:
+    """A live registry entry."""
+
     name: str
     session_id: str
     cwd: str
     alive: bool
     busy: bool
+    status_at: float | None
     named_by_user: bool
     transcript_mtime: float | None
     subagent_mtime: float | None
 
 
 @dataclass(frozen=True)
-class Need:
-    n: int
-    key: str
-    kind: str
-    opened_at: float | None
+class Waiting:
+    kind: str  # question | permission
+    text: str
+    since: float
+
+
+@dataclass(frozen=True)
+class Hooked:
+    """What the session_state.py hook recorded for one session."""
+
+    session_id: str
+    name: str
+    cwd: str
+    status: str  # busy | idle | ended
+    status_at: float | None
+    waiting: Waiting | None
+    orchestrator: bool
+    codex_dirs: tuple[str, ...]
+    opus_running: int
+    opus_done: int
+    updated_at: float
 
 
 @dataclass(frozen=True)
 class Run:
+    """The optional run.json an orchestrator keeps."""
+
     run_id: str
     session_name: str
     repo_path: str
     settled: bool
     updated_at: float | None
-    last_progress_at: float | None
     counts: dict[str, int]
-    needs: tuple[Need, ...]
-    events_mtime: float | None
-    exited: tuple[tuple[str, float], ...] = ()  # (issue, exit time) of Codex workers run.json still calls running
+
+
+@dataclass(frozen=True)
+class Workers:
+    running: int = 0
+    done: int = 0
 
 
 @dataclass(frozen=True)
 class View:
     name: str
-    run: Run | None
     session: Session | None
+    hooked: Hooked | None
+    run: Run | None
+    workers: Workers = field(default_factory=Workers)
 
 
 @dataclass(frozen=True)
@@ -119,30 +141,25 @@ def latest(*stamps: float | None) -> float | None:
 
 
 def classify(view: View, now: float) -> Health:
-    run, session = view.run, view.session
-    if run is None:
-        return Health("no-ledger", "no run.json names this session")
-    if run.settled:
+    s, h, run, w = view.session, view.hooked, view.run, view.workers
+    if run is not None and run.settled:
         return Health("settled", f"settled {age(now - (run.updated_at or now))} ago")
-    if session is None or not session.alive:
-        return Health("dead", f"session gone · last update {age(now - (run.updated_at or now))} ago", alert=True)
-    if session.busy and session.transcript_mtime is not None and now - session.transcript_mtime > HUNG_AFTER:
-        return Health("hung", f"busy but silent for {age(now - session.transcript_mtime)}", alert=True)
-    if run.needs:
-        oldest = min((n.opened_at for n in run.needs if n.opened_at is not None), default=now)
-        asks = ", ".join(f"{n.n}. {n.key} {n.kind.lower()}" for n in run.needs)
-        return Health("needs-you", f"answer in {view.name}: {asks} · open {age(now - oldest)}", alert=now - oldest > NEEDS_ALERT_AFTER)
-    drifted = [(key, at) for key, at in run.exited if now - at > DRIFT_AFTER]
-    if drifted:
-        keys = ", ".join(f"{key} exited {age(now - at)} ago" for key, at in drifted)
-        return Health("drift", f"run.json says running: {keys} → refresh in {view.name}", alert=True)
-    progress = latest(run.last_progress_at, run.updated_at, run.events_mtime, session.subagent_mtime)
-    active = sum(run.counts.get(s, 0) for s in ACTIVE_STATES)
-    if active and (progress is None or now - progress > STALL_AFTER):
-        quiet = "ever" if progress is None else age(now - progress)
-        return Health("stalled", f"nothing moved for {quiet}", alert=True)
-    moved = "never" if progress is None else f"{age(now - progress)} ago"
-    return Health("ok", f"moved {moved}")
+    if (h is not None and h.status == "ended") or s is None or not s.alive:
+        last = latest(h.updated_at if h else None, s.status_at if s else None, run.updated_at if run else None)
+        return Health("dead", f"session gone · last seen {age(now - (last or now))} ago", alert=True)
+    if h is not None and h.waiting is not None:
+        what = "question" if h.waiting.kind == "question" else "permission"
+        open_for = now - h.waiting.since
+        return Health("needs-you", f"{what}: {h.waiting.text} · {age(open_for)}", alert=open_for > NEEDS_ALERT_AFTER)
+    busy = h.status == "busy" if h is not None else s.busy
+    if busy and s.transcript_mtime is not None and now - s.transcript_mtime > HUNG_AFTER and not w.running:
+        return Health("hung", f"busy but silent for {age(now - s.transcript_mtime)}", alert=True)
+    idle_since = (h.status_at if h is not None else s.status_at) or now
+    quiet_since = latest(idle_since, s.subagent_mtime)
+    if not busy and not w.running and now - (quiet_since or now) > STALL_AFTER:
+        return Health("stalled", f"idle, nothing running for {age(now - (quiet_since or now))}", alert=True)
+    note = "working" if busy else f"waiting on {w.running} worker{'s' if w.running != 1 else ''}" if w.running else "idle"
+    return Health("ok", note)
 
 
 def transitions(previous: dict[str, Health], current: dict[str, Health]) -> list[str]:
@@ -158,31 +175,51 @@ def transitions(previous: dict[str, Health], current: dict[str, Health]) -> list
     return lines
 
 
-def render_table(views: list[View], now: float, title: str) -> str:
-    """The fleet summary: one row per orchestrator, most urgent first."""
+def rows(views: list[View], now: float) -> list[tuple[Health, list[str]]]:
+    """One row of cells per orchestrator, most urgent first."""
     rated = sorted(((v, classify(v, now)) for v in views), key=lambda vh: (GROUP_ORDER.index(vh[1].state), vh[0].name))
-    out = [
-        f"**{datetime.fromtimestamp(now).strftime('%H:%M')} · {title} · {len(views)} orchestrators**",
-        "",
-        "| Health | Orchestrator | Run | Running | Done | Blocked | Queued | Needs you | Note |",
-        "|---|---|---|--:|--:|--:|--:|--:|---|",
-    ]
+    out = []
     for v, h in rated:
-        health = f"**{GROUP_TITLES[h.state]}**" if h.alert else GROUP_TITLES[h.state]
-        if v.run is None:
-            cells = ["—"] * 6
-        else:
-            c = v.run.counts
-            tallies = (
-                c.get("running", 0),
-                sum(c.get(s, 0) for s in DONE_STATES),
-                c.get("blocked", 0) + c.get("parked", 0),
-                c.get("queued", 0),
-                len(v.run.needs),
-            )
-            cells = [v.run.run_id, *map(str, tallies)]
-        out.append("| " + " | ".join([health, v.name, *cells, h.detail.replace("|", "/")]) + " |")
+        c = v.run.counts if v.run else None
+        done = max(v.workers.done, sum(c.get(s, 0) for s in DONE_STATES)) if c else v.workers.done
+        note = h.detail if v.hooked else f"{h.detail} · no hook data until resumed"
+        cells = [
+            GROUP_TITLES[h.state],
+            v.name,
+            str(v.workers.running),
+            str(done),
+            str(c.get("queued", 0)) if c else "—",
+            str(c.get("blocked", 0) + c.get("parked", 0)) if c else "—",
+            note,
+        ]
+        out.append((h, cells))
+    return out
+
+
+def title_line(views: list[View], now: float, title: str) -> str:
+    return f"{datetime.fromtimestamp(now).strftime('%H:%M')} · {title} · {len(views)} orchestrators"
+
+
+def render_markdown(views: list[View], now: float, title: str) -> str:
+    out = [f"**{title_line(views, now, title)}**", "", "| " + " | ".join(COLUMNS) + " |", "|---|---|--:|--:|--:|--:|---|"]
+    for h, cells in rows(views, now):
+        if h.alert:
+            cells[0] = f"**{cells[0]}**"
+        out.append("| " + " | ".join(c.replace("|", "/") for c in cells) + " |")
     return "\n".join(out)
+
+
+def render_text(views: list[View], now: float, title: str, width: int = 120) -> str:
+    table = [list(COLUMNS)] + [cells for _, cells in rows(views, now)]
+    widths = [max(len(r[i]) for r in table) for i in range(len(COLUMNS) - 1)]
+    note_width = max(20, width - sum(widths) - 2 * len(widths))
+    lines = [title_line(views, now, title), ""]
+    for i, r in enumerate(table):
+        head = "  ".join(cell.rjust(w) if 2 <= j <= 5 else cell.ljust(w) for j, (cell, w) in enumerate(zip(r, widths)))
+        lines.append(f"{head}  {r[-1][:note_width]}")
+        if i == 0:
+            lines.append("  ".join("-" * w for w in widths) + "  " + "-" * min(note_width, 40))
+    return "\n".join(lines)
 
 
 # ---- boundary: parse local files ----------------------------------------------
@@ -196,27 +233,36 @@ def parse_time(value: object) -> float | None:
     return None
 
 
-def parse_run(path: Path, data: dict, events_mtime: float | None, written_at: float | None = None, exited: dict[str, float] | None = None) -> Run:
+def parse_hooked(data: dict) -> Hooked:
+    waiting = data.get("waiting")
+    opus = data.get("opus") or {}
+    return Hooked(
+        session_id=str(data["sessionId"]),
+        name=str(data.get("name") or ""),
+        cwd=str(data.get("cwd") or ""),
+        status=str(data.get("status") or "idle"),
+        status_at=parse_time(data.get("statusAt")),
+        waiting=Waiting(str(waiting.get("kind")), str(waiting.get("text") or ""), float(waiting.get("since") or 0)) if waiting else None,
+        orchestrator=bool(data.get("orchestrator")),
+        codex_dirs=tuple(str(d) for d in (data.get("codex") or {}).values()),
+        opus_running=sum(1 for a in opus.values() if a.get("state") == "running"),
+        opus_done=sum(1 for a in opus.values() if a.get("state") == "done"),
+        updated_at=float(data.get("updatedAt") or 0),
+    )
+
+
+def parse_run(path: Path, data: dict, written_at: float | None = None) -> Run:
     counts: dict[str, int] = {}
     for issue in data.get("issues", []):
         state = str(issue.get("state", "queued"))
         counts[state] = counts.get(state, 0) + 1
-    needs = tuple(
-        Need(int(n.get("n", i + 1)), str(n.get("key", "?")), str(n.get("kind", "decision")), parse_time(n.get("openedAt")))
-        for i, n in enumerate(data.get("needs", []))
-        if n.get("kind") not in LEGACY_BLOCKER_KINDS
-    )
     return Run(
         run_id=str(data.get("run") or path.parent.name),
         session_name=str(data["sessionName"]),
         repo_path=str(data.get("repoPath", "")),
         settled=bool(data.get("settled", False)),
         updated_at=latest(parse_time(data.get("updatedAt")), written_at),
-        last_progress_at=parse_time(data.get("lastProgressAt")),
         counts=counts,
-        needs=needs,
-        events_mtime=events_mtime,
-        exited=tuple((str(i["key"]), exited[str(i["key"])]) for i in data.get("issues", []) if i.get("state") == "running" and str(i.get("key")) in (exited or {})),
     )
 
 
@@ -242,24 +288,37 @@ def pid_alive(pid: object) -> bool:
     return True
 
 
+def codex_workers(dirs: Iterable[Path]) -> Workers:
+    running = done = 0
+    for d in dirs:
+        try:
+            pid = int((d / "pid").read_text().strip()) if (d / "pid").exists() else None
+        except (OSError, ValueError):
+            pid = None
+        if pid_alive(pid):
+            running += 1
+        elif (d / "exit_code").exists():
+            done += 1
+    return Workers(running, done)
+
+
 def load_sessions(warnings: list[str]) -> dict[str, Session]:
+    """Live registry entries keyed by session id."""
     sessions: dict[str, Session] = {}
     for path in sorted(SESSIONS_DIR.glob("*.json")):
         try:
             d = json.loads(path.read_text())
             sid = str(d["sessionId"])
-            name = str(d.get("name") or "")
         except (OSError, ValueError, KeyError) as exc:
             warnings.append(f"skipped {path}: {exc}")
             continue
-        if not name:
-            continue
-        sessions[name] = Session(
-            name=name,
+        sessions[sid] = Session(
+            name=str(d.get("name") or sid[:8]),
             session_id=sid,
             cwd=str(d.get("cwd", "")),
             alive=pid_alive(d.get("pid")),
             busy=d.get("status") == "busy",
+            status_at=parse_time(d.get("statusUpdatedAt")),
             named_by_user=d.get("nameSource") == "user",
             transcript_mtime=newest_mtime(PROJECTS_DIR.glob(f"*/{sid}.jsonl")),
             subagent_mtime=newest_mtime(PROJECTS_DIR.glob(f"*/{sid}/subagents/*.jsonl")),
@@ -267,31 +326,24 @@ def load_sessions(warnings: list[str]) -> dict[str, Session]:
     return sessions
 
 
-def exited_workers(run_dir: Path) -> dict[str, float]:
-    """Exit time of each Codex worker in the run whose turn has ended."""
-    out = {}
-    for exit_file in run_dir.glob("*/exit_code"):
-        pid_file = exit_file.parent / "pid"
+def load_hooked(warnings: list[str]) -> dict[str, Hooked]:
+    hooked: dict[str, Hooked] = {}
+    for path in sorted(STATE_DIR.glob("*.json")):
         try:
-            live = pid_file.exists() and pid_alive(int(pid_file.read_text().strip()))
-            if not live:
-                out[exit_file.parent.name] = exit_file.stat().st_mtime
-        except (OSError, ValueError):
+            h = parse_hooked(json.loads(path.read_text()))
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            warnings.append(f"skipped {path}: {exc}")
             continue
-    return out
+        hooked[h.session_id] = h
+    return hooked
 
 
 def load_runs(warnings: list[str]) -> dict[str, Run]:
+    """The newest run.json per session name."""
     runs: dict[str, Run] = {}
     for path in sorted(RUNS_DIR.glob("*/run.json")):
         try:
-            run = parse_run(
-                path,
-                json.loads(path.read_text()),
-                newest_mtime(path.parent.glob("*/events.jsonl")),
-                written_at=path.stat().st_mtime,
-                exited=exited_workers(path.parent),
-            )
+            run = parse_run(path, json.loads(path.read_text()), written_at=path.stat().st_mtime)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             warnings.append(f"skipped {path}: {exc}")
             continue
@@ -308,35 +360,54 @@ def repo_root() -> str:
         return os.getcwd()
 
 
-def own_session(sessions: dict[str, Session]) -> Session | None:
-    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-    return next((s for s in sessions.values() if s.session_id == sid), None)
+def within(path: str, repo: str) -> bool:
+    if not path:
+        return False
+    path, repo = os.path.realpath(path), os.path.realpath(repo)
+    return path == repo or path.startswith(repo + os.sep)
+
+
+def own_session_id() -> str:
+    return os.environ.get("CLAUDE_CODE_SESSION_ID", "")
 
 
 def collect(repo: str, names: list[str], now: float, warnings: list[str]) -> list[View]:
     sessions = load_sessions(warnings)
+    hooked = load_hooked(warnings)
     runs = load_runs(warnings)
-    me = own_session(sessions)
-    if names:
-        chosen = names
-    else:
-        chosen = [
-            name
-            for name, run in runs.items()
-            if os.path.realpath(run.repo_path) == os.path.realpath(repo)
-            and (not run.settled or now - (run.updated_at or 0) < SETTLED_VISIBLE_FOR)
-        ]
-    if me is not None:
-        chosen = [n for n in chosen if n != me.name]
-    return [View(name, runs.get(name), sessions.get(name)) for name in sorted(chosen)]
+    by_name: dict[str, View] = {}
+    for sid in (set(hooked) | set(sessions)) - {own_session_id()}:
+        s, h = sessions.get(sid), hooked.get(sid)
+        name = (h.name if h and h.name else None) or (s.name if s else sid[:8])
+        run = runs.get(name)
+        if names:
+            if name not in names:
+                continue
+        else:
+            cwd = (h.cwd if h else "") or (s.cwd if s else "")
+            is_orchestrator = (h is not None and h.orchestrator) or run is not None
+            if not is_orchestrator or not (within(cwd, repo) or (run is not None and within(run.repo_path, repo))):
+                continue
+        dirs = {Path(d) for d in (h.codex_dirs if h else ())}
+        if run is not None:
+            dirs |= {p.parent for p in (RUNS_DIR / run.run_id).glob("*/events.jsonl")}
+        codex = codex_workers(dirs)
+        workers = Workers(codex.running + (h.opus_running if h else 0), codex.done + (h.opus_done if h else 0))
+        last = latest(h.updated_at if h else None, s.status_at if s else None, run.updated_at if run else None) or 0
+        gone = s is None or not s.alive or (run is not None and run.settled)
+        if gone and not names and now - last > GONE_VISIBLE_FOR:
+            continue
+        current = by_name.get(name)
+        if current is None or (s is not None and s.alive):
+            by_name[name] = View(name, s, h, run, workers)
+    return [by_name[n] for n in sorted(by_name)]
 
 
 # ---- commands -------------------------------------------------------------------
 
 
 def cmd_whoami(_: argparse.Namespace) -> int:
-    warnings: list[str] = []
-    me = own_session(load_sessions(warnings))
+    me = load_sessions([]).get(own_session_id())
     if me is None:
         print("unknown: no session registry entry for CLAUDE_CODE_SESSION_ID")
         return 2
@@ -350,9 +421,11 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     repo = args.repo or repo_root()
     views = collect(repo, args.sessions, now, warnings)
     if args.format == "json":
-        print(json.dumps([{"name": v.name, "run": v.run.run_id if v.run else None, **classify(v, now).__dict__} for v in views], indent=2))
+        print(json.dumps([{"name": v.name, **classify(v, now).__dict__} for v in views], indent=2))
+    elif args.format == "text":
+        print(render_text(views, now, Path(repo).name, args.width))
     else:
-        print(render_table(views, now, Path(repo).name))
+        print(render_markdown(views, now, Path(repo).name))
     for w in warnings:
         print(f"warning: {w}", file=sys.stderr)
     return 0
@@ -362,17 +435,19 @@ def cmd_watch(args: argparse.Namespace) -> int:
     repo = args.repo or repo_root()
     previous: dict[str, Health] = {}
     reported: set[str] = set()
+    first = True
     while True:
         warnings: list[str] = []
         try:
             now = time.time()
             current = {v.name: classify(v, now) for v in collect(repo, args.sessions, now, warnings)}
-            if not previous:
+            if first:
                 summary = ", ".join(f"{n} {h.state}" for n, h in current.items()) or "none"
                 print(f"watching {len(current)} orchestrators: {summary}", flush=True)
                 for name, health in current.items():
                     if health.alert:
                         print(f"⚠ {name}: {health.state} · {health.detail}", flush=True)
+                first = False
             else:
                 for line in transitions(previous, current):
                     print(line, flush=True)
@@ -386,17 +461,41 @@ def cmd_watch(args: argparse.Namespace) -> int:
         time.sleep(args.interval)
 
 
+def cmd_pane(args: argparse.Namespace) -> int:
+    repo = args.repo or repo_root()
+    table = [sys.executable, os.path.abspath(__file__), "snapshot", "--format", "text", "--repo", repo]
+    if args.sessions:
+        table += ["--sessions", *args.sessions]
+    command = f"watch -t -n {args.interval} {shlex.quote(shlex.join(table))}"
+    if os.environ.get("HERDR_ENV") == "1" and shutil.which("herdr"):
+        split = subprocess.run(["herdr", "pane", "split", "--current", "--direction", "down", "--ratio", "0.25", "--no-focus"],
+                               capture_output=True, text=True, check=True)
+        pane = json.loads(split.stdout)["result"]["pane"]["pane_id"]
+        subprocess.run(["herdr", "pane", "run", pane, command], capture_output=True, text=True, check=True)
+    elif os.environ.get("TMUX") and shutil.which("tmux"):
+        pane = subprocess.run(["tmux", "split-window", "-d", "-v", "-l", "12", "-P", "-F", "#{pane_id}", command],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    else:
+        print(f"no herdr or tmux here; run this in a terminal:\n{command}")
+        return 3
+    print(f"pane {pane}: {command}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("whoami").set_defaults(func=cmd_whoami)
-    for name, func in (("snapshot", cmd_snapshot), ("watch", cmd_watch)):
+    for name, func in (("snapshot", cmd_snapshot), ("watch", cmd_watch), ("pane", cmd_pane)):
         p = sub.add_parser(name)
         p.add_argument("--repo", help="repository the orchestrators work on (default: this checkout)")
         p.add_argument("--sessions", nargs="*", default=[], help="explicit orchestrator session names")
         p.set_defaults(func=func)
-    sub.choices["snapshot"].add_argument("--format", choices=("table", "json"), default="table")
+    snapshot = sub.choices["snapshot"]
+    snapshot.add_argument("--format", choices=("markdown", "text", "json"), default="markdown")
+    snapshot.add_argument("--width", type=int, default=int(os.environ.get("COLUMNS", "120")), help="text table width")
     sub.choices["watch"].add_argument("--interval", type=int, default=60)
+    sub.choices["pane"].add_argument("--interval", type=int, default=600, help="seconds between redraws")
     args = parser.parse_args(argv)
     return args.func(args)
 

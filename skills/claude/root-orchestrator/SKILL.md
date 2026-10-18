@@ -1,15 +1,21 @@
 ---
 name: root-orchestrator
-description: Watch every spawn-orchestrator session working on this repository from one named Claude Code session. Post a health-grouped summary every 10 minutes, raise stalled, hung, or dead orchestrators within a minute, collect their open decisions, and tell orchestrators about conflicts they cannot see. Use when the user asks for a root orchestrator, an orchestrator of orchestrators, or one view over several orchestrator sessions; do not use to implement, dispatch, or merge work.
+description: Watch every spawn-orchestrator session working on this repository from one named Claude Code session. Open a terminal pane that redraws the fleet table every 10 minutes at no token cost, wake only when an orchestrator needs the user, stalls, hangs, or dies, and tell orchestrators about conflicts they cannot see. Use when the user asks for a root orchestrator, an orchestrator of orchestrators, or one view over several orchestrator sessions; do not use to implement, dispatch, or merge work.
 ---
 
 # Root Orchestrator
 
-One named session watches the orchestrators working on this repository, the way an orchestrator watches its workers: passively, from files, without asking for status. It never implements, dispatches, claims, merges, or decides for another orchestrator. Each orchestrator owns its workers, ledger, and decisions; the root sees across them.
+One named session watches the orchestrators working on this repository, the way an orchestrator watches its workers: passively, from files, without asking for status. It never implements, dispatches, claims, merges, or decides for another orchestrator. Each orchestrator owns its workers and decisions; the root sees across them.
+
+Tokens are the constraint. Every turn of this session re-reads its whole context, so the root never polls or posts on a timer. Scripts build the view from files at no token cost; this session wakes only on alerts and when the user asks.
 
 ## Required Tooling
 
-The helper `fleet.py` is deployed beside this skill at `~/.claude/skills/root-orchestrator/scripts/fleet.py`; the rest of this skill writes it as `fleet.py`. It reads the session registry (`~/.claude/sessions/*.json`), each orchestrator's `run.json`, and worker activity files. It writes nothing.
+The helper `fleet.py` is deployed beside this skill at `~/.claude/skills/root-orchestrator/scripts/fleet.py`; the rest of this skill writes it as `fleet.py`. It reads, and never writes:
+
+- `~/.cache/claude-sessions/<session id>.json`, kept by the `session_state.py` hook in every session: busy or idle, the question or permission prompt waiting on the user, whether the session is an orchestrator, and the workers it dispatched;
+- the session registry (`~/.claude/sessions/*.json`) and worker files (Codex run directories, Opus subagent transcripts);
+- an orchestrator's `run.json`, when it keeps one, for queued and blocked counts and the settled flag.
 
 ## Name Gate
 
@@ -17,31 +23,33 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 
 ## Scope
 
-- By default the fleet is every orchestrator whose `run.json` names this repository (`repoPath`), plus runs settled within the last 12 hours.
-- When the user names sessions ("watch trading-research, trading-ui and trading-worker"), pass them with `--sessions`; a named session with no `run.json` shows as `no-ledger`.
-- An orchestrator appears only after its `run_state.py init`. A session started before that requirement shows as `no-ledger` until it runs `$spawn-orchestrator` again.
+- By default the fleet is every session in this repository that ran `$spawn-orchestrator` or dispatched a worker, or keeps a `run.json` naming this repository, plus sessions that ended or settled within the last 12 hours.
+- When the user names sessions ("watch trading-research, trading-ui and trading-worker"), pass them with `--sessions`.
+- Sessions started before the hook was installed have no hook data: the table marks them `no hook data until resumed`, and their questions and permission prompts are invisible until the user resumes them (`claude --resume <name>`).
 
 ## Start
 
-1. Run `python3 fleet.py snapshot` and post the result in a code block. Follow it with one line naming any `no-ledger` sessions and why.
-2. Arm the stall monitor: the `Monitor` tool with `python3 fleet.py watch` (add the same `--repo`/`--sessions` you used), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires.
-3. Schedule the summary: `CronCreate` with cron `*/10 * * * *` and the prompt `Root orchestrator: post the fleet summary.` Recurring jobs expire after 7 days; re-create it when it does and say so once.
+1. Run `python3 fleet.py snapshot` and post the markdown table it prints.
+2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one running `watch` on the terminal table every 10 minutes. If it exits 3, give the user the command it printed to run in a terminal.
+3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires.
 
-## The 10-Minute Summary
+Do not schedule a recurring summary. The pane is the periodic view.
 
-On each cron fire, run `python3 fleet.py snapshot` and post its output as printed, a markdown table with one row per orchestrator, most urgent first:
+## The Table
+
+When the user asks for status, run `python3 fleet.py snapshot` and post its markdown table as printed:
 
 ```text
 **17:21 · trading · 4 orchestrators**
 
-| Health | Orchestrator | Run | Running | Done | Blocked | Queued | Needs you | Note |
-|---|---|---|--:|--:|--:|--:|--:|---|
-| **needs you** | trading-research | discovery | 2 | 8 | 1 | 3 | 1 | answer in trading-research: 4. QUANT-444 decision · open 40m |
-| **stalled** | trading-worker | i5-worker | 0 | 3 | 1 | 1 | 0 | nothing moved for 36h |
-| ok | trading-portfolio | portfolio-v1 | 1 | 47 | 2 | 3 | 0 | moved 0m ago |
+| Health | Orchestrator | Running | Done | Queued | Blocked | Note |
+|---|---|--:|--:|--:|--:|---|
+| **needs you** | trading-research | 2 | 8 | 3 | 1 | question: Use the :59 gate population? · 40m |
+| **stalled** | trading-worker | 0 | 3 | 1 | 1 | idle, nothing running for 36h |
+| ok | trading-portfolio | 1 | 47 | 3 | 2 | waiting on 1 worker |
 ```
 
-Rows sort by health: dead, hung, needs you, drift, stalled, no ledger, ok, done; a bold health is an alert. **Needs you** counts only questions the user must answer by typing in that orchestrator's session. **Blocked** counts issues waiting on anything else (another issue, CI, a third party, an action the user takes elsewhere); it never makes an orchestrator need the user. Post the table every fire, even when nothing changed; add commentary only about changes since the last summary.
+Rows sort by health; a bold health is an alert. **Running** and **Done** count workers from their own files. **Queued** and **Blocked** come from `run.json` and show `—` without one. **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked work never makes an orchestrator need the user.
 
 ## Health
 
@@ -49,43 +57,38 @@ Rows sort by health: dead, hung, needs you, drift, stalled, no ledger, ok, done;
 
 | State | Meaning |
 |---|---|
-| `settled` | `run.json` says the run is settled |
-| `dead` | the session is gone or its process exited, run not settled |
-| `hung` | the session shows busy, but its transcript has been silent for 20 minutes |
-| `needs-you` | the orchestrator has open questions the user must answer in its session; alerts once the oldest is 30 minutes old. Blocked work never counts. |
-| `drift` | `run.json` still says an issue is running 20 minutes after its Codex worker exited |
-| `stalled` | running or queued work, nothing has moved for 20 minutes, and no open decision explains it |
-| `ok` | otherwise |
-
-Progress is the newest of the orchestrator's `lastProgressAt`, `updatedAt` (or the file's write time, if later), any Codex worker's `events.jsonl`, and any Opus subagent transcript of that session.
+| `done` | `run.json` says the run is settled |
+| `dead` | the session ended or its process exited |
+| `needs you` | the session is waiting on a question (`AskUserQuestion`) or a permission prompt, its own or a worker's; alerts once open 10 minutes |
+| `hung` | the session is busy, no worker is running, and its transcript has been silent for 20 minutes |
+| `stalled` | the session is idle and no worker has run for 20 minutes |
+| `ok` | working, or idle while its workers run |
 
 ## Act on a Monitor Event
 
 Each Monitor line is one health change. Post it at once, in one line, then:
 
-- **needs-you:** list the open decisions with their numbers and the recommendation from the orchestrator's page or report, and say which session to answer in. Answers must be given in that session: a message from this root carries no user authority there.
-- **stalled:** read the orchestrator's `state.md`, run directory, and page, then tell the user what is stuck and offer options with a recommendation, as `$spawn-orchestrator` does for a stalled worker. Message the orchestrator only with evidence it may lack (below).
-- **drift:** the orchestrator has not recorded what its worker finished. Message it once with the issue and exit time from `fleet.py` and ask it to verify the result and record it with `run_state.py`; say so in the next summary. Do not message it again for the same issue.
+- **needs you:** quote the question or permission prompt and say which session to answer in. Answers must be given there: a message from this root carries no user authority.
+- **stalled:** read the orchestrator's `state.md` and run directory, then tell the user what is stuck and offer options with a recommendation, as `$spawn-orchestrator` does for a stalled worker. A finished run also shows as stalled until it settles; say so when the ledger shows every issue terminal.
 - **hung:** report it with the silent duration. Do not message a hung session; the user decides whether to interrupt it.
 - **dead:** report the last update, the run directory, and the resume command `claude --resume <name>`.
-- **ok / settled:** post the change only.
+- **ok / done:** post the change only.
 
 Never resume, interrupt, rename, or restart another session yourself.
 
 ## Messages to Orchestrators
 
-Use `SendMessage` only to give an orchestrator a fact it cannot see from its own run or has missed, and say what to verify:
+Use `SendMessage` only to give an orchestrator a fact it cannot see from its own run, and say what to verify:
 
 - another orchestrator owns or is changing the same files or API;
 - an issue it is waiting on was merged by another orchestrator;
-- a shared resource (an exclusive test database, ports, the merge queue, disk) is contended by another orchestrator;
-- one of its Codex workers exited 20 minutes ago and its `run.json` still says running (drift).
+- a shared resource (an exclusive test database, ports, the merge queue, disk) is contended by another orchestrator.
 
-Write one short message with the evidence and the source (`trading-portfolio's run.json`, PR link, commit). Never ask an orchestrator for status, never relay the user's answers or approvals, and never tell it what to dispatch. It verifies the fact and decides itself.
+Write one short message with the evidence and the source (PR link, commit, run directory). Never ask an orchestrator for status, never relay the user's answers or approvals, and never tell it what to dispatch. It verifies the fact and decides itself.
 
 ## Guardrails
 
 - Read-only on every other session's files.
-- One summary per cron fire, one line per health change; no other unprompted chat.
+- One line per health change and replies to the user; no other unprompted chat, no timers.
 - If `fleet.py` reports a skipped or malformed file, mention it once with its path.
-- When every orchestrator in scope is settled, post a final summary, delete the cron job, stop the Monitor, and say the fleet is done.
+- When every orchestrator in scope is done, post a final table, stop the Monitor, close the pane, and say the fleet is done.
