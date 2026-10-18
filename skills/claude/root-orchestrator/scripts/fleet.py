@@ -54,6 +54,7 @@ RECENT_WINDOW = 2 * 3600
 PACE_HISTORY = 7 * 86400
 PACE_MIN_SAMPLES = 3
 SLOW_RATIO = 2.0
+PACE_TREND_RATIO = 1.5
 WORKER_SILENT_AFTER = 20 * 60
 
 GROUP_ORDER = ("dead", "hung", "needs-you", "stalled", "ok", "settled")
@@ -212,23 +213,46 @@ def last_finished(jobs: Iterable[Job], now: float) -> str:
     return f"{age(now - max(ended))} ago ({recent} in {RECENT_WINDOW // 3600}h)"
 
 
+def duration(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    if seconds < 48 * 3600:
+        return f"{seconds // 3600}h{seconds % 3600 // 60:02d}m"
+    return f"{seconds // 86400}d"
+
+
+def median(values: list[float]) -> float:
+    ordered = sorted(values)
+    return ordered[len(ordered) // 2]
+
+
 def pace(jobs: Iterable[Job], now: float) -> str:
-    """The running worker furthest behind this orchestrator's own usual worker time, or a silent one."""
+    """How this orchestrator's workers compare with its own usual worker time, worst news first:
+    a silent running worker, a running worker at least twice the usual, then whether the workers
+    that finished in the last two hours were faster or slower than usual."""
     jobs = list(jobs)
     running = [j for j in jobs if j.ended is None]
-    if not running:
-        return "—"
     silent = [j for j in running if j.active_at is not None and now - j.active_at > WORKER_SILENT_AFTER]
     if silent:
         j = min(silent, key=lambda j: j.active_at)
         return f"{j.key} silent {age(now - j.active_at)}"
-    took = sorted(j.ended - j.started for j in jobs if j.ended is not None and now - j.ended < PACE_HISTORY)
-    if len(took) < PACE_MIN_SAMPLES:
+    finished = [j for j in jobs if j.ended is not None and now - j.ended < PACE_HISTORY]
+    earlier = [j.ended - j.started for j in finished if now - j.ended >= RECENT_WINDOW]
+    if len(earlier) < PACE_MIN_SAMPLES:
         return "—"
-    usual = max(took[len(took) // 2], 60)
-    j = min(running, key=lambda j: j.started)
-    ratio = (now - j.started) / usual
-    return f"{j.key} {ratio:.1f}× usual ({age(now - j.started)})" if ratio >= SLOW_RATIO else "on pace"
+    usual = max(median(earlier), 60)
+    if running:
+        j = min(running, key=lambda j: j.started)
+        if (now - j.started) / usual >= SLOW_RATIO:
+            return f"{j.key} running {duration(now - j.started)} (usually {duration(usual)})"
+    recent = [j.ended - j.started for j in finished if now - j.ended < RECENT_WINDOW]
+    if recent:
+        took = median(recent)
+        trend = "faster" if took * PACE_TREND_RATIO <= usual else "slower" if took >= usual * PACE_TREND_RATIO else None
+        if trend:
+            return f"{trend}: last {len(recent)} took ~{duration(took)} (usually {duration(usual)})"
+    return "on pace" if running or recent else "—"
 
 
 def ended_at(view: View, health: Health) -> float | None:

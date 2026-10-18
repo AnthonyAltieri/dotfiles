@@ -77,11 +77,17 @@ class PaneTests(unittest.TestCase):
 class VelocityTests(unittest.TestCase):
     HISTORY = [fleet.Job(f"Q-{i}", NOW - 5 * 3600, NOW - 5 * 3600 + 20 * MIN) for i in range(3)]
 
-    def test_pace_flags_a_worker_far_past_this_orchestrators_usual_time(self):
+    def test_pace_flags_a_running_worker_far_past_this_orchestrators_usual_time(self):
         slow = fleet.Job("Q-9", NOW - 70 * MIN, active_at=NOW)
         on_time = fleet.Job("Q-9", NOW - 30 * MIN, active_at=NOW)
-        self.assertEqual(fleet.pace(self.HISTORY + [slow], NOW), "Q-9 3.5× usual (1h)")
+        self.assertEqual(fleet.pace(self.HISTORY + [slow], NOW), "Q-9 running 1h10m (usually 20m)")
         self.assertEqual(fleet.pace(self.HISTORY + [on_time], NOW), "on pace")
+
+    def test_pace_compares_workers_finished_in_the_last_two_hours_with_the_usual_time(self):
+        fast = [fleet.Job(f"F-{i}", NOW - 20 * MIN, NOW - 10 * MIN) for i in range(2)]
+        slow = [fleet.Job("S-1", NOW - 50 * MIN, NOW - 5 * MIN)]
+        self.assertEqual(fleet.pace(self.HISTORY + fast, NOW), "faster: last 2 took ~10m (usually 20m)")
+        self.assertEqual(fleet.pace(self.HISTORY + slow, NOW), "slower: last 1 took ~45m (usually 20m)")
 
     def test_running_worker_with_no_output_for_twenty_minutes_is_silent_not_slow(self):
         stuck = fleet.Job("Q-9", NOW - 30 * MIN, active_at=NOW - 25 * MIN)
