@@ -51,6 +51,8 @@ When the user asks for status, run `python3 fleet.py snapshot` and post its mark
 
 Rows sort by health; a bold health is an alert. **Running** and **Done** count workers from their own files (Codex run directories, Opus subagents). **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked or parked work never makes an orchestrator need the user; for an orchestrator's blocked and parked issues, read its own report or dashboard.
 
+When the user asks what is blocked, queued, or unattended, `run.json` issue states are a starting point, not the answer: they are written by hand and lag. Before calling work unattended, read the orchestrator's latest `waiting:` Note (Haiku's summary of its last message) and its last message; an orchestrator that names the issue and why it holds it is attending to it. Say "held by <orchestrator>: <reason>" instead of "nobody is working on it".
+
 ## Health
 
 `fleet.py` classifies each orchestrator, first match wins:
@@ -72,7 +74,7 @@ Each Monitor line is one health change. Post it at once, in one line, then:
 - **stalled:** read the orchestrator's `state.md` and run directory, then tell the user what is stuck and offer options with a recommendation, as `$spawn-orchestrator` does for a stalled worker. A finished run also shows as stalled until it settles; say so when the ledger shows every issue terminal.
 - **hung:** report it with the silent duration. Do not message a hung session; the user decides whether to interrupt it.
 - **dead:** report the last update, the run directory, and the resume command `claude --resume <name>`.
-- **ok / done:** post the change only.
+- **ok / done:** post the change only. Leaving needs you for ok means the session started working again, not that the user answered: a finished worker or background job wakes it too. Say "back to working", never "answered".
 
 Never resume, interrupt, rename, or restart another session yourself.
 

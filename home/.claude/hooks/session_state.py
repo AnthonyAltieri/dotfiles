@@ -135,7 +135,8 @@ def apply(state: dict, event: dict, now: float) -> dict:
             text = permission_text(event) if name == "PermissionRequest" else short(event.get("message"))
             if not main:
                 text = f"worker {event.get('agent_type') or 'subagent'}: {text}"
-            if not (waiting and waiting.get("kind") == "permission"):
+            # Asking a question raises its own permission prompt; keep the question, and keep the first prompt's age.
+            if not waiting:
                 state["waiting"] = {"kind": "permission", "text": text, "since": now}
     elif name in ("PostToolUse", "PostToolUseFailure", "PermissionDenied"):
         if waiting and (waiting.get("kind") == "permission" or waiting.get("toolUseId") == event.get("tool_use_id")):
