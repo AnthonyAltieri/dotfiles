@@ -61,12 +61,11 @@ class StatusTests(unittest.TestCase):
 class TriageTests(unittest.TestCase):
     ORCH = ev("UserPromptSubmit", prompt="/spawn-orchestrator QUANT-1")
 
-    def test_only_an_orchestrator_parked_with_nothing_running_is_triaged(self):
-        parked = ev("Stop", last_assistant_message="Dispatch now?", background_tasks=[], session_crons=[])
-        working = ev("Stop", last_assistant_message="Waiting on workers.", background_tasks=[{"id": "t1"}])
-        self.assertEqual(fold(self.ORCH, parked)["triage"], {"verdict": "pending", "since": T + 1})
-        self.assertIsNone(fold(self.ORCH, working)["triage"])
-        self.assertIsNone(fold(ev("UserPromptSubmit", prompt="hi"), parked)["triage"])
+    def test_every_orchestrator_turn_end_is_triaged_even_with_background_tasks(self):
+        # Regression: orchestrators keep a Monitor running, so gating on no background task never triaged them.
+        monitoring = ev("Stop", last_assistant_message="Merge #12 now?", background_tasks=[{"id": "t1"}])
+        self.assertEqual(fold(self.ORCH, monitoring)["triage"], {"verdict": "pending", "since": T + 1})
+        self.assertIsNone(fold(ev("UserPromptSubmit", prompt="hi"), monitoring)["triage"])
 
     def test_tool_activity_after_a_parked_turn_clears_the_verdict(self):
         parked = ev("Stop", last_assistant_message="Dispatch now?", background_tasks=[])
@@ -76,6 +75,7 @@ class TriageTests(unittest.TestCase):
 
     def test_verdict_line_is_parsed_and_anything_else_fails_open(self):
         self.assertEqual(parse_verdict("YOU: Approve merging #2212\n"), {"verdict": "you", "summary": "Approve merging #2212"})
+        self.assertEqual(parse_verdict("WAIT: research data at 05:00Z")["verdict"], "wait")
         self.assertEqual(parse_verdict("I think the user should look")["verdict"], "failed")
 
     def test_session_named_in_a_run_file_is_triaged_without_a_dispatch(self):

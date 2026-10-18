@@ -6,7 +6,7 @@ view costs no model tokens:
 - ~/.cache/claude-sessions/<sessionId>.json: per-session state from the
   session_state.py hook (status, the question or permission prompt waiting on
   the user, orchestrator role, dispatched workers, and Haiku's verdict on the
-  last message of an orchestrator parked with nothing running).
+  last message of each orchestrator turn: needs the user, waiting, or done).
 - ~/.claude/sessions/<pid>.json: the live session registry (name, process, status).
 - Worker files: <run>/<issue>/{pid,exit_code,events.jsonl} for Codex workers and
   ~/.claude/projects/*/<sessionId>/subagents/*.jsonl for Opus workers.
@@ -17,13 +17,15 @@ view costs no model tokens:
 Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
   snapshot  render the fleet as a markdown table, a terminal table, or JSON
-  watch     print one line per health change, forever
+  watch     print one line per health change, forever; a re-armed watch
+            resumes from what the last one reported and repeats nothing
   pane      open a herdr or tmux pane that redraws the terminal table every minute
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shlex
@@ -40,6 +42,7 @@ SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 PROJECTS_DIR = Path.home() / ".claude" / "projects"
 STATE_DIR = Path.home() / ".cache" / "claude-sessions"
 RUNS_DIR = Path.home() / ".cache" / "spawn-orchestrator"
+WATCH_DIR = Path.home() / ".cache" / "root-orchestrator"
 
 STALL_AFTER = 20 * 60
 HUNG_AFTER = 20 * 60
@@ -75,7 +78,7 @@ class Waiting:
 
 @dataclass(frozen=True)
 class Triage:
-    verdict: str  # pending | you | done | failed
+    verdict: str  # pending | you | wait | done | failed
     summary: str
     since: float
 
@@ -95,6 +98,7 @@ class Hooked:
     opus_running: int
     opus_done: int
     updated_at: float
+    background_tasks: int = 0
     triage: Triage | None = None
 
 
@@ -163,8 +167,10 @@ def classify(view: View, now: float) -> Health:
     if t is not None and t.verdict == "you":
         open_for = now - t.since
         return Health("needs-you", f"{t.summary} · {age(open_for)}", alert=open_for > NEEDS_ALERT_AFTER)
-    if t is not None and t.verdict == "done" and not w.running:
+    if t is not None and t.verdict == "done" and not w.running and not h.background_tasks:
         return Health("settled", f"finished: {t.summary} · {age(now - t.since)} ago")
+    if t is not None and t.verdict in ("wait", "done"):
+        return Health("ok", f"waiting: {t.summary}")
     # A session that loaded the hook mid-turn has no status yet; the registry knows.
     known = h is not None and h.status in ("busy", "idle")
     busy = h.status == "busy" if known else s.busy
@@ -253,12 +259,13 @@ def parse_hooked(data: dict) -> Hooked:
         opus_running=sum(1 for a in opus.values() if a.get("state") == "running"),
         opus_done=sum(1 for a in opus.values() if a.get("state") == "done"),
         updated_at=float(data.get("updatedAt") or 0),
+        background_tasks=int(data.get("backgroundTasks") or 0),
         triage=parse_triage(data.get("triage")),
     )
 
 
 def parse_triage(data: object) -> Triage | None:
-    if not isinstance(data, dict) or data.get("verdict") not in ("pending", "you", "done", "failed"):
+    if not isinstance(data, dict) or data.get("verdict") not in ("pending", "you", "wait", "done", "failed"):
         return None
     return Triage(str(data["verdict"]), str(data.get("summary") or ""), float(data.get("since") or 0))
 
@@ -438,26 +445,40 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     return 0
 
 
+def watch_state_path(repo: str, sessions: list[str]) -> Path:
+    scope = json.dumps([str(Path(repo).resolve()), sorted(sessions)])
+    return WATCH_DIR / f"{hashlib.sha256(scope.encode()).hexdigest()[:16]}.json"
+
+
+def load_seen(path: Path) -> dict[str, Health]:
+    """The health the previous watch on this scope last reported, so a re-armed watch repeats nothing."""
+    try:
+        return {name: Health(**health) for name, health in json.loads(path.read_text()).items()}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def save_seen(path: Path, current: dict[str, Health]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps({name: health.__dict__ for name, health in current.items()}))
+    tmp.replace(path)
+
+
 def cmd_watch(args: argparse.Namespace) -> int:
     repo = args.repo or repo_root()
-    previous: dict[str, Health] = {}
+    seen_path = watch_state_path(repo, args.sessions)
+    previous = load_seen(seen_path)
     reported: set[str] = set()
-    first = True
     while True:
         warnings: list[str] = []
         try:
             now = time.time()
             current = {v.name: classify(v, now) for v in collect(repo, args.sessions, now, warnings)}
-            if first:
-                summary = ", ".join(f"{n} {h.state}" for n, h in current.items()) or "none"
-                print(f"watching {len(current)} orchestrators: {summary}", flush=True)
-                for name, health in current.items():
-                    if health.alert:
-                        print(f"⚠ {name}: {health.state} · {health.detail}", flush=True)
-                first = False
-            else:
-                for line in transitions(previous, current):
-                    print(line, flush=True)
+            for line in transitions(previous, current):
+                print(line, flush=True)
+            if current != previous:
+                save_seen(seen_path, current)
             previous = current
         except Exception as exc:  # the watch must outlive one bad read
             print(f"fleet error: {exc}", file=sys.stderr, flush=True)
