@@ -16,7 +16,7 @@ Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
   snapshot  render the fleet as a markdown table, a terminal table, or JSON
   watch     print one line per health change, forever
-  pane      open a herdr or tmux pane that redraws the terminal table every 10 minutes
+  pane      open a herdr or tmux pane that redraws the terminal table every minute
 """
 
 from __future__ import annotations
@@ -511,7 +511,7 @@ def main(argv: list[str] | None = None) -> int:
     snapshot.add_argument("--format", choices=("markdown", "text", "json"), default="markdown")
     snapshot.add_argument("--width", type=int, default=int(os.environ.get("COLUMNS", "120")), help="text table width")
     sub.choices["watch"].add_argument("--interval", type=int, default=60)
-    sub.choices["pane"].add_argument("--interval", type=int, default=600, help="seconds between redraws")
+    sub.choices["pane"].add_argument("--interval", type=int, default=60, help="seconds between redraws")
     args = parser.parse_args(argv)
     return args.func(args)
 

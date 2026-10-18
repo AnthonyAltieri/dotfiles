@@ -1,6 +1,6 @@
 ---
 name: root-orchestrator
-description: Watch every spawn-orchestrator session working on this repository from one named Claude Code session. Open a terminal pane that redraws the fleet table every 10 minutes at no token cost, wake only when an orchestrator needs the user, stalls, hangs, or dies, and tell orchestrators about conflicts they cannot see. Use when the user asks for a root orchestrator, an orchestrator of orchestrators, or one view over several orchestrator sessions; do not use to implement, dispatch, or merge work.
+description: Watch every spawn-orchestrator session working on this repository from one named Claude Code session. Open a terminal pane that redraws the fleet table every minute at no token cost, wake only when an orchestrator needs the user, stalls, hangs, or dies, and tell orchestrators about conflicts they cannot see. Use when the user asks for a root orchestrator, an orchestrator of orchestrators, or one view over several orchestrator sessions; do not use to implement, dispatch, or merge work.
 ---
 
 # Root Orchestrator
@@ -30,7 +30,7 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 ## Start
 
 1. Run `python3 fleet.py snapshot` and post the markdown table it prints.
-2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one, sized to the table, running `watch` on it every 10 minutes. If it exits 3, give the user the command it printed to run in a terminal.
+2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one, sized to the table, running `watch` on it every minute. If it exits 3, give the user the command it printed to run in a terminal.
 3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires.
 
 Do not schedule a recurring summary. The pane is the periodic view.
