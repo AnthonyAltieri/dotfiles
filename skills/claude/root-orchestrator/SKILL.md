@@ -42,17 +42,17 @@ When the user asks for status, run `python3 fleet.py snapshot` and post its mark
 ```text
 **17:21 · trading · 3 orchestrators · 1 done or dead hidden**
 
-| Health | Orchestrator | Running | Last 8h | Pace | Note |
+| Health | Orchestrator | Running | Last finished | Pace | Note |
 |---|---|--:|---|---|---|
-| **needs you** | trading-research | 2 | ···▂··▁· | QUANT-525 7.8× usual (3h) | question: Use the :59 gate population? · 40m |
-| **stalled** | trading-worker | 0 | ········ | — | idle, nothing running for 36h |
-| ok | trading-portfolio | 1 | ▁▃·▃▃█▄· | on pace | waiting on 1 worker |
+| **needs you** | trading-research | 2 | 1h ago (1 in 2h) | QUANT-525 7.8× usual (3h) | question: Use the :59 gate population? · 40m |
+| **stalled** | trading-worker | 0 | 1d ago (0 in 2h) | — | idle, nothing running for 36h |
+| ok | trading-portfolio | 1 | 3m ago (4 in 2h) | on pace | waiting on 1 worker |
 ```
 
 Rows sort by health; a bold health is an alert. Dead and done orchestrators leave the table an hour after they change; the title counts them. The columns come from the workers' own files (Codex run directories, Opus records in the hook state):
 
 - **Running:** workers running now.
-- **Last 8h:** workers finished per hour, oldest first, on one scale across the fleet, so a row that flattens is slowing down. `·` is an hour with none.
+- **Last finished:** how long since a worker last finished, and how many finished in the last 2 hours; a growing age with a low count is an orchestrator slowing down.
 - **Pace:** the longest-running worker against this orchestrator's own median worker time over the last 7 days, shown when it is at least 2× (`on pace` otherwise, `—` with no running worker or under 3 finished ones). Orchestrators do different work, so pace never compares one orchestrator with another. `<issue> silent <age>` means a running worker has written nothing for 20 minutes: probably stuck, not slow. Pace is not a health state and never alerts; mention a silent or slow worker only when the user asks for status.
 
  **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked or parked work never makes an orchestrator need the user; for an orchestrator's blocked and parked issues, read its own report or dashboard.

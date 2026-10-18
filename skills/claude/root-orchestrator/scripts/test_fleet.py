@@ -87,10 +87,9 @@ class VelocityTests(unittest.TestCase):
         stuck = fleet.Job("Q-9", NOW - 30 * MIN, active_at=NOW - 25 * MIN)
         self.assertEqual(fleet.pace(self.HISTORY + [stuck], NOW), "Q-9 silent 25m")
 
-    def test_sparkline_counts_finished_workers_per_hour_on_a_fleet_wide_scale(self):
-        counts = fleet.finished_per_hour(self.HISTORY + [fleet.Job("Q-8", NOW - 2 * MIN - 1, NOW - MIN)], NOW)
-        self.assertEqual(counts, [0, 0, 0, 3, 0, 0, 0, 1])
-        self.assertEqual(fleet.sparkline(counts, 4), "···▆···▂")
+    def test_last_finished_reports_the_newest_finish_and_the_recent_count(self):
+        jobs = self.HISTORY + [fleet.Job("Q-8", NOW - 30 * MIN, NOW - 12 * MIN)]
+        self.assertEqual(fleet.last_finished(jobs, NOW), "12m ago (1 in 2h)")
 
 
 class RowsTests(unittest.TestCase):

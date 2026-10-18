@@ -50,16 +50,15 @@ HUNG_AFTER = 20 * 60
 NEEDS_ALERT_AFTER = 10 * 60
 GONE_VISIBLE_FOR = 12 * 3600
 SHOWN_AFTER_ENDING = 3600  # dead and done rows leave the table an hour after they change; the watch keeps them
-VELOCITY_HOURS = 8
+RECENT_WINDOW = 2 * 3600
 PACE_HISTORY = 7 * 86400
 PACE_MIN_SAMPLES = 3
 SLOW_RATIO = 2.0
 WORKER_SILENT_AFTER = 20 * 60
-SPARK = "▁▂▃▄▅▆▇█"
 
 GROUP_ORDER = ("dead", "hung", "needs-you", "stalled", "ok", "settled")
 GROUP_TITLES = {"dead": "dead", "hung": "hung", "needs-you": "needs you", "stalled": "stalled", "ok": "ok", "settled": "done"}
-COLUMNS = ("Health", "Orchestrator", "Running", f"Last {VELOCITY_HOURS}h", "Pace", "Note")
+COLUMNS = ("Health", "Orchestrator", "Running", "Last finished", "Pace", "Note")
 
 
 @dataclass(frozen=True)
@@ -204,18 +203,13 @@ def classify(view: View, now: float) -> Health:
     return Health("ok", note)
 
 
-def finished_per_hour(jobs: Iterable[Job], now: float, hours: int = VELOCITY_HOURS) -> list[int]:
-    """Workers finished in each of the last `hours` hours, oldest first."""
-    counts = [0] * hours
-    for j in jobs:
-        if j.ended is not None and 0 <= now - j.ended < hours * 3600:
-            counts[hours - 1 - int((now - j.ended) // 3600)] += 1
-    return counts
-
-
-def sparkline(counts: list[int], scale: int) -> str:
-    """One character per hour; scale is the busiest hour across the fleet so rows compare."""
-    return "".join("·" if c == 0 else SPARK[min(len(SPARK) - 1, (c * len(SPARK) - 1) // max(scale, 1))] for c in counts)
+def last_finished(jobs: Iterable[Job], now: float) -> str:
+    """How long since a worker last finished, and how many finished in the last two hours."""
+    ended = [j.ended for j in jobs if j.ended is not None]
+    if not ended:
+        return "—"
+    recent = sum(1 for e in ended if now - e < RECENT_WINDOW)
+    return f"{age(now - max(ended))} ago ({recent} in {RECENT_WINDOW // 3600}h)"
 
 
 def pace(jobs: Iterable[Job], now: float) -> str:
@@ -269,13 +263,10 @@ def shown(views: list[View], now: float) -> list[tuple[View, Health]]:
 
 def rows(views: list[View], now: float) -> list[tuple[Health, list[str]]]:
     """One row of cells per shown orchestrator."""
-    kept = shown(views, now)
-    hourly = {v.name: finished_per_hour(v.workers.jobs, now) for v, _ in kept}
-    scale = max((c for counts in hourly.values() for c in counts), default=1)
     out = []
-    for v, h in kept:
+    for v, h in shown(views, now):
         note = h.detail if v.hooked else f"{h.detail} · no hook data yet"
-        out.append((h, [GROUP_TITLES[h.state], v.name, str(v.workers.running), sparkline(hourly[v.name], scale),
+        out.append((h, [GROUP_TITLES[h.state], v.name, str(v.workers.running), last_finished(v.workers.jobs, now),
                         pace(v.workers.jobs, now), note]))
     return out
 
