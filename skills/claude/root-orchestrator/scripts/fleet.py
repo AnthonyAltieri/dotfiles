@@ -5,7 +5,8 @@ Every source is a file the user's own sessions already write, so building the
 view costs no model tokens:
 - ~/.cache/claude-sessions/<sessionId>.json: per-session state from the
   session_state.py hook (status, the question or permission prompt waiting on
-  the user, orchestrator role, dispatched workers).
+  the user, orchestrator role, dispatched workers, and Haiku's verdict on the
+  last message of an orchestrator parked with nothing running).
 - ~/.claude/sessions/<pid>.json: the live session registry (name, process, status).
 - Worker files: <run>/<issue>/{pid,exit_code,events.jsonl} for Codex workers and
   ~/.claude/projects/*/<sessionId>/subagents/*.jsonl for Opus workers.
@@ -73,6 +74,13 @@ class Waiting:
 
 
 @dataclass(frozen=True)
+class Triage:
+    verdict: str  # pending | you | done | failed
+    summary: str
+    since: float
+
+
+@dataclass(frozen=True)
 class Hooked:
     """What the session_state.py hook recorded for one session."""
 
@@ -87,6 +95,7 @@ class Hooked:
     opus_running: int
     opus_done: int
     updated_at: float
+    triage: Triage | None = None
 
 
 @dataclass(frozen=True)
@@ -150,6 +159,12 @@ def classify(view: View, now: float) -> Health:
         what = "question" if h.waiting.kind == "question" else "permission"
         open_for = now - h.waiting.since
         return Health("needs-you", f"{what}: {h.waiting.text} · {age(open_for)}", alert=open_for > NEEDS_ALERT_AFTER)
+    t = h.triage if h is not None and h.status == "idle" else None
+    if t is not None and t.verdict == "you":
+        open_for = now - t.since
+        return Health("needs-you", f"{t.summary} · {age(open_for)}", alert=open_for > NEEDS_ALERT_AFTER)
+    if t is not None and t.verdict == "done" and not w.running:
+        return Health("settled", f"finished: {t.summary} · {age(now - t.since)} ago")
     # A session that loaded the hook mid-turn has no status yet; the registry knows.
     known = h is not None and h.status in ("busy", "idle")
     busy = h.status == "busy" if known else s.busy
@@ -238,7 +253,14 @@ def parse_hooked(data: dict) -> Hooked:
         opus_running=sum(1 for a in opus.values() if a.get("state") == "running"),
         opus_done=sum(1 for a in opus.values() if a.get("state") == "done"),
         updated_at=float(data.get("updatedAt") or 0),
+        triage=parse_triage(data.get("triage")),
     )
+
+
+def parse_triage(data: object) -> Triage | None:
+    if not isinstance(data, dict) or data.get("verdict") not in ("pending", "you", "done", "failed"):
+        return None
+    return Triage(str(data["verdict"]), str(data.get("summary") or ""), float(data.get("since") or 0))
 
 
 def parse_run(path: Path, data: dict, written_at: float | None = None) -> Run:

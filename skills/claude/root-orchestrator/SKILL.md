@@ -57,18 +57,18 @@ Rows sort by health; a bold health is an alert. **Running** and **Done** count w
 
 | State | Meaning |
 |---|---|
-| `done` | `run.json` says the run is settled |
+| `done` | `run.json` says the run is settled, or the orchestrator stopped with nothing running and Haiku judged its last message finished |
 | `dead` | the session ended or its process exited |
-| `needs you` | the session is waiting on a question (`AskUserQuestion`) or a permission prompt, its own or a worker's; alerts once open 10 minutes |
+| `needs you` | the session waits for the user to type: an open question (`AskUserQuestion`), a permission prompt (its own or a worker's), or a turn that ended with nothing running whose last message Haiku judged to need the user; the Note says what. Alerts once open 10 minutes |
 | `hung` | the session is busy, no worker is running, and its transcript has been silent for 20 minutes |
-| `stalled` | the session is idle and no worker has run for 20 minutes |
+| `stalled` | the session is idle, no worker has run for 20 minutes, and no verdict explains it (Haiku failed or the session predates the hook) |
 | `ok` | working, or idle while its workers run |
 
 ## Act on a Monitor Event
 
 Each Monitor line is one health change. Post it at once, in one line, then:
 
-- **needs you:** quote the question or permission prompt and say which session to answer in. Answers must be given there: a message from this root carries no user authority.
+- **needs you:** quote the question, permission prompt, or Haiku's one-line summary and say which session to answer in. Answers must be given there: a message from this root carries no user authority.
 - **stalled:** read the orchestrator's `state.md` and run directory, then tell the user what is stuck and offer options with a recommendation, as `$spawn-orchestrator` does for a stalled worker. A finished run also shows as stalled until it settles; say so when the ledger shows every issue terminal.
 - **hung:** report it with the silent duration. Do not message a hung session; the user decides whether to interrupt it.
 - **dead:** report the last update, the run directory, and the resume command `claude --resume <name>`.

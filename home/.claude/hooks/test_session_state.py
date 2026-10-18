@@ -1,8 +1,13 @@
 """Unit tests for the session-state hook's event reducer."""
 
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
-from session_state import apply
+import session_state
+from session_state import apply, parse_verdict
 
 T = 1_800_000_000.0
 
@@ -51,6 +56,38 @@ class StatusTests(unittest.TestCase):
     def test_turn_end_records_idle_and_background_task_count(self):
         state = fold(ev("UserPromptSubmit", prompt="hi"), ev("Stop", background_tasks=[{"id": "t1"}, {"id": "t2"}]))
         self.assertEqual((state["status"], state["statusAt"], state["backgroundTasks"]), ("idle", T + 1, 2))
+
+
+class TriageTests(unittest.TestCase):
+    ORCH = ev("UserPromptSubmit", prompt="/spawn-orchestrator QUANT-1")
+
+    def test_only_an_orchestrator_parked_with_nothing_running_is_triaged(self):
+        parked = ev("Stop", last_assistant_message="Dispatch now?", background_tasks=[], session_crons=[])
+        working = ev("Stop", last_assistant_message="Waiting on workers.", background_tasks=[{"id": "t1"}])
+        self.assertEqual(fold(self.ORCH, parked)["triage"], {"verdict": "pending", "since": T + 1})
+        self.assertIsNone(fold(self.ORCH, working)["triage"])
+        self.assertIsNone(fold(ev("UserPromptSubmit", prompt="hi"), parked)["triage"])
+
+    def test_tool_activity_after_a_parked_turn_clears_the_verdict(self):
+        parked = ev("Stop", last_assistant_message="Dispatch now?", background_tasks=[])
+        woke = ev("PostToolUse", tool_name="Bash", tool_use_id="b1", tool_input={"command": "gh pr view 1"})
+        state = fold(self.ORCH, parked, woke)
+        self.assertEqual((state["status"], state["triage"]), ("busy", None))
+
+    def test_verdict_line_is_parsed_and_anything_else_fails_open(self):
+        self.assertEqual(parse_verdict("YOU: Approve merging #2212\n"), {"verdict": "you", "summary": "Approve merging #2212"})
+        self.assertEqual(parse_verdict("I think the user should look")["verdict"], "failed")
+
+    def test_verdict_is_dropped_when_the_user_typed_before_haiku_answered(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(session_state, "STATE_DIR", Path(tmp)):
+            stop = ev("Stop", last_assistant_message="Dispatch now?", background_tasks=[])
+            session_state.update("s1", lambda s: fold(self.ORCH, stop))
+            (Path(tmp) / ".s1.message").write_text("Dispatch now?")
+            session_state.update("s1", lambda s: apply(s, ev("UserPromptSubmit", prompt="yes"), T + 5))
+            reply = subprocess.CompletedProcess([], 0, stdout="YOU: Decide on dispatch\n")
+            with mock.patch.object(session_state.subprocess, "run", return_value=reply):
+                session_state.triage("s1", T + 1)
+            self.assertIsNone(session_state.update("s1", lambda s: s)["triage"])
 
 
 if __name__ == "__main__":
