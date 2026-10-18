@@ -16,7 +16,7 @@ Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
   snapshot  render the fleet as a markdown table, a terminal table, or JSON
   watch     print one line per health change, forever
-  pane      open a herdr or tmux pane that redraws the terminal table every 10 minutes
+  pane      open a herdr or tmux pane that redraws the terminal table every minute
 """
 
 from __future__ import annotations
@@ -184,7 +184,7 @@ def rows(views: list[View], now: float) -> list[tuple[Health, list[str]]]:
     for v, h in rated:
         c = v.run.counts if v.run else None
         done = max(v.workers.done, sum(c.get(s, 0) for s in DONE_STATES)) if c else v.workers.done
-        note = h.detail if v.hooked else f"{h.detail} · no hook data until resumed"
+        note = h.detail if v.hooked else f"{h.detail} · no hook data yet"
         cells = [
             GROUP_TITLES[h.state],
             v.name,
@@ -463,19 +463,33 @@ def cmd_watch(args: argparse.Namespace) -> int:
         time.sleep(args.interval)
 
 
+def pane_rows(orchestrators: int) -> int:
+    """Rows the pane needs: title, blank, header, rule, one per orchestrator, two for borders, one to spare."""
+    return orchestrators + 7
+
+
+def herdr_split_ratio(rows: int, total: int) -> float:
+    """The share herdr's --ratio leaves to the current pane, so the new pane gets `rows`."""
+    return min(0.9, max(0.5, 1 - rows / max(total, 1)))
+
+
 def cmd_pane(args: argparse.Namespace) -> int:
     repo = args.repo or repo_root()
+    rows = pane_rows(len(collect(repo, args.sessions, time.time(), [])))
     table = [sys.executable, os.path.abspath(__file__), "snapshot", "--format", "text", "--repo", repo]
     if args.sessions:
         table += ["--sessions", *args.sessions]
     command = f"watch -t -n {args.interval} {shlex.quote(shlex.join(table))}"
     if os.environ.get("HERDR_ENV") == "1" and shutil.which("herdr"):
-        split = subprocess.run(["herdr", "pane", "split", "--current", "--direction", "down", "--ratio", "0.25", "--no-focus"],
+        current = subprocess.run(["herdr", "pane", "current"], capture_output=True, text=True, check=True)
+        total = int(json.loads(current.stdout)["result"]["pane"]["scroll"]["viewport_rows"])
+        ratio = f"{herdr_split_ratio(rows, total):.2f}"
+        split = subprocess.run(["herdr", "pane", "split", "--current", "--direction", "down", "--ratio", ratio, "--no-focus"],
                                capture_output=True, text=True, check=True)
         pane = json.loads(split.stdout)["result"]["pane"]["pane_id"]
         subprocess.run(["herdr", "pane", "run", pane, command], capture_output=True, text=True, check=True)
     elif os.environ.get("TMUX") and shutil.which("tmux"):
-        pane = subprocess.run(["tmux", "split-window", "-d", "-v", "-l", "12", "-P", "-F", "#{pane_id}", command],
+        pane = subprocess.run(["tmux", "split-window", "-d", "-v", "-l", str(rows), "-P", "-F", "#{pane_id}", command],
                               capture_output=True, text=True, check=True).stdout.strip()
     else:
         print(f"no herdr or tmux here; run this in a terminal:\n{command}")
@@ -497,7 +511,7 @@ def main(argv: list[str] | None = None) -> int:
     snapshot.add_argument("--format", choices=("markdown", "text", "json"), default="markdown")
     snapshot.add_argument("--width", type=int, default=int(os.environ.get("COLUMNS", "120")), help="text table width")
     sub.choices["watch"].add_argument("--interval", type=int, default=60)
-    sub.choices["pane"].add_argument("--interval", type=int, default=600, help="seconds between redraws")
+    sub.choices["pane"].add_argument("--interval", type=int, default=60, help="seconds between redraws")
     args = parser.parse_args(argv)
     return args.func(args)
 

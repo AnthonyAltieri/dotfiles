@@ -54,6 +54,12 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(fleet.classify(view(s=session(alive=False), run=run), NOW).state, "settled")
 
 
+class PaneTests(unittest.TestCase):
+    def test_herdr_ratio_leaves_the_new_pane_just_the_table_rows(self):
+        self.assertAlmostEqual(fleet.herdr_split_ratio(fleet.pane_rows(5), 54), 1 - 12 / 54)
+        self.assertEqual(fleet.herdr_split_ratio(fleet.pane_rows(40), 54), 0.5)
+
+
 class TransitionTests(unittest.TestCase):
     def test_reports_only_changed_states_and_new_alerts(self):
         before = {"a": fleet.Health("ok", "x"), "b": fleet.Health("needs-you", "y"), "c": fleet.Health("ok", "z")}
