@@ -43,6 +43,12 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(fleet.classify(view(h=done), NOW).state, "settled")
         self.assertEqual(fleet.classify(view(h=failed), NOW).state, "stalled")
 
+    def test_waiting_or_monitoring_orchestrator_is_ok_not_done_or_stalled(self):
+        wait = hooked(status_at=NOW - 60 * MIN, triage=fleet.Triage("wait", "research data at 05:00Z", NOW - 60 * MIN))
+        done_but_monitoring = hooked(background_tasks=1, triage=fleet.Triage("done", "workers done", NOW))
+        self.assertEqual(fleet.classify(view(h=wait), NOW), fleet.Health("ok", "waiting: research data at 05:00Z"))
+        self.assertEqual(fleet.classify(view(h=done_but_monitoring), NOW).state, "ok")
+
     def test_idle_session_waiting_on_live_workers_is_not_stalled(self):
         idle = hooked(status_at=NOW - 60 * MIN)
         self.assertEqual(fleet.classify(view(h=idle, running=2), NOW).state, "ok")
@@ -74,6 +80,16 @@ class TransitionTests(unittest.TestCase):
         after = {"a": fleet.Health("ok", "x2"), "b": fleet.Health("needs-you", "y", alert=True), "c": fleet.Health("stalled", "z")}
         lines = fleet.transitions(before, after)
         self.assertEqual([line.split(":")[0].lstrip("⚠ ") for line in lines], ["b", "c"])
+
+
+class WatchTests(unittest.TestCase):
+    def test_re_armed_watch_repeats_nothing_the_last_one_reported(self):
+        # Regression: each re-arm re-announced every alert and woke the root for nothing.
+        reported = {"a": fleet.Health("dead", "session gone", alert=True)}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "watch.json"
+            fleet.save_seen(path, reported)
+            self.assertEqual(fleet.transitions(fleet.load_seen(path), reported), [])
 
 
 class LoadTests(unittest.TestCase):

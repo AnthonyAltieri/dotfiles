@@ -12,15 +12,15 @@ main session, ~/.cache/claude-sessions/<session_id>.json:
   orchestrator    true once the session runs $spawn-orchestrator or dispatches a worker
   codex           issue -> Codex run directory, from codex_worker.py start/resume
   opus            agent id -> {key, state}, for Opus workers launched with the Agent tool
-  triage          for an orchestrator parked with nothing running: Haiku's verdict on
-                  its last message, {verdict: pending | you | done | failed, summary, since}
+  triage          Haiku's verdict on an orchestrator's last message when its turn ends,
+                  {verdict: pending | you | wait | done | failed, summary, since}
 
 It prints nothing, so it adds nothing to any model context, and it always
 exits 0 so a failure here never disturbs the session.
 
-Triage runs only when an orchestrator's turn ends with no background task or
-scheduled job left, because only then does the session wait for the user. A
-detached child (`session_state.py --triage`) asks Haiku about the last message
+Triage runs at the end of every orchestrator turn, even with background tasks
+or scheduled jobs left: an orchestrator usually keeps a Monitor running while
+it asks the user something in plain text. A detached child (`session_state.py --triage`) asks Haiku about the last message
 with no tools, settings, or hooks, so the turn never waits on it.
 """
 
@@ -45,16 +45,17 @@ RUN_DIR_ARG = re.compile(r"--run-dir[=\s]+([\"']?)(\S+?)\1(?=\s|;|&|$)")
 ASSIGNMENT = re.compile(r"(?:^|[\s;&(])([A-Za-z_]\w*)=([\"']?)([^\s;&\"']+)\2")
 ISSUE_KEY = re.compile(r"\b[A-Z][A-Z0-9]+-\d+\b")
 ORCHESTRATOR_PROMPT = re.compile(r"^\s*(?:/spawn-orchestrator\b|<command-name>/?spawn-orchestrator</command-name>)")
-VERDICT = re.compile(r"^(YOU|DONE)\s*:\s*(.+)$")
+VERDICT = re.compile(r"^(YOU|WAIT|DONE)\s*:\s*(.+)$")
 
 TRIAGE_GUARD = "SESSION_STATE_TRIAGE"
 TRIAGE_TIMEOUT = 90
 MESSAGE_LIMIT = 4000
 TRIAGE_PROMPT = (
-    "You triage the final message of an AI coding orchestrator session that has stopped with nothing running "
-    "in the background, so it waits for the user. Reply with exactly one line: \"YOU: <what the user must do, "
-    "under 12 words>\" if the message asks the user for a decision, answer, approval, or action, or reports a "
-    "failure or blocker only the user can clear; otherwise \"DONE: <what finished, under 12 words>\"."
+    "You triage the final message of an AI coding orchestrator session whose turn just ended. Reply with exactly "
+    "one line: \"YOU: <what the user must do, under 12 words>\" if the message asks the user for a decision, "
+    "answer, approval, or action, or reports a failure or blocker only the user can clear; \"WAIT: <what it waits "
+    "on, under 12 words>\" if it waits on workers, other sessions, data, or a scheduled time and needs nothing "
+    "from the user; otherwise \"DONE: <what finished, under 12 words>\"."
 )
 
 
@@ -113,7 +114,7 @@ def apply(state: dict, event: dict, now: float) -> dict:
         state["waiting"] = None
         tasks = event.get("background_tasks")
         state["backgroundTasks"] = len(tasks) if isinstance(tasks, (list, dict)) else tasks
-        if main and state.get("orchestrator") and parked(event) and event.get("last_assistant_message"):
+        if main and state.get("orchestrator") and event.get("last_assistant_message"):
             state["triage"] = {"verdict": "pending", "since": now}
         else:
             state["triage"] = None
@@ -164,11 +165,6 @@ def apply(state: dict, event: dict, now: float) -> dict:
     return state
 
 
-def parked(event: dict) -> bool:
-    """A turn that ended with no background task or scheduled job left waits for the user."""
-    return not event.get("background_tasks") and not event.get("session_crons")
-
-
 def parse_verdict(reply: str) -> dict:
     line = next((part.strip() for part in reply.splitlines() if part.strip()), "")
     match = VERDICT.match(line)
@@ -207,7 +203,7 @@ def start_triage(session_id: str, message: str, since: float) -> None:
 
 
 def triage(session_id: str, since: float) -> None:
-    """Ask Haiku whether the parked session needs the user, and record the verdict unless the user moved on."""
+    """Ask Haiku whether the session needs the user, waits, or is done, and record the verdict unless the user moved on."""
     inbox = STATE_DIR / f".{session_id}.message"
     message = inbox.read_text()
     inbox.unlink(missing_ok=True)

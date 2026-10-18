@@ -31,7 +31,7 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 
 1. Run `python3 fleet.py snapshot` and post the markdown table it prints.
 2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one, sized to the table, running `watch` on it every minute. If it exits 3, give the user the command it printed to run in a terminal.
-3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires.
+3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires, without comment. A re-armed watch resumes from what the last one reported, so it stays silent until something changes; its first run ever lists every orchestrator once.
 
 Do not schedule a recurring summary. The pane is the periodic view.
 
@@ -57,12 +57,12 @@ Rows sort by health; a bold health is an alert. **Running** and **Done** count w
 
 | State | Meaning |
 |---|---|
-| `done` | `run.json` says the run is settled, or the orchestrator stopped with nothing running and Haiku judged its last message finished |
+| `done` | `run.json` says the run is settled, or Haiku judged the orchestrator's last message finished and no worker or background task is running |
 | `dead` | the session ended or its process exited |
-| `needs you` | the session waits for the user to type: an open question (`AskUserQuestion`), a permission prompt (its own or a worker's), or a turn that ended with nothing running whose last message Haiku judged to need the user; the Note says what. Alerts once open 10 minutes |
+| `needs you` | the session waits for the user to type: an open question (`AskUserQuestion`), a permission prompt (its own or a worker's), or a turn whose last message Haiku judged to need the user, even while a background task runs; the Note says what. Alerts once open 10 minutes |
 | `hung` | the session is busy, no worker is running, and its transcript has been silent for 20 minutes |
 | `stalled` | the session is idle, no worker has run for 20 minutes, and no verdict explains it (Haiku failed or the session predates the hook) |
-| `ok` | working, or idle while its workers run |
+| `ok` | working, idle while its workers run, or idle with a last message Haiku judged to be waiting on something other than the user (the Note says what) |
 
 ## Act on a Monitor Event
 
