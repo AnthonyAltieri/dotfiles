@@ -10,7 +10,8 @@ view costs no model tokens:
 - Worker files: <run>/<issue>/{pid,exit_code,events.jsonl} for Codex workers and
   ~/.claude/projects/*/<sessionId>/subagents/*.jsonl for Opus workers.
 - ~/.cache/spawn-orchestrator/<run>/run.json, when an orchestrator keeps one:
-  queued and blocked counts and the settled flag only.
+  the settled flag and its run directory only. Its issue states are written by
+  hand and drift, so no column reads them.
 
 Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
@@ -44,10 +45,9 @@ HUNG_AFTER = 20 * 60
 NEEDS_ALERT_AFTER = 10 * 60
 GONE_VISIBLE_FOR = 12 * 3600
 
-DONE_STATES = ("merged", "pr-opened")
 GROUP_ORDER = ("dead", "hung", "needs-you", "stalled", "ok", "settled")
 GROUP_TITLES = {"dead": "dead", "hung": "hung", "needs-you": "needs you", "stalled": "stalled", "ok": "ok", "settled": "done"}
-COLUMNS = ("Health", "Orchestrator", "Running", "Done", "Queued", "Blocked", "Note")
+COLUMNS = ("Health", "Orchestrator", "Running", "Done", "Note")
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,6 @@ class Run:
     repo_path: str
     settled: bool
     updated_at: float | None
-    counts: dict[str, int]
 
 
 @dataclass(frozen=True)
@@ -182,19 +181,8 @@ def rows(views: list[View], now: float) -> list[tuple[Health, list[str]]]:
     rated = sorted(((v, classify(v, now)) for v in views), key=lambda vh: (GROUP_ORDER.index(vh[1].state), vh[0].name))
     out = []
     for v, h in rated:
-        c = v.run.counts if v.run else None
-        done = max(v.workers.done, sum(c.get(s, 0) for s in DONE_STATES)) if c else v.workers.done
         note = h.detail if v.hooked else f"{h.detail} · no hook data yet"
-        cells = [
-            GROUP_TITLES[h.state],
-            v.name,
-            str(v.workers.running),
-            str(done),
-            str(c.get("queued", 0)) if c else "—",
-            str(c.get("blocked", 0) + c.get("parked", 0)) if c else "—",
-            note,
-        ]
-        out.append((h, cells))
+        out.append((h, [GROUP_TITLES[h.state], v.name, str(v.workers.running), str(v.workers.done), note]))
     return out
 
 
@@ -203,7 +191,7 @@ def title_line(views: list[View], now: float, title: str) -> str:
 
 
 def render_markdown(views: list[View], now: float, title: str) -> str:
-    out = [f"**{title_line(views, now, title)}**", "", "| " + " | ".join(COLUMNS) + " |", "|---|---|--:|--:|--:|--:|---|"]
+    out = [f"**{title_line(views, now, title)}**", "", "| " + " | ".join(COLUMNS) + " |", "|---|---|--:|--:|---|"]
     for h, cells in rows(views, now):
         if h.alert:
             cells[0] = f"**{cells[0]}**"
@@ -217,7 +205,7 @@ def render_text(views: list[View], now: float, title: str, width: int = 120) -> 
     note_width = max(20, width - sum(widths) - 2 * len(widths))
     lines = [title_line(views, now, title), ""]
     for i, r in enumerate(table):
-        head = "  ".join(cell.rjust(w) if 2 <= j <= 5 else cell.ljust(w) for j, (cell, w) in enumerate(zip(r, widths)))
+        head = "  ".join(cell.rjust(w) if j in (2, 3) else cell.ljust(w) for j, (cell, w) in enumerate(zip(r, widths)))
         lines.append(f"{head}  {r[-1][:note_width]}")
         if i == 0:
             lines.append("  ".join("-" * w for w in widths) + "  " + "-" * min(note_width, 40))
@@ -254,17 +242,12 @@ def parse_hooked(data: dict) -> Hooked:
 
 
 def parse_run(path: Path, data: dict, written_at: float | None = None) -> Run:
-    counts: dict[str, int] = {}
-    for issue in data.get("issues", []):
-        state = str(issue.get("state", "queued"))
-        counts[state] = counts.get(state, 0) + 1
     return Run(
         run_id=str(data.get("run") or path.parent.name),
         session_name=str(data["sessionName"]),
         repo_path=str(data.get("repoPath", "")),
         settled=bool(data.get("settled", False)),
         updated_at=latest(parse_time(data.get("updatedAt")), written_at),
-        counts=counts,
     )
 
 

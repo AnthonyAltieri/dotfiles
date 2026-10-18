@@ -49,7 +49,7 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(fleet.classify(view(s=s, h=hooked(status="", status_at=None)), NOW).state, "hung")
 
     def test_ended_session_is_dead_but_settled_run_is_done(self):
-        run = fleet.Run("r", "trading-ui", "/repo", True, NOW, {"merged": 3})
+        run = fleet.Run("r", "trading-ui", "/repo", True, NOW)
         self.assertEqual(fleet.classify(view(h=hooked(status="ended")), NOW).state, "dead")
         self.assertEqual(fleet.classify(view(s=session(alive=False), run=run), NOW).state, "settled")
 
