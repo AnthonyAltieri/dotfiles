@@ -25,12 +25,12 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 
 - By default the fleet is every session in this repository that ran `$spawn-orchestrator` or dispatched a worker, or keeps a `run.json` naming this repository, plus sessions that ended or settled within the last 12 hours.
 - When the user names sessions ("watch trading-research, trading-ui and trading-worker"), pass them with `--sessions`.
-- Sessions started before the hook was installed have no hook data: the table marks them `no hook data until resumed`, and their questions and permission prompts are invisible until the user resumes them (`claude --resume <name>`).
+- A session with no hook data yet is marked `no hook data yet`; running sessions load the hook from the settings file on their next event, so this clears by itself. Until then its questions and permission prompts are invisible.
 
 ## Start
 
 1. Run `python3 fleet.py snapshot` and post the markdown table it prints.
-2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one running `watch` on the terminal table every 10 minutes. If it exits 3, give the user the command it printed to run in a terminal.
+2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one, sized to the table, running `watch` on it every 10 minutes. If it exits 3, give the user the command it printed to run in a terminal.
 3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires.
 
 Do not schedule a recurring summary. The pane is the periodic view.
