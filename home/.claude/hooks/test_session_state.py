@@ -78,6 +78,17 @@ class TriageTests(unittest.TestCase):
         self.assertEqual(parse_verdict("YOU: Approve merging #2212\n"), {"verdict": "you", "summary": "Approve merging #2212"})
         self.assertEqual(parse_verdict("I think the user should look")["verdict"], "failed")
 
+    def test_session_named_in_a_run_file_is_triaged_without_a_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "runs" / "portfolio-ui").mkdir(parents=True)
+            (root / "runs" / "portfolio-ui" / "run.json").write_text('{"sessionName": "trading-ui"}')
+            stop = ev("Stop", session_title="trading-ui", last_assistant_message="Merge #12?", background_tasks=[])
+            with mock.patch.object(session_state, "STATE_DIR", root / "state"), mock.patch.object(session_state, "RUNS_DIR", root / "runs"), \
+                    mock.patch.object(session_state, "start_triage") as start:
+                session_state.record(stop, T)
+            self.assertEqual(start.call_args.args[:2], ("s1", "Merge #12?"))
+
     def test_verdict_is_dropped_when_the_user_typed_before_haiku_answered(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(session_state, "STATE_DIR", Path(tmp)):
             stop = ev("Stop", last_assistant_message="Dispatch now?", background_tasks=[])
