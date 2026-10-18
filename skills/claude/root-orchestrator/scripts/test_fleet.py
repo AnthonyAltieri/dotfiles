@@ -44,6 +44,10 @@ class ClassifyTests(unittest.TestCase):
         s = session(transcript_mtime=NOW - 25 * MIN)
         self.assertEqual(fleet.classify(view(s=s, h=hooked(status="busy")), NOW).state, "hung")
 
+    def test_hook_without_a_status_yet_falls_back_to_the_registry(self):
+        s = session(busy=True, transcript_mtime=NOW - 25 * MIN)
+        self.assertEqual(fleet.classify(view(s=s, h=hooked(status="", status_at=None)), NOW).state, "hung")
+
     def test_ended_session_is_dead_but_settled_run_is_done(self):
         run = fleet.Run("r", "trading-ui", "/repo", True, NOW, {"merged": 3})
         self.assertEqual(fleet.classify(view(h=hooked(status="ended")), NOW).state, "dead")
