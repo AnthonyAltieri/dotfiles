@@ -17,8 +17,9 @@ view costs no model tokens:
 Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
   snapshot  render the fleet as a markdown table, a terminal table, or JSON
-  watch     print one line per health change, forever; a re-armed watch
-            resumes from what the last one reported and repeats nothing
+  watch     print one line per health change, forever, and raise a desktop
+            notification when an orchestrator starts needing the user; a
+            re-armed watch resumes from what the last one reported
   pane      open a herdr or tmux pane that redraws the terminal table every minute
 """
 
@@ -48,10 +49,17 @@ STALL_AFTER = 20 * 60
 HUNG_AFTER = 20 * 60
 NEEDS_ALERT_AFTER = 10 * 60
 GONE_VISIBLE_FOR = 12 * 3600
+SHOWN_AFTER_ENDING = 3600  # dead and done rows leave the table an hour after they change; the watch keeps them
+RECENT_WINDOW = 2 * 3600
+PACE_HISTORY = 7 * 86400
+PACE_MIN_SAMPLES = 3
+SLOW_RATIO = 2.0
+PACE_TREND_RATIO = 1.5
+WORKER_SILENT_AFTER = 20 * 60
 
 GROUP_ORDER = ("dead", "hung", "needs-you", "stalled", "ok", "settled")
 GROUP_TITLES = {"dead": "dead", "hung": "hung", "needs-you": "needs you", "stalled": "stalled", "ok": "ok", "settled": "done"}
-COLUMNS = ("Health", "Orchestrator", "Running", "Done", "Note")
+COLUMNS = ("Health", "Orchestrator", "Running", "Last finished", "Pace", "Note")
 
 
 @dataclass(frozen=True)
@@ -98,6 +106,7 @@ class Hooked:
     opus_running: int
     opus_done: int
     updated_at: float
+    opus_jobs: tuple[Job, ...] = ()
     background_tasks: int = 0
     triage: Triage | None = None
 
@@ -114,9 +123,20 @@ class Run:
 
 
 @dataclass(frozen=True)
+class Job:
+    """One worker's timing: when it started, finished (None while running), and last wrote output."""
+
+    key: str
+    started: float
+    ended: float | None = None
+    active_at: float | None = None
+
+
+@dataclass(frozen=True)
 class Workers:
     running: int = 0
     done: int = 0
+    jobs: tuple[Job, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -184,6 +204,67 @@ def classify(view: View, now: float) -> Health:
     return Health("ok", note)
 
 
+def last_finished(jobs: Iterable[Job], now: float) -> str:
+    """How long since a worker last finished, and how many finished in the last two hours."""
+    ended = [j.ended for j in jobs if j.ended is not None]
+    if not ended:
+        return "—"
+    recent = sum(1 for e in ended if now - e < RECENT_WINDOW)
+    return f"{age(now - max(ended))} ago ({recent} in {RECENT_WINDOW // 3600}h)"
+
+
+def duration(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    if seconds < 48 * 3600:
+        return f"{seconds // 3600}h{seconds % 3600 // 60:02d}m"
+    return f"{seconds // 86400}d"
+
+
+def median(values: list[float]) -> float:
+    ordered = sorted(values)
+    return ordered[len(ordered) // 2]
+
+
+def pace(jobs: Iterable[Job], now: float) -> str:
+    """How this orchestrator's workers compare with its own usual worker time, worst news first:
+    a silent running worker, a running worker at least twice the usual, then whether the workers
+    that finished in the last two hours were faster or slower than usual."""
+    jobs = list(jobs)
+    running = [j for j in jobs if j.ended is None]
+    silent = [j for j in running if j.active_at is not None and now - j.active_at > WORKER_SILENT_AFTER]
+    if silent:
+        j = min(silent, key=lambda j: j.active_at)
+        return f"{j.key} silent {age(now - j.active_at)}"
+    finished = [j for j in jobs if j.ended is not None and now - j.ended < PACE_HISTORY]
+    earlier = [j.ended - j.started for j in finished if now - j.ended >= RECENT_WINDOW]
+    if len(earlier) < PACE_MIN_SAMPLES:
+        return "—"
+    usual = max(median(earlier), 60)
+    if running:
+        j = min(running, key=lambda j: j.started)
+        if (now - j.started) / usual >= SLOW_RATIO:
+            return f"{j.key} running {duration(now - j.started)} (usually {duration(usual)})"
+    recent = [j.ended - j.started for j in finished if now - j.ended < RECENT_WINDOW]
+    if recent:
+        took = median(recent)
+        trend = "faster" if took * PACE_TREND_RATIO <= usual else "slower" if took >= usual * PACE_TREND_RATIO else None
+        if trend:
+            return f"{trend}: last {len(recent)} took ~{duration(took)} (usually {duration(usual)})"
+    return "on pace" if running or recent else "—"
+
+
+def ended_at(view: View, health: Health) -> float | None:
+    """When a dead or done orchestrator last changed, for hiding it from the table."""
+    h, s, run = view.hooked, view.session, view.run
+    if health.state == "dead":
+        return latest(h.updated_at if h else None, s.status_at if s else None, run.updated_at if run else None)
+    if health.state == "settled":
+        return run.updated_at if run is not None and run.settled else (h.triage.since if h and h.triage else None)
+    return None
+
+
 def transitions(previous: dict[str, Health], current: dict[str, Health]) -> list[str]:
     lines = []
     for name, health in current.items():
@@ -197,22 +278,31 @@ def transitions(previous: dict[str, Health], current: dict[str, Health]) -> list
     return lines
 
 
+def shown(views: list[View], now: float) -> list[tuple[View, Health]]:
+    """Orchestrators the table shows, most urgent first: dead and done ones drop out an hour after they change."""
+    rated = [(v, classify(v, now)) for v in views]
+    kept = [(v, h) for v, h in rated if now - (ended_at(v, h) or now) <= SHOWN_AFTER_ENDING]
+    return sorted(kept, key=lambda vh: (GROUP_ORDER.index(vh[1].state), vh[0].name))
+
+
 def rows(views: list[View], now: float) -> list[tuple[Health, list[str]]]:
-    """One row of cells per orchestrator, most urgent first."""
-    rated = sorted(((v, classify(v, now)) for v in views), key=lambda vh: (GROUP_ORDER.index(vh[1].state), vh[0].name))
+    """One row of cells per shown orchestrator."""
     out = []
-    for v, h in rated:
+    for v, h in shown(views, now):
         note = h.detail if v.hooked else f"{h.detail} · no hook data yet"
-        out.append((h, [GROUP_TITLES[h.state], v.name, str(v.workers.running), str(v.workers.done), note]))
+        out.append((h, [GROUP_TITLES[h.state], v.name, str(v.workers.running), last_finished(v.workers.jobs, now),
+                        pace(v.workers.jobs, now), note]))
     return out
 
 
 def title_line(views: list[View], now: float, title: str) -> str:
-    return f"{datetime.fromtimestamp(now).strftime('%H:%M')} · {title} · {len(views)} orchestrators"
+    hidden = len(views) - len(shown(views, now))
+    tail = f" · {hidden} done or dead hidden" if hidden else ""
+    return f"{datetime.fromtimestamp(now).strftime('%H:%M')} · {title} · {len(views) - hidden} orchestrators{tail}"
 
 
 def render_markdown(views: list[View], now: float, title: str) -> str:
-    out = [f"**{title_line(views, now, title)}**", "", "| " + " | ".join(COLUMNS) + " |", "|---|---|--:|--:|---|"]
+    out = [f"**{title_line(views, now, title)}**", "", "| " + " | ".join(COLUMNS) + " |", "|---|---|--:|---|---|---|"]
     for h, cells in rows(views, now):
         if h.alert:
             cells[0] = f"**{cells[0]}**"
@@ -226,7 +316,7 @@ def render_text(views: list[View], now: float, title: str, width: int = 120) -> 
     note_width = max(20, width - sum(widths) - 2 * len(widths))
     lines = [title_line(views, now, title), ""]
     for i, r in enumerate(table):
-        head = "  ".join(cell.rjust(w) if j in (2, 3) else cell.ljust(w) for j, (cell, w) in enumerate(zip(r, widths)))
+        head = "  ".join(cell.rjust(w) if j == 2 else cell.ljust(w) for j, (cell, w) in enumerate(zip(r, widths)))
         lines.append(f"{head}  {r[-1][:note_width]}")
         if i == 0:
             lines.append("  ".join("-" * w for w in widths) + "  " + "-" * min(note_width, 40))
@@ -258,6 +348,8 @@ def parse_hooked(data: dict) -> Hooked:
         codex_dirs=tuple(str(d) for d in (data.get("codex") or {}).values()),
         opus_running=sum(1 for a in opus.values() if a.get("state") == "running"),
         opus_done=sum(1 for a in opus.values() if a.get("state") == "done"),
+        opus_jobs=tuple(Job(str(a.get("key") or ""), float(a["startedAt"]), parse_time(a.get("endedAt")))
+                        for a in opus.values() if a.get("startedAt")),
         updated_at=float(data.get("updatedAt") or 0),
         background_tasks=int(data.get("backgroundTasks") or 0),
         triage=parse_triage(data.get("triage")),
@@ -304,16 +396,24 @@ def pid_alive(pid: object) -> bool:
 
 def codex_workers(dirs: Iterable[Path]) -> Workers:
     running = done = 0
+    jobs = []
     for d in dirs:
         try:
             pid = int((d / "pid").read_text().strip()) if (d / "pid").exists() else None
         except (OSError, ValueError):
             pid = None
+        started, active = newest_mtime([d / "brief.md"]), newest_mtime([d / "events.jsonl"])
         if pid_alive(pid):
             running += 1
+            ended = None
         elif (d / "exit_code").exists():
             done += 1
-    return Workers(running, done)
+            ended = newest_mtime([d / "exit_code"])
+        else:
+            continue
+        if started is not None:
+            jobs.append(Job(d.name, started, ended, active))
+    return Workers(running, done, tuple(jobs))
 
 
 def load_sessions(warnings: list[str]) -> dict[str, Session]:
@@ -406,7 +506,8 @@ def collect(repo: str, names: list[str], now: float, warnings: list[str]) -> lis
         if run is not None:
             dirs |= {p.parent for p in (RUNS_DIR / run.run_id).glob("*/events.jsonl")}
         codex = codex_workers(dirs)
-        workers = Workers(codex.running + (h.opus_running if h else 0), codex.done + (h.opus_done if h else 0))
+        workers = Workers(codex.running + (h.opus_running if h else 0), codex.done + (h.opus_done if h else 0),
+                          codex.jobs + (h.opus_jobs if h else ()))
         last = latest(h.updated_at if h else None, s.status_at if s else None, run.updated_at if run else None) or 0
         gone = s is None or not s.alive or (run is not None and run.settled)
         if gone and not names and now - last > GONE_VISIBLE_FOR:
@@ -465,6 +566,17 @@ def save_seen(path: Path, current: dict[str, Health]) -> None:
     tmp.replace(path)
 
 
+def notify(title: str, body: str) -> None:
+    """A desktop notification through herdr or notify-send; the watch sends it, so it costs no tokens."""
+    if os.environ.get("HERDR_ENV") == "1" and shutil.which("herdr"):
+        command = ["herdr", "notification", "show", title, "--body", body, "--sound", "request"]
+    elif shutil.which("notify-send"):
+        command = ["notify-send", title, body]
+    else:
+        return
+    subprocess.run(command, capture_output=True, timeout=10, check=False)
+
+
 def cmd_watch(args: argparse.Namespace) -> int:
     repo = args.repo or repo_root()
     seen_path = watch_state_path(repo, args.sessions)
@@ -477,6 +589,9 @@ def cmd_watch(args: argparse.Namespace) -> int:
             current = {v.name: classify(v, now) for v in collect(repo, args.sessions, now, warnings)}
             for line in transitions(previous, current):
                 print(line, flush=True)
+            for name, health in current.items():
+                if health.state == "needs-you" and previous.get(name, Health("", "")).state != "needs-you":
+                    notify(f"{name} needs you", health.detail)
             if current != previous:
                 save_seen(seen_path, current)
             previous = current
@@ -501,7 +616,8 @@ def herdr_split_ratio(rows: int, total: int) -> float:
 
 def cmd_pane(args: argparse.Namespace) -> int:
     repo = args.repo or repo_root()
-    rows = pane_rows(len(collect(repo, args.sessions, time.time(), [])))
+    now = time.time()
+    rows = pane_rows(len(shown(collect(repo, args.sessions, now, []), now)))
     table = [sys.executable, os.path.abspath(__file__), "snapshot", "--format", "text", "--repo", repo]
     if args.sessions:
         table += ["--sessions", *args.sessions]
