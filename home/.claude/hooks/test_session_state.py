@@ -74,6 +74,16 @@ class TriageTests(unittest.TestCase):
         self.assertEqual(fold(self.ORCH, monitoring)["triage"], {"verdict": "pending", "since": T + 1})
         self.assertIsNone(fold(ev("UserPromptSubmit", prompt="hi"), monitoring)["triage"])
 
+    def test_orchestrator_footer_decides_the_verdict_without_haiku(self):
+        you = "Status above.\n━━━━\n▶ YOU (2)\n  1. Answer: PR (1) or pasted files (2)? I recommend 1.\n  2. Run: the sudo above.\n━━━━"
+        clear = "Status.\n━━━━\n✓ Nothing needs you. Next: book 1 decision at 04:00Z\n━━━━"
+        finished = "All merged.\n━━━━\n✓ Nothing needs you. Run complete.\n━━━━"
+        verdict = lambda m: {k: v for k, v in fold(self.ORCH, ev("Stop", last_assistant_message=m))["triage"].items() if k != "since"}
+        self.assertEqual(verdict(you), {"verdict": "you", "summary": "Answer: PR (1) or pasted files (2)? I recommend 1."})
+        self.assertEqual(verdict(clear), {"verdict": "wait", "summary": "Next: book 1 decision at 04:00Z"})
+        self.assertEqual(verdict(finished)["verdict"], "done")
+        self.assertEqual(verdict("Should I merge?"), {"verdict": "pending"})
+
     def test_tool_activity_after_a_parked_turn_clears_the_verdict(self):
         parked = ev("Stop", last_assistant_message="Dispatch now?", background_tasks=[])
         woke = ev("PostToolUse", tool_name="Bash", tool_use_id="b1", tool_input={"command": "gh pr view 1"})
