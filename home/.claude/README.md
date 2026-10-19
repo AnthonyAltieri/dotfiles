@@ -122,7 +122,8 @@ When bumping herdr, refresh the script from
 `~/.cache/claude-sessions/<session id>.json` for `$root-orchestrator`: busy or
 idle, the `AskUserQuestion` question or permission prompt waiting on the user,
 whether the session is an orchestrator, and the Codex and Opus workers it
-dispatched. When an orchestrator's turn ends, even with a Monitor or other
+dispatched. An orchestrator's own footer (`▶ YOU` with numbered actions, or
+`✓ Nothing needs you`) sets the verdict directly. Without one, when an orchestrator's turn ends, even with a Monitor or other
 background task still running, a detached child asks Haiku (no tools,
 settings, or hooks; about 800 tokens) whether its last message needs the user,
 and stores a one-line `YOU:`, `WAIT:`, or `DONE:` verdict that the next prompt or tool call clears. It runs on `SessionStart`, `UserPromptSubmit`, `PreToolUse`

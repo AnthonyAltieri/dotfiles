@@ -18,7 +18,8 @@ main session, ~/.cache/claude-sessions/<session_id>.json:
 It prints nothing, so it adds nothing to any model context, and it always
 exits 0 so a failure here never disturbs the session.
 
-Triage runs at the end of every orchestrator turn, even with background tasks
+An orchestrator's own footer (`▶ YOU` with numbered actions, or `✓ Nothing needs
+you`) decides the verdict directly. Without one, triage runs at the end of every orchestrator turn, even with background tasks
 or scheduled jobs left: an orchestrator usually keeps a Monitor running while
 it asks the user something in plain text. A detached child (`session_state.py --triage`) asks Haiku about the last message
 with no tools, settings, or hooks, so the turn never waits on it.
@@ -45,6 +46,9 @@ RUN_DIR_ARG = re.compile(r"--run-dir[=\s]+([\"']?)(\S+?)\1(?=\s|;|&|$)")
 ASSIGNMENT = re.compile(r"(?:^|[\s;&(])([A-Za-z_]\w*)=([\"']?)([^\s;&\"']+)\2")
 ISSUE_KEY = re.compile(r"\b[A-Z][A-Z0-9]+-\d+\b")
 ORCHESTRATOR_PROMPT = re.compile(r"^\s*(?:/spawn-orchestrator\b|<command-name>/?spawn-orchestrator</command-name>)")
+FOOTER_YOU = "▶ YOU"
+FOOTER_CLEAR = "✓ Nothing needs you"
+FOOTER_ACTION = re.compile(r"^\s*\d+\.\s+(.+)$")
 VERDICT = re.compile(r"^(YOU|WAIT|DONE)\s*:\s*(.+)$")
 
 TRIAGE_GUARD = "SESSION_STATE_TRIAGE"
@@ -114,8 +118,9 @@ def apply(state: dict, event: dict, now: float) -> dict:
         state["waiting"] = None
         tasks = event.get("background_tasks")
         state["backgroundTasks"] = len(tasks) if isinstance(tasks, (list, dict)) else tasks
-        if main and state.get("orchestrator") and event.get("last_assistant_message"):
-            state["triage"] = {"verdict": "pending", "since": now}
+        message = str(event.get("last_assistant_message") or "")
+        if main and state.get("orchestrator") and message:
+            state["triage"] = {**(footer_verdict(message) or {"verdict": "pending"}), "since": now}
         else:
             state["triage"] = None
     elif name == "SessionEnd":
@@ -167,6 +172,20 @@ def apply(state: dict, event: dict, now: float) -> dict:
         if agent_id in state.get("opus", {}):
             state["opus"] = {**state["opus"], agent_id: {**state["opus"][agent_id], "state": "done", "endedAt": now}}
     return state
+
+
+def footer_verdict(message: str) -> dict | None:
+    """The verdict an orchestrator's own footer states ($spawn-orchestrator ends every message with one), or None."""
+    tail = message[-1500:]
+    you, clear = tail.rfind(FOOTER_YOU), tail.rfind(FOOTER_CLEAR)
+    if you > clear:
+        actions = [line.strip() for line in tail[you:].splitlines()[1:] if FOOTER_ACTION.match(line)]
+        return {"verdict": "you", "summary": short(FOOTER_ACTION.match(actions[0]).group(1) if actions else "see the session", 120)}
+    if clear >= 0:
+        after = tail[clear + len(FOOTER_CLEAR):].splitlines()
+        rest = short(after[0].strip(" .")) if after else ""
+        return {"verdict": "wait" if rest.lower().startswith("next") else "done", "summary": short(rest or "nothing needs you", 120)}
+    return None
 
 
 def parse_verdict(reply: str) -> dict:
