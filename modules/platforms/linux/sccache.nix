@@ -9,12 +9,15 @@
   systemd.user.services.sccache = {
     Unit.Description = "Shared sccache server";
     Service = {
+      # `sccache --start-server` spawns the server and exits, so systemd would reap it. Run the
+      # server mode directly, in the foreground.
       Environment = [
+        "SCCACHE_START_SERVER=1"
         "SCCACHE_NO_DAEMON=1"
         "SCCACHE_IDLE_TIMEOUT=0"
       ];
       EnvironmentFile = "-%h/.env";
-      ExecStart = "${pkgs.sccache}/bin/sccache --start-server";
+      ExecStart = "${pkgs.sccache}/bin/sccache";
       Restart = "always";
       RestartSec = 5;
     };
