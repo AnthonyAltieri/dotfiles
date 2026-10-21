@@ -77,6 +77,8 @@ The orchestrator owns every worktree and every worker process directly. There is
    ```
 
    If `git check-ignore .claude/worktrees` is silent, add `.claude/worktrees/` to `.git/info/exclude` first so the hub checkout stays clean.
+
+   Then install the worktree's dependencies yourself, before the worker starts. A worker's sandbox can write only inside its worktree, so a worker that installs its own dependencies puts package stores and build caches in private folders and redoes work every other worktree has already done. Run the repository's documented dependency setup command (from AGENTS.md or the README) in the worktree. If there isn't one, point each package manager at its shared cache and link from it rather than copy (for example pnpm's shared store with hardlinks, or uv's shared cache). Tell the worker in its brief that dependencies are installed and that it must not move package-manager data, cache or home directories (such as `XDG_DATA_HOME` or `PNPM_HOME`) into its worktree. If the issue adds a dependency, the worker may install that one change itself.
 2. Write the brief to a file and launch the worker with the Bash tool in background mode. The helper blocks until the Codex process exits, so the Bash completion notification is the worker's completion signal:
 
    ```bash
@@ -85,6 +87,8 @@ The orchestrator owns every worktree and every worker process directly. There is
    ```
 
    `start` runs `codex exec --json` with `-m gpt-6.1-sol`, `model_reasoning_effort=xhigh`, `service_tier="fast"` (fast mode), the `--approve-for-me` approval triple, and outbound network enabled. It feeds the brief through stdin, records the thread id from the first event, appends the event stream to `$RUN/events.jsonl`, and writes the worker's final message to `$RUN/last.md`.
+
+   On a host with systemd, contain each turn so a runaway command tree is killed inside its worker instead of starving the machine: pass `--slice <user slice>` with optional `--tasks-max`, `--memory-high` and `--memory-max`, or set `CODEX_WORKER_SLICE`, `CODEX_WORKER_TASKS_MAX`, `CODEX_WORKER_MEMORY_HIGH` and `CODEX_WORKER_MEMORY_MAX` in that host's environment. Each turn then runs in its own `systemd-run --user --scope` unit under that slice. Containment is off when no slice is set, as on macOS.
 3. Record the issue key, run directory, worktree, branch, and thread id in orchestrator state as soon as `$RUN/thread_id` appears.
 
 Invoking this skill is the user's explicit request to spawn workers over the requested backlog. Do not request separate permission per worker. Closing this Claude Code session kills every live worker process; their threads remain resumable from the recorded run directories.
