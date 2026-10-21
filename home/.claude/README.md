@@ -41,11 +41,10 @@ Check who is signed in with `claude auth status --text`.
 
 ## Status line
 
-`statusline-command.sh` renders two rows:
+`statusline-command.sh` renders one row:
 
 ```
 dotfiles-e2 · Fable [ctx: 93%] in dotfiles on main
-PRs  #166  #165  #164  #163  #162
 ```
 
 The first segment is the session's short name, the same name `ListAgents` and
@@ -53,50 +52,8 @@ The first segment is the session's short name, the same name `ListAgents` and
 name on the status line's stdin after `/rename`, so the script reads it from
 the per-process registry Claude writes to `<config dir>/sessions/<pid>.json`,
 matched on `session_id`. It falls back to the stdin `session_name`, then to
-the first eight characters of the session id.
-
-The second row lists the most recent pull requests you authored in the
-current directory's GitHub repository, newest first. Each entry is a state
-glyph, the PR number as an OSC 8 hyperlink to the PR on GitHub (clickable in
-Ghostty, iTerm2, Kitty, and WezTerm), and, for an open PR with a signal, one
-check glyph. The glyphs are GitHub's own octicons from the Nerd Font symbol
-set, which Ghostty bundles, so no font install is needed; set
-`CLAUDE_STATUSLINE_ICONS=unicode` for a terminal without Nerd Font fallback.
-
-| State glyph | Unicode | Meaning |
-|-------------|---------|---------|
-| `` nf-oct-git_pull_request | `○` | open |
-| `` nf-oct-git_merge | `✔` | merged |
-| `` nf-oct-git_pull_request_closed | `✖` | closed without merging |
-| `` nf-oct-git_pull_request_draft | `◌` | draft |
-
-| Check glyph | Unicode | Meaning (open PRs only, first match wins) |
-|-------------|---------|--------------------------------------------|
-| `` nf-oct-x | `✗` | checks failing |
-| `` nf-oct-alert | `⚠` | changes requested |
-| `` nf-oct-dot_fill | `●` | checks pending |
-| `` nf-oct-check | `✓` | approved |
-
-`gh` never runs on the status line's synchronous path. The row is rendered from
-`~/.cache/claude-statusline/prs-<owner>_<repo>.json`, which a detached
-background refresh rewrites atomically once it is older than the TTL; the
-`refreshInterval` in `settings.json` re-runs the script while the session is
-idle so the row keeps up with CI. A row older than five TTLs is marked
-`(stale Nm)`. Without `gh`, outside a repository, or without a GitHub remote
-the row is omitted.
-
-Environment knobs: `CLAUDE_STATUSLINE_PR_LIMIT` (default 5),
-`CLAUDE_STATUSLINE_PR_TTL` seconds (default 60), `CLAUDE_STATUSLINE_CACHE_DIR`,
-`CLAUDE_STATUSLINE_SYNC=1` to refresh in the foreground, `CLAUDE_STATUSLINE_LINKS=0`
-for plain numbers, `CLAUDE_STATUSLINE_ICONS=unicode`, and `NO_COLOR`.
-`tests/claude-statusline-smoke.sh` covers the registry lookup, every glyph in both
-sets, the hyperlinks, and the cache contract with a stubbed `gh`, and the run line.
-
-While a `spawn-orchestrator` run is active in the cwd's repository, a `Run` row
-above the PRs shows its progress (`4 running · 9 merged · 1 blocked · 3 queued`).
-The orchestrator writes that line to `spawn-orchestrator-status` in the git common
-dir, so every worktree of the repository sees it, and deletes the file when the
-run settles. A row older than 30 minutes is marked `(stale Nm)`.
+the first eight characters of the session id. `NO_COLOR` disables colors.
+`tests/claude-statusline-smoke.sh` covers the registry lookup and both fallbacks.
 
 ## Session identity hook
 
