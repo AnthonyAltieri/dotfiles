@@ -67,6 +67,8 @@
       # project's pinned packageManager version inside a workspace (fixed upstream in 10.33.2;
       # pnpm 11 and later no longer spawn an install child).
       pnpm = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.pnpm;
+      # nixpkgs 25.05's sccache is older than the 0.18 release agents already build with.
+      sccache = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.sccache;
       codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
