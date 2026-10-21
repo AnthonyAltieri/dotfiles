@@ -46,6 +46,24 @@ DEFAULT_MODEL = "gpt-6.1-sol"
 DEFAULT_EFFORT = "xhigh"
 DEFAULT_SERVICE_TIER = "fast"
 THREAD_MISMATCH_EXIT = 3
+
+
+
+@dataclass(frozen=True)
+class Containment:
+    """Run each turn in its own systemd user scope under `slice`, with optional per-turn limits.
+
+    Opt-in: hosts without systemd (macOS) pass no slice and run turns directly. A capped scope
+    stops a runaway command tree, such as a package-manager self-install loop, inside one worker
+    instead of starving the host.
+    """
+
+    slice: str
+    tasks_max: int | None = None
+    memory_high: str | None = None
+    memory_max: str | None = None
+
+
 WORKER_STATUSES = ("pr-opened", "merged", "blocked", "failed")
 
 FILESYSTEM_MARKERS = ("operation not permitted", "read-only file system", "permission denied")
@@ -373,8 +391,36 @@ def model_overrides(model: str, effort: str, service_tier: str) -> list[str]:
     return ["-m", model, "-c", f"model_reasoning_effort={effort}", "-c", f'service_tier="{service_tier}"']
 
 
-def run_turn(command: list[str], stdin_path: Path, worktree: Path, run_dir: Path, expected_thread: str | None) -> int:
+def contained(command: list[str], run_dir: Path, limits: Containment | None) -> list[str]:
+    """Wrap a turn in its own systemd user scope when containment is configured.
+
+    `systemd-run --scope` execs the command in place, so the spawned process is still codex.
+    """
+    if limits is None:
+        return command
+    unit = re.sub(r"[^A-Za-z0-9_.-]", "-", f"codex-{run_dir.parent.name}-{run_dir.name}-{time.time_ns()}")
+    properties = {"TasksMax": limits.tasks_max, "MemoryHigh": limits.memory_high, "MemoryMax": limits.memory_max}
+    return [
+        "systemd-run", "--user", "--scope", "--quiet", "--collect", f"--slice={limits.slice}", f"--unit={unit}",
+        *(arg for name, value in properties.items() if value is not None for arg in ("-p", f"{name}={value}")),
+        "--", *command,
+    ]
+
+
+def containment_from(args: argparse.Namespace) -> Containment | None:
+    """Parse the scope options once; limits without a slice are a usage error."""
+    if args.slice is None:
+        if any(value is not None for value in (args.tasks_max, args.memory_high, args.memory_max)):
+            raise SystemExit("--tasks-max, --memory-high and --memory-max need --slice")
+        return None
+    return Containment(args.slice, args.tasks_max, args.memory_high, args.memory_max)
+
+
+def run_turn(
+    command: list[str], stdin_path: Path, worktree: Path, run_dir: Path, expected_thread: str | None, limits: Containment | None
+) -> int:
     paths = run_paths(run_dir)
+    command = contained(command, run_dir, limits)
     with stdin_path.open("rb") as stdin, paths["events"].open("a", encoding="utf-8") as events, paths["stderr"].open(
         "a", encoding="utf-8"
     ) as stderr:
@@ -473,7 +519,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "-",
     ]
     record_dispatch(run_dir)
-    return run_turn(command, paths["brief"], worktree, run_dir, expected_thread=None)
+    return run_turn(command, paths["brief"], worktree, run_dir, None, containment_from(args))
 
 
 def cmd_resume(args: argparse.Namespace) -> int:
@@ -498,7 +544,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
         "-",
     ]
     record_dispatch(run_dir)
-    return run_turn(command, saved_prompt, Path(worktree_text), run_dir, expected_thread=thread_id)
+    return run_turn(command, saved_prompt, Path(worktree_text), run_dir, thread_id, containment_from(args))
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -570,6 +616,12 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--effort", default=DEFAULT_EFFORT)
         p.add_argument("--service-tier", default=DEFAULT_SERVICE_TIER, help="Codex service tier; `fast` is fast mode")
         p.add_argument("--no-network", action="store_true", help="disable outbound network in the sandbox")
+        # Off unless set: a host with systemd sets these per machine, for example in its shell profile.
+        env = os.environ.get
+        p.add_argument("--slice", default=env("CODEX_WORKER_SLICE"), help="run each turn in a systemd user scope under this slice [$CODEX_WORKER_SLICE]")
+        p.add_argument("--tasks-max", type=int, default=env("CODEX_WORKER_TASKS_MAX"), help="scope process and thread cap [$CODEX_WORKER_TASKS_MAX]")
+        p.add_argument("--memory-high", default=env("CODEX_WORKER_MEMORY_HIGH"), help="scope memory throttle, e.g. 48G [$CODEX_WORKER_MEMORY_HIGH]")
+        p.add_argument("--memory-max", default=env("CODEX_WORKER_MEMORY_MAX"), help="scope memory hard cap, e.g. 64G [$CODEX_WORKER_MEMORY_MAX]")
 
     start = sub.add_parser("start", help="launch the first turn and wait")
     add_common(start)
