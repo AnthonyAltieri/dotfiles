@@ -73,8 +73,15 @@ The orchestrator owns every worktree and every worker process directly. There is
 
    ```bash
    git fetch origin --prune
-   git worktree add -b codex/<issue-key>-<slug> .claude/worktrees/<issue-key> origin/<base>
+   if [ -n "${SPAWN_ORCHESTRATOR_WORKTREE_ROOT:-}" ]; then
+     git worktree add -b codex/<issue-key>-<slug> "$SPAWN_ORCHESTRATOR_WORKTREE_ROOT/<issue-key>" origin/<base>
+     mkdir -p .claude/worktrees && ln -s "$SPAWN_ORCHESTRATOR_WORKTREE_ROOT/<issue-key>" .claude/worktrees/<issue-key>
+   else
+     git worktree add -b codex/<issue-key>-<slug> .claude/worktrees/<issue-key> origin/<base>
+   fi
    ```
+
+   A host sets `SPAWN_ORCHESTRATOR_WORKTREE_ROOT` (an absolute path) when worktrees belong on another disk than the checkout. Worktrees then sit on the same filesystem as that disk's shared dependency caches, so installs can hardlink from them. The symlink keeps `.claude/worktrees/<issue-key>` as the path everything else uses. When removing a worktree, also delete its symlink.
 
    If `git check-ignore .claude/worktrees` is silent, add `.claude/worktrees/` to `.git/info/exclude` first so the hub checkout stays clean.
 
