@@ -63,6 +63,10 @@
       # nixpkgs 25.05 ships Pulumi 3.169; whyno's infra pins a current @pulumi/pulumi SDK.
       pulumi-bin =
         inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.pulumi-bin;
+      # nixpkgs 25.05 ships pnpm 10.15.1, which can fork without bound when it switches to a
+      # project's pinned packageManager version inside a workspace (fixed upstream in 10.33.2;
+      # pnpm 11 and later no longer spawn an install child).
+      pnpm = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.pnpm;
       codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
