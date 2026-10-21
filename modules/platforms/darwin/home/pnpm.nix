@@ -24,14 +24,18 @@ in {
       current_version="$(pnpm --version 2>/dev/null || true)"
     fi
 
-    current_major="''${current_version%%.*}"
-    if [ "$current_major" != "10" ]; then
-      target_version="$(${curl} -fsSL https://registry.npmjs.org/@pnpm/exe | ${jq} -r '.["dist-tags"]["latest-10"] // empty')"
+    # Keep the newest 10.x. Checking only the major left stale 10.x installs older than 10.33.2,
+    # which can fork without bound when switching to a project's pinned packageManager version.
+    target_version="$(${curl} -fsSL https://registry.npmjs.org/@pnpm/exe | ${jq} -r '.["dist-tags"]["latest-10"] // empty' || true)"
 
-      if [ -z "$target_version" ]; then
+    if [ -z "$target_version" ]; then
+      if [ -n "$current_version" ]; then
+        echo "Could not resolve pnpm latest-10; keeping $current_version" >&2
+      else
         echo "Failed to resolve pnpm latest-10 from the npm registry" >&2
         exit 1
       fi
+    elif [ "$current_version" != "$target_version" ]; then
 
       case "$(${uname} -m)" in
         arm64|aarch64)
