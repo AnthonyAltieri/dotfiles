@@ -44,7 +44,7 @@ import run_state
 
 DEFAULT_MODEL = "gpt-6.1-sol"
 DEFAULT_EFFORT = "xhigh"
-DEFAULT_SERVICE_TIER = "fast"
+DEFAULT_SERVICE_TIER = "default"
 THREAD_MISMATCH_EXIT = 3
 
 
@@ -614,7 +614,7 @@ def build_parser() -> argparse.ArgumentParser:
     def add_model(p: argparse.ArgumentParser) -> None:
         p.add_argument("--model", default=DEFAULT_MODEL)
         p.add_argument("--effort", default=DEFAULT_EFFORT)
-        p.add_argument("--service-tier", default=DEFAULT_SERVICE_TIER, help="Codex service tier; `fast` is fast mode")
+        p.add_argument("--service-tier", default=DEFAULT_SERVICE_TIER, help="Codex service tier; `default` is the normal tier, `fast` is fast mode")
         p.add_argument("--no-network", action="store_true", help="disable outbound network in the sandbox")
         # Off unless set: a host with systemd sets these per machine, for example in its shell profile.
         env = os.environ.get
