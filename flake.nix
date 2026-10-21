@@ -69,6 +69,10 @@
       pnpm = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.pnpm;
       # nixpkgs 25.05's sccache is older than the 0.18 release agents already build with.
       sccache = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.sccache;
+      # nixpkgs 25.05 stops at Rust 1.86; Cargo's split build-dir (shared intermediates, private
+      # final artifacts) is stable from 1.91.
+      rustc = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.rustc;
+      cargo = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.cargo;
       codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };
