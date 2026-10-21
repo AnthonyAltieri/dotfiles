@@ -3,6 +3,7 @@
 
 import json
 import unittest
+from pathlib import Path
 
 import codex_worker as cw
 
@@ -103,6 +104,29 @@ class ThreadGuardTests(unittest.TestCase):
         self.assertFalse(cw.thread_matches({"type": "thread.started", "thread_id": "other"}, THREAD))
         self.assertTrue(cw.thread_matches({"type": "thread.started", "thread_id": THREAD}, THREAD))
         self.assertTrue(cw.thread_matches({"type": "turn.started"}, THREAD))
+
+
+class ContainmentTests(unittest.TestCase):
+    def parse(self, *extra):
+        return cw.build_parser().parse_args(["start", "--run-dir", "r", "--worktree", "w", "--brief", "b", *extra])
+
+    def test_turns_run_directly_unless_a_slice_is_given(self):
+        self.assertEqual(cw.contained(["codex"], Path("/r/x"), cw.containment_from(self.parse())), ["codex"])
+
+    def test_a_slice_runs_each_turn_in_its_own_capped_scope(self):
+        args = self.parse("--slice", "agents.slice", "--tasks-max", "4096", "--memory-max", "64G")
+        wrapped = cw.contained(["codex", "exec"], Path("/runs/my run/ISSUE-1"), cw.containment_from(args))
+        self.assertEqual(wrapped[-3:], ["--", "codex", "exec"])
+        self.assertIn("--slice=agents.slice", wrapped)
+        self.assertIn("TasksMax=4096", wrapped)
+        self.assertIn("MemoryMax=64G", wrapped)
+        self.assertFalse(any(arg.startswith("MemoryHigh=") for arg in wrapped))
+        unit = next(arg for arg in wrapped if arg.startswith("--unit="))
+        self.assertRegex(unit, r"^--unit=codex-my-run-ISSUE-1-\d+$")
+
+    def test_limits_without_a_slice_are_refused(self):
+        with self.assertRaises(SystemExit):
+            cw.containment_from(self.parse("--tasks-max", "64"))
 
 
 if __name__ == "__main__":

@@ -75,6 +75,8 @@ The orchestrator owns every worktree and every worker process directly. There is
    ```
 
    `start` runs `codex exec --json` with `-m gpt-6.1-sol`, `model_reasoning_effort=xhigh`, `service_tier="fast"` (fast mode), the `--approve-for-me` approval triple, and outbound network enabled. It feeds the brief through stdin, records the thread id from the first event, appends the event stream to `$RUN/events.jsonl`, and writes the worker's final message to `$RUN/last.md`.
+
+   On a host with systemd, contain each turn so a runaway command tree is killed inside its worker instead of starving the machine: pass `--slice <user slice>` with optional `--tasks-max`, `--memory-high` and `--memory-max`, or set `CODEX_WORKER_SLICE`, `CODEX_WORKER_TASKS_MAX`, `CODEX_WORKER_MEMORY_HIGH` and `CODEX_WORKER_MEMORY_MAX` in that host's environment. Each turn then runs in its own `systemd-run --user --scope` unit under that slice. Containment is off when no slice is set, as on macOS.
 3. Record the issue key, run directory, worktree, branch, and thread id in orchestrator state as soon as `$RUN/thread_id` appears.
 
 Invoking this skill is the user's explicit request to spawn workers over the requested backlog. Do not request separate permission per worker. Closing this Claude Code session kills every live worker process; their threads remain resumable from the recorded run directories.
