@@ -299,7 +299,6 @@ Keep the user informed without being asked:
   Next: <the next dispatch or what the run waits on>
   ```
 
-- Mirror the first line into `$(git rev-parse --git-common-dir)/spawn-orchestrator-status`, replacing the file each time; the status line shows it. Delete the file when the run is settled.
 - Send a `PushNotification` when a worker is blocked or stalled, when a Sandbox Denials or Stalled Work question needs the user, and when the run is settled. Keep it to one sentence naming the issue and what is needed.
 
 At meaningful completions or blocker changes, and at the end, also return the epic and base branch plus a table of issue → worker model → thread or agent ID → branch → PR → status (with merge commit for `merged`). Include active count, effective capacity constraints, ready-frontier size and undispatched issues with reasons, blocked or parked work with resume conditions and run directories, any open Sandbox Denials or Stalled Work question, and the next dispatch or review order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
