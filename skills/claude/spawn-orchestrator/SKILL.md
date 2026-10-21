@@ -67,6 +67,8 @@ The orchestrator owns every worktree and every worker process directly. There is
    ```
 
    If `git check-ignore .claude/worktrees` is silent, add `.claude/worktrees/` to `.git/info/exclude` first so the hub checkout stays clean.
+
+   Then install the worktree's dependencies yourself, before the worker starts. A worker's sandbox can write only inside its worktree, so a worker that installs its own dependencies puts package stores and build caches in private folders and redoes work every other worktree has already done. Run the repository's documented dependency setup command (from AGENTS.md or the README) in the worktree. If there isn't one, point each package manager at its shared cache and link from it rather than copy (for example pnpm's shared store with hardlinks, or uv's shared cache). Tell the worker in its brief that dependencies are installed and that it must not move package-manager data, cache or home directories (such as `XDG_DATA_HOME` or `PNPM_HOME`) into its worktree. If the issue adds a dependency, the worker may install that one change itself.
 2. Write the brief to a file and launch the worker with the Bash tool in background mode. The helper blocks until the Codex process exits, so the Bash completion notification is the worker's completion signal:
 
    ```bash
