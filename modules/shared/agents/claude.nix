@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, platform, ... }:
 let
   baseSettingsFile = ../../../home/.claude/settings.json;
   extraPlugins = config.dotfiles.claudeEnabledPlugins;
@@ -61,6 +61,16 @@ in
 
     home.sessionVariables = {
       CLAUDE_CONFIG_DIR = "$HOME/.claude";
+    }
+    # Linux /tmp is tmpfs, so Claude scratchpads and task outputs there are RAM
+    # charged to the session's cgroup. Every session must share this value:
+    # it also holds the cross-session message sockets (cc-socks).
+    // lib.optionalAttrs (platform == "linux") {
+      CLAUDE_CODE_TMPDIR = "${config.xdg.cacheHome}/claude-tmp";
     };
+
+    systemd.user.tmpfiles.rules = lib.optionals (platform == "linux") [
+      "d ${config.xdg.cacheHome}/claude-tmp 0700 - - -"
+    ];
   };
 }
