@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Run an independent falsification gate with fresh-context, read-only reviewers that try to find concrete failures of the stated acceptance criteria under the stated threat model. Use only when the user explicitly invokes adversarial-review or asks for an adversarial review of a plan, artifact, diff, or completed task, including when paired with ultragoal.
+description: Run an independent falsification gate with fresh-context, read-only reviewers at a strictness tier proportional to risk, seeking concrete failures of the stated acceptance criteria under the stated threat model. Use only when the user explicitly invokes adversarial-review or asks for an adversarial review of a plan, artifact, diff, or completed task, including when paired with ultragoal.
 disable-model-invocation: true
 ---
 
@@ -13,6 +13,29 @@ Run this workflow only because the user explicitly requested it. Review is an at
 - **Integrated gate** (default when the user asks to do a task and adversarially review it): review the final candidate before declaring the task complete.
 - **Candidate review:** review existing work and report without changing it unless the user also requested fixes.
 - **Preflight review:** review a plan, specification, or migration before execution. Use only when requested or when an early defect would be unusually costly or irreversible.
+
+## Review Tier
+
+Choose a tier before review from blast radius, reversibility, and verifier strength, not diff size alone. State the tier and its rationale in the report. Honor an explicit user tier subject to the Ultragoal minimum below.
+
+| Tier | Use for | Gate reviewers | Passing gate |
+| --- | --- | --- | --- |
+| **Light** | Docs, comments, formatting, test-only edits, configuration with no runtime behavior change, or small isolated changes with strong verifiers | 1 | One conclusive clean report and passing verifiers |
+| **Standard** (default) | Typical feature, bugfix, and refactor work | 2 | The clean-gate conditions below |
+| **Critical** | Irreversible, public, security-, money-, data-migration-, or concurrency-sensitive changes, or an explicit request for maximum scrutiny | 2 or more with distinct mandatory lenses | Standard conditions, with no open `requires-user-decision` disposition |
+
+- Every tier preserves the review contract, fresh contexts, read-only independence, content-bound snapshots, and evidence-backed findings.
+- At light tier, use the simplest sufficient snapshot identifier, such as an immutable commit or staged tree. Use a digest manifest when the candidate needs one.
+- Escalate when a light review finds a material failure or the evidence reveals higher risk. Freeze the current candidate and obtain the higher tier's required fresh gate reports over the whole candidate, including after a repair; earlier reports do not satisfy the escalated gate. Never silently lower a selected tier.
+- When paired with Ultragoal, read [Ultragoal composition](references/ultragoal-composition.md) and use standard tier or higher. Report this minimum when the user requests light tier for a paired review.
+
+## Scope: Review What the Task Owns
+
+Review the task's changes against their merge base, plus their interactions.
+
+- Exclude upstream changes brought in by a merge or rebase when the task neither modified them nor interacts with them.
+- Keep task-authored dependency changes, conflict resolutions, and upstream changes that affect the task's behavior in scope. Inspect surrounding code as needed to assess those interactions.
+- When task-owned changes cannot be separated, state the limitation and review the smallest separable superset. If a reliable snapshot or scope still cannot be established, return `inconclusive`.
 
 ## Roles
 
@@ -34,9 +57,9 @@ Take these from the ticket when it has them. When it does not, derive a provisio
 
 ## Stage 0: Cheap Pass
 
-Run the expensive gate only on a candidate that has already survived a cheap one.
+At standard and critical tiers, run the expensive gate only on a candidate that has survived a cheap one. At light tier, perform step 1, then freeze the candidate and run its single gate reviewer; skip the separate smoke review.
 
-1. The implementer completes the `$programming` review pass against the contract's invariants and runs targeted lint, typecheck, and tests for the touched files.
+1. For application code, the implementer completes the `$programming` review pass against the contract's invariants. Run applicable targeted lint, typecheck, and tests for the touched files.
 2. The orchestrator spawns **one** fresh-context smoke reviewer with the neutral packet and the diff. The smoke reviewer reports only critical or major failures of the contract, runs no suites, and is bounded to a short pass.
 3. Fix accepted smoke findings with targeted tests, then repeat step 2 at most once more.
 
@@ -61,14 +84,16 @@ Exclude implementer reasoning, self-assessment, worklog narrative, suspected bug
 
 ## Run Reviews
 
-Default to two gate reviewers; use three only when the candidate spans several trust boundaries or the user asks. Run them in parallel when capacity permits, otherwise sequentially without sharing outputs. Give each the full falsification mandate plus a distinct secondary lens (for code, from [Code review lenses](references/code-review-lenses.md); otherwise local semantics versus system boundaries).
+Use the selected tier's required gate-reviewer count. At critical tier, add reviewers when several trust boundaries or an explicit user request warrant them. Run reviewers in parallel when capacity permits, otherwise sequentially without sharing outputs. Give each the full falsification mandate. At standard and critical tiers, give each a distinct secondary lens (for code, from [Code review lenses](references/code-review-lenses.md); otherwise local semantics versus system boundaries). At light tier, give the single reviewer the lenses relevant to the change.
+
+At critical tier, use a fresh read-only adjudicator for disputed findings when available. The adjudicator does not replace the required gate reviewers; unresolved disputes still prevent a passing gate.
 
 Permit only safe inspection and bounded diagnostics. A reproduction that could change files, install dependencies, or consume substantial resources is proposed to the orchestrator, not run.
 
 Prompt shape:
 
 ```text
-Act as one of several independent adversarial reviewers. Assume the candidate is wrong.
+Act as an independent adversarial reviewer. Assume the candidate is wrong.
 Try to falsify it against the supplied acceptance criteria and invariants, under the supplied
 threat model and non-goals. Find concrete failure mechanisms with a reproduction, not praise,
 style, or generic concern. Anything that fails only under a stronger threat model than the one
@@ -125,15 +150,15 @@ After every reviewer has returned:
 Gate state:
 
 - `failed`: at least one critical or major finding is accepted.
-- `inconclusive`: fewer than two valid fresh-context gate reports, any material claim unresolved, any report inconclusive, or the snapshot cannot be confirmed unchanged.
-- `passed`: at least two conclusive independent gate reports cover the same unchanged snapshot, no material finding is accepted or unresolved, and the verification agent's full gate passes on that snapshot.
+- `inconclusive`: fewer valid fresh-context gate reports than the selected tier requires, any material claim unresolved, any report inconclusive, the snapshot cannot be confirmed unchanged, or a critical-tier `requires-user-decision` disposition remains open.
+- `passed`: the selected tier's required conclusive independent gate reports cover the same unchanged snapshot, no material finding is accepted or unresolved, the verification agent's full gate passes on that snapshot, and no critical-tier `requires-user-decision` disposition remains open. A light-tier material finding requires escalation before the gate can pass.
 
 ## Remediate and Re-review
 
 For an integrated gate or explicit fix request:
 
 1. The fixer applies accepted findings — failing test, then fix — and runs targeted verification for each.
-2. Re-freeze the candidate. Re-review runs in fresh contexts but is **scoped to the remediation**: the packet carries the delta since the last reviewed snapshot, the finding ledger, and the specific invariants that were violated. Two reviewers, each with the delta and the ledger; they may read the whole candidate but are asked to falsify the fixes and their neighbors, not to re-audit the entire diff.
+2. Re-freeze the candidate. If the tier increased since the preceding review, every required higher-tier reviewer inspects the whole current candidate and its contract. Otherwise, re-review runs in fresh contexts but is **scoped to the remediation**: the packet carries the delta since the last reviewed snapshot, the finding ledger, and the specific invariants that were violated. For this same-tier re-review, give the required reviewers the delta and the ledger; they may read the whole candidate but are asked to falsify the fixes and their neighbors, not to re-audit the entire diff.
 3. When remediation introduced a new abstraction, touched files outside the original finding loci, or is the second round, add one whole-candidate reviewer at the final head.
 4. The verification agent runs the full affected gate once on the final head, not on every intermediate head.
 5. Expect at most one ordinary remediation round; log every extra round and its cause in the final report.
@@ -142,13 +167,13 @@ For review-only requests, stop after synthesis and return the ledger.
 
 ## Degraded Conditions
 
-- If two fresh reviewer contexts cannot be obtained, return `inconclusive`; never substitute self-review.
+- If the selected tier's required fresh reviewer contexts cannot be obtained, return `inconclusive`; never substitute self-review or lower the tier to fit capacity.
 - If acceptance criteria or canonical references are missing, infer only when the choice cannot materially change the result; otherwise ask.
 - Security review, architecture review, CI diagnosis, fuzzing, and human review remain complementary when their specialized evidence matters.
 
 ## Final Report
 
-Return: the review contract used (and whether it was provisional); scope, baseline, and final snapshot; reviewer count, isolation method, and lenses; each finding with disposition, family, and its regression test; hardening suggestions filed as follow-ups; verifier commands and outcomes; the gate state; remaining limitations; and process metrics — implementation minutes, review minutes, findings by disposition, remediation rounds, and whether the redesign trigger fired.
+Return: the review contract used (and whether it was provisional); scope, baseline, and final snapshot; selected tier and rationale, including any excluded upstream content; reviewer count, isolation method, and lenses; each finding with disposition, family, and its regression test; hardening suggestions filed as follow-ups; verifier commands and outcomes; the gate state; remaining limitations; and process metrics — implementation minutes, review minutes, findings by disposition, remediation rounds, and whether the redesign trigger fired.
 
 Record evidence in the PR description, PR comments, or Linear comments against the final reviewed SHA. Do not add evidence-only commits to the candidate.
 
