@@ -1,6 +1,11 @@
 {
   "model": "opus",
   "effortLevel": "high",
+  "modelSettings": {
+    "opus": {
+      "effortLevel": "high"
+    }
+  },
   "skipDangerousModePermissionPrompt": true,
   "enabledPlugins": {
     "codex@openai-codex": true
