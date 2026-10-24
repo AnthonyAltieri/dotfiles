@@ -74,12 +74,14 @@ class TriageTests(unittest.TestCase):
         self.assertEqual(fold(self.ORCH, monitoring)["triage"], {"verdict": "pending", "since": T + 1})
         self.assertIsNone(fold(ev("UserPromptSubmit", prompt="hi"), monitoring)["triage"])
 
-    def test_orchestrator_footer_decides_the_verdict_without_haiku(self):
-        you = "Status above.\n━━━━\n▶ YOU (2)\n  1. Answer: PR (1) or pasted files (2)? I recommend 1.\n  2. Run: the sudo above.\n━━━━"
-        clear = "Status.\n━━━━\n✓ Nothing needs you. Next: book 1 decision at 04:00Z\n━━━━"
-        finished = "All merged.\n━━━━\n✓ Nothing needs you. Run complete.\n━━━━"
+    def test_orchestrator_banner_decides_the_verdict_without_haiku(self):
+        banner = lambda title: f"```text\n════════\n═══ {title} ═══\n════════\n```\n"
+        options = "* Context.\n\n**Option A: PR** *(recommended)*\n\n| Pros | Cons |\n|---|---|\n| a | b |\n\n" * 8
+        you = "Status above.\n" + banner("NEEDS YOUR ATTENTION") + "\n**1. Install the rule: PR or pasted files?**\n\n" + options + "**2. Run the sudo below**\n"
+        clear = "Status.\n" + banner("EVERYTHING IS GOOD") + "Next: book 1 decision at 04:00Z\n"
+        finished = "All merged.\n" + banner("EVERYTHING IS GOOD") + "Run complete: 11 merged.\n"
         verdict = lambda m: {k: v for k, v in fold(self.ORCH, ev("Stop", last_assistant_message=m))["triage"].items() if k != "since"}
-        self.assertEqual(verdict(you), {"verdict": "you", "summary": "Answer: PR (1) or pasted files (2)? I recommend 1."})
+        self.assertEqual(verdict(you), {"verdict": "you", "summary": "Install the rule: PR or pasted files?"})
         self.assertEqual(verdict(clear), {"verdict": "wait", "summary": "Next: book 1 decision at 04:00Z"})
         self.assertEqual(verdict(finished)["verdict"], "done")
         self.assertEqual(verdict("Should I merge?"), {"verdict": "pending"})

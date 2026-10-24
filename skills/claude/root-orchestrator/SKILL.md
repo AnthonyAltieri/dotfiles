@@ -67,7 +67,7 @@ When the user asks what is blocked, queued, or unattended, `run.json` issue stat
 |---|---|
 | `done` | `run.json` says the run is settled, or Haiku judged the orchestrator's last message finished and no worker or background task is running |
 | `dead` | the session ended or its process exited |
-| `needs you` | the session waits for the user to type: an open question (`AskUserQuestion`), a permission prompt (its own or a worker's), or a turn whose last message ends with a `▶ YOU` footer (or, without a footer, that Haiku judged to need the user), even while a background task runs; the Note says what. Alerts once open 10 minutes |
+| `needs you` | the session waits for the user to type: an open question (`AskUserQuestion`), a permission prompt (its own or a worker's), or a turn whose last message ends with a `NEEDS YOUR ATTENTION` block (or, without one, that Haiku judged to need the user), even while a background task runs; the Note says what. Alerts once open 10 minutes |
 | `hung` | the session is busy, no worker is running, and its transcript has been silent for 20 minutes |
 | `stalled` | the session is idle, no worker has run for 20 minutes, and no verdict explains it (Haiku failed or the session predates the hook) |
 | `ok` | working, idle while its workers run, or idle with a last message Haiku judged to be waiting on something other than the user (the Note says what) |

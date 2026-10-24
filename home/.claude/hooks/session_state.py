@@ -18,8 +18,8 @@ main session, ~/.cache/claude-sessions/<session_id>.json:
 It prints nothing, so it adds nothing to any model context, and it always
 exits 0 so a failure here never disturbs the session.
 
-An orchestrator's own footer (`▶ YOU` with numbered actions, or `✓ Nothing needs
-you`) decides the verdict directly. Without one, triage runs at the end of every orchestrator turn, even with background tasks
+An orchestrator's own attention block (`NEEDS YOUR ATTENTION` with numbered
+headings, or `EVERYTHING IS GOOD`) decides the verdict directly. Without one, triage runs at the end of every orchestrator turn, even with background tasks
 or scheduled jobs left: an orchestrator usually keeps a Monitor running while
 it asks the user something in plain text. A detached child (`session_state.py --triage`) asks Haiku about the last message
 with no tools, settings, or hooks, so the turn never waits on it.
@@ -46,9 +46,10 @@ RUN_DIR_ARG = re.compile(r"--run-dir[=\s]+([\"']?)(\S+?)\1(?=\s|;|&|$)")
 ASSIGNMENT = re.compile(r"(?:^|[\s;&(])([A-Za-z_]\w*)=([\"']?)([^\s;&\"']+)\2")
 ISSUE_KEY = re.compile(r"\b[A-Z][A-Z0-9]+-\d+\b")
 ORCHESTRATOR_PROMPT = re.compile(r"^\s*(?:/spawn-orchestrator\b|<command-name>/?spawn-orchestrator</command-name>)")
-FOOTER_YOU = "▶ YOU"
-FOOTER_CLEAR = "✓ Nothing needs you"
-FOOTER_ACTION = re.compile(r"^\s*\d+\.\s+(.+)$")
+BANNER_YOU = "NEEDS YOUR ATTENTION"
+BANNER_CLEAR = "EVERYTHING IS GOOD"
+BANNER_LINE = re.compile(r"^[\s═`]*$|^═.*═$")
+ACTION_HEADING = re.compile(r"^\s*(?:\*\*)?\d+\.\s+(.+?)(?:\*\*)?\s*$")
 VERDICT = re.compile(r"^(YOU|WAIT|DONE)\s*:\s*(.+)$")
 
 TRIAGE_GUARD = "SESSION_STATE_TRIAGE"
@@ -175,15 +176,14 @@ def apply(state: dict, event: dict, now: float) -> dict:
 
 
 def footer_verdict(message: str) -> dict | None:
-    """The verdict an orchestrator's own footer states ($spawn-orchestrator ends every message with one), or None."""
-    tail = message[-1500:]
-    you, clear = tail.rfind(FOOTER_YOU), tail.rfind(FOOTER_CLEAR)
+    """The verdict an orchestrator's own attention block states ($spawn-orchestrator ends every message with one), or None."""
+    you, clear = message.rfind(BANNER_YOU), message.rfind(BANNER_CLEAR)
     if you > clear:
-        actions = [line.strip() for line in tail[you:].splitlines()[1:] if FOOTER_ACTION.match(line)]
-        return {"verdict": "you", "summary": short(FOOTER_ACTION.match(actions[0]).group(1) if actions else "see the session", 120)}
+        headings = [m.group(1) for line in message[you:].splitlines() if (m := ACTION_HEADING.match(line))]
+        return {"verdict": "you", "summary": short(headings[0] if headings else "see the session", 120)}
     if clear >= 0:
-        after = tail[clear + len(FOOTER_CLEAR):].splitlines()
-        rest = short(after[0].strip(" .")) if after else ""
+        rest = next((line.strip() for line in message[clear:].splitlines()[1:] if not BANNER_LINE.match(line)), "")
+        rest = short(rest.strip(" ."))
         return {"verdict": "wait" if rest.lower().startswith("next") else "done", "summary": short(rest or "nothing needs you", 120)}
     return None
 
