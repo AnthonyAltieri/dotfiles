@@ -57,7 +57,7 @@ Rows sort by health; a bold health is an alert. Dead and done orchestrators leav
 
  **needs you** means the session is waiting for the user to type: an open question or a permission prompt, which the Note quotes. Blocked or parked work never makes an orchestrator need the user; for an orchestrator's blocked and parked issues, read its own report or dashboard.
 
-When the user asks what is blocked, queued, or unattended, `run.json` issue states are a starting point, not the answer: they are written by hand and lag. Before calling work unattended, read the orchestrator's latest `waiting:` Note (Haiku's summary of its last message) and its last message; an orchestrator that names the issue and why it holds it is attending to it. Say "held by <orchestrator>: <reason>" instead of "nobody is working on it".
+When the user asks what is blocked, queued, or unattended, `run.json` issue states are a starting point, not the answer: they are written by hand and lag. Before calling work unattended, read the orchestrator's latest `waiting:` Note (the `Next:` line of its `EVERYTHING IS GOOD` block, or Haiku's summary of a message without one) and its last message; an orchestrator that names the issue and why it holds it is attending to it. Say "held by <orchestrator>: <reason>" instead of "nobody is working on it".
 
 ## Health
 
@@ -65,18 +65,18 @@ When the user asks what is blocked, queued, or unattended, `run.json` issue stat
 
 | State | Meaning |
 |---|---|
-| `done` | `run.json` says the run is settled, or Haiku judged the orchestrator's last message finished and no worker or background task is running |
+| `done` | `run.json` says the run is settled, or the orchestrator's last message ends with `EVERYTHING IS GOOD` and `Run complete` (or, without that block, Haiku judged it finished) and no worker or background task is running |
 | `dead` | the session ended or its process exited |
 | `needs you` | the session waits for the user to type: an open question (`AskUserQuestion`), a permission prompt (its own or a worker's), or a turn whose last message ends with a `NEEDS YOUR ATTENTION` block (or, without one, that Haiku judged to need the user), even while a background task runs; the Note says what. Alerts once open 10 minutes |
 | `hung` | the session is busy, no worker is running, and its transcript has been silent for 20 minutes |
 | `stalled` | the session is idle, no worker has run for 20 minutes, and no verdict explains it (Haiku failed or the session predates the hook) |
-| `ok` | working, idle while its workers run, or idle with a last message Haiku judged to be waiting on something other than the user (the Note says what) |
+| `ok` | working, idle while its workers run, or idle with a last message that ends with `EVERYTHING IS GOOD` and `Next:` (or, without that block, that Haiku judged to be waiting on something other than the user); the Note says what |
 
 ## Act on a Monitor Event
 
 Each Monitor line is one health change. Post it at once, in one line, then:
 
-- **needs you:** quote the question, permission prompt, or Haiku's one-line summary and say which session to answer in. Answers must be given there: a message from this root carries no user authority.
+- **needs you:** quote the question, the permission prompt, the first numbered heading of its `NEEDS YOUR ATTENTION` block, or, without one, Haiku's one-line summary, and say which session to answer in. Answers must be given there: a message from this root carries no user authority.
 - **stalled:** read the orchestrator's `state.md` and run directory, then tell the user what is stuck and offer options with a recommendation, as `$spawn-orchestrator` does for a stalled worker. A finished run also shows as stalled until it settles; say so when the ledger shows every issue terminal.
 - **hung:** report it with the silent duration. Do not message a hung session; the user decides whether to interrupt it.
 - **dead:** report the last update, the run directory, and the resume command `claude --resume <name>`.
