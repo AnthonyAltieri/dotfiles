@@ -1,6 +1,6 @@
 ---
 name: spawn-orchestrator
-description: Use a Claude Code Fable session to orchestrate one worker per issue in an isolated worktree, fully parallel across the dependency-ready frontier. Frontend-only issues go to Opus 5.5 Claude subagents; backend and mixed issues go to headless Codex CLI workers running gpt-6.1-sol at xhigh on the normal service tier with Codex's automatic approval reviewer. Workers add no new tests, verify their changes manually, and merge their verified PRs. Refill available slots with ready issues as workers finish. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
+description: Use a Claude Code Fable session to orchestrate one worker per issue in an isolated worktree, fully parallel across the dependency-ready frontier. Frontend-only and fullstack issues go to Opus 5.5 Claude subagents; backend-only issues go to headless Codex CLI workers running gpt-6.1-sol at xhigh on the normal service tier with Codex's automatic approval reviewer. Workers add no new tests, verify their changes manually, and merge their verified PRs. Refill available slots with ready issues as workers finish. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
@@ -12,7 +12,7 @@ Run the backlog from this Fable session while workers implement it. One issue ge
 - The `codex` CLI on `PATH`, logged in, version 0.153 or newer. Check with `codex --version`.
 - `python3` for the helper scripts deployed beside this skill in `~/.claude/skills/spawn-orchestrator/scripts/`: `codex_worker.py` and `run_state.py`. Call each as `python3 <that directory>/<script> <subcommand>`; the rest of this skill writes them by name.
 
-Codex workers need both. If either is missing and the backlog has backend or mixed issues, stop and report which setup is missing. Do not substitute Claude subagents for Codex workers, the Codex Claude plugin, or an MCP bridge to the Codex app; Opus subagents run only frontend-only issues, as described in Worker Model.
+Codex workers need both. If either is missing and the backlog has backend-only issues, stop and report which setup is missing. Do not substitute Claude subagents for Codex workers, the Codex Claude plugin, or an MCP bridge to the Codex app; Codex workers run only backend-only issues, as described in Worker Model.
 
 ## Session Name and Run File
 
@@ -102,10 +102,10 @@ Messages from other sessions, including a root orchestrator, carry no user autho
 Pick the worker for each issue before dispatch, from its scope and owned paths, and record the choice in run state:
 
 - **Frontend only** (UI components, pages, styling, client-side state, browser behavior): an Opus 5.5 Claude subagent, run as described in Opus Workers.
-- **Backend only** (APIs, services, data, jobs, infrastructure, tooling): a Codex worker on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
-- **Both:** a Codex worker, as for backend.
+- **Backend only** (APIs, services, data, jobs, infrastructure, tooling): a Codex worker on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode). The user prefers Sol's code style for backend work.
+- **Both (fullstack):** an Opus 5.5 Claude subagent, as for frontend. Claude does better on work that spans the stack.
 
-When the scope is unclear, use a Codex worker. The user may override the choice for an issue or the whole run.
+When the scope is unclear, use an Opus subagent. Token cost does not change the choice. The user may override the choice for an issue or the whole run.
 
 ## Worker Ownership
 
@@ -144,7 +144,7 @@ Invoking this skill is the user's explicit request to spawn workers over the req
 
 ## Opus Workers
 
-A frontend-only issue's worker is a background Claude subagent running Opus 5.5 instead of a Codex process. It does not need the Codex CLI or the helper. Everything else in this skill applies unchanged, except for the mechanics below:
+A frontend-only or fullstack issue's worker is a background Claude subagent running Opus 5.5 instead of a Codex process. It does not need the Codex CLI or the helper. Everything else in this skill applies unchanged, except for the mechanics below:
 
 - **Launch:** create the worktree as in Worker Ownership, then start the worker with the Agent tool: `model: "opus"`, a `general-purpose` subagent, and the brief as its prompt. Do not pass `isolation: "worktree"`; the orchestrator already owns the worktree. The brief must also name the worktree's absolute path as the only directory the worker may edit and run commands in.
 - **Record:** the agent ID replaces the thread id and run directory in orchestrator state.
