@@ -91,6 +91,29 @@ if ! cmp -s "$MANAGED_APP_KEYS" "$APP_KEYS"; then
   exit 1
 fi
 
+# The app writes settings.json itself, so activation must leave a writable
+# copy of the repo file, not a read-only link. Run the activation snippet with
+# its config home pointed at a scratch folder.
+APP_SETTINGS="$ROOT_DIR/home/.config/herdr-app/settings.json"
+SETTINGS_ACTIVATION="$(nix_eval "path:${ROOT_DIR}#darwinConfigurations.personal.config.home-manager.users.${USER}.home.activation.herdrAppSettings.data")"
+SCRATCH_SETTINGS="$TMP_DIR/config/herdr-app/settings.json"
+SCRATCH_ACTIVATION="${SETTINGS_ACTIVATION//$HOME\/.config/$TMP_DIR/config}"
+if ! rg -Fq "$SCRATCH_SETTINGS" <<<"$SCRATCH_ACTIVATION" || rg -Fq "$HOME/.config" <<<"$SCRATCH_ACTIVATION"; then
+  printf 'expected the herdr-app settings activation to target %s\n' "$HOME/.config/herdr-app/settings.json" >&2
+  exit 1
+fi
+DRY_RUN_CMD='' bash -euo pipefail -c "$SCRATCH_ACTIVATION"
+
+if [ -L "$SCRATCH_SETTINGS" ] || [ ! -w "$SCRATCH_SETTINGS" ]; then
+  printf 'expected activation to copy a writable herdr-app settings.json\n' >&2
+  exit 1
+fi
+
+if ! cmp -s "$SCRATCH_SETTINGS" "$APP_SETTINGS"; then
+  printf 'expected activation to copy the repo herdr-app settings.json verbatim\n' >&2
+  exit 1
+fi
+
 # The app ignores the whole file when one keystroke is invalid, and it does
 # not reject unknown commands, so check the ported bindings by value.
 expect_app_key() {
