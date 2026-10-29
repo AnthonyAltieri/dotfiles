@@ -20,7 +20,7 @@
 
     # herdr builds against zig_0_15, which nixpkgs 25.05 does not ship, so it
     # deliberately keeps its own nixpkgs pin instead of following ours.
-    herdr.url = "github:herdrdev/herdr/v0.8.2";
+    herdr.url = "github:herdrdev/herdr/v0.9.5";
   };
 
   outputs = inputs@{ self, nixpkgs, ... }: let
