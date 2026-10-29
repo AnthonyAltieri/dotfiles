@@ -197,6 +197,7 @@ your current Zsh session.
 - Repo-local packages that are not present in pinned `nixpkgs`, such as `observe`, are defined under `pkgs/` and exposed through flake `packages`.
 - Work-only private Homebrew taps and casks are supplied through local env state, not tracked files.
 - The terminal multiplexer is [herdr](https://herdr.dev): Homebrew on Darwin, the `herdr` flake input on Linux and sandbox profiles (it is not in nixpkgs). Its config is `home/.config/herdr/config.toml`, linked to `~/.config/herdr/config.toml` by `modules/shared/shell/herdr.nix`, which also runs `herdr server reload-config` on change.
+- The Herdr desktop app (`herdr-app`, installed by hand from herdr.dev) takes its keybindings from `home/.config/herdr-app/keys.json`, linked to `~/.config/herdr-app/keys.json` by the same module; the app reloads it on change. It is the full key table (the app's defaults plus the ported herdr bindings, including the `ctrl-space` prefix sequences), because JSON has no comments, so the herdr TUI config above is where each binding's rationale lives. `settings.json` and the rest of `~/.config/herdr-app` stay app-owned because the app writes them.
 
 Current hidden runtime dependencies are also declared, including `jq`.
 
