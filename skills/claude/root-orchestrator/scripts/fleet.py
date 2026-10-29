@@ -19,7 +19,9 @@ Subcommands:
   snapshot  render the fleet as a markdown table, a terminal table, or JSON
   watch     print one line per health change, forever, and raise a desktop
             notification when an orchestrator starts needing the user; a
-            re-armed watch resumes from what the last one reported
+            re-armed watch resumes from what the last one reported; it also
+            runs any polls the repository declares in .claude/root-orchestrator.toml
+            and prints a poll's result when it changes
   pane      open a herdr or tmux pane that redraws the terminal table every minute
 """
 
@@ -34,6 +36,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -44,6 +47,8 @@ PROJECTS_DIR = Path.home() / ".claude" / "projects"
 STATE_DIR = Path.home() / ".cache" / "claude-sessions"
 RUNS_DIR = Path.home() / ".cache" / "spawn-orchestrator"
 WATCH_DIR = Path.home() / ".cache" / "root-orchestrator"
+POLL_CONFIG = Path(".claude") / "root-orchestrator.toml"
+POLL_OUTPUT_LINES = 20
 
 STALL_AFTER = 20 * 60
 HUNG_AFTER = 20 * 60
@@ -577,11 +582,75 @@ def notify(title: str, body: str) -> None:
     subprocess.run(command, capture_output=True, timeout=10, check=False)
 
 
+@dataclass(frozen=True)
+class Poll:
+    name: str
+    command: tuple[str, ...]
+    interval: int
+    timeout: int
+
+
+def load_polls(repo: str) -> list[Poll]:
+    """Optional checks the repository declares in .claude/root-orchestrator.toml; no file means no polls."""
+    path = Path(repo) / POLL_CONFIG
+    if not path.exists():
+        return []
+    polls = []
+    for entry in tomllib.loads(path.read_text()).get("poll", []):
+        command = entry.get("command")
+        if not (isinstance(command, list) and command and all(isinstance(arg, str) for arg in command)):
+            raise ValueError(f"poll {entry.get('name')!r}: command must be a non-empty list of strings")
+        polls.append(Poll(str(entry["name"]), tuple(command), int(entry.get("interval", 300)), int(entry.get("timeout", 60))))
+    return polls
+
+
+def run_poll(poll: Poll, repo: str) -> str:
+    """A poll's result: its output when it succeeds, "clear" when that is empty, or why it failed."""
+    try:
+        done = subprocess.run(poll.command, cwd=repo, capture_output=True, text=True, timeout=poll.timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return f"failed: timed out after {poll.timeout}s"
+    except OSError as exc:
+        return f"failed: {exc}"
+    if done.returncode != 0:
+        reason = (done.stderr.strip().splitlines() or [""])[-1]
+        return f"failed (exit {done.returncode}): {reason}"
+    lines = done.stdout.strip().splitlines()
+    if len(lines) > POLL_OUTPUT_LINES:
+        lines = lines[:POLL_OUTPUT_LINES] + [f"... {len(lines) - POLL_OUTPUT_LINES} more lines"]
+    return "\n".join(lines) or "clear"
+
+
+def poll_tick(polls: list[Poll], repo: str, seen: dict[str, str], due: dict[str, float], now: float) -> list[str]:
+    """Run the polls that are due and return lines only for results that changed since last reported."""
+    lines = []
+    for poll in polls:
+        if now < due.get(poll.name, 0):
+            continue
+        due[poll.name] = now + poll.interval
+        result = run_poll(poll, repo)
+        if result != seen.get(poll.name):
+            seen[poll.name] = result
+            lines += [f"poll {poll.name}: {line}" for line in result.splitlines()]
+    return lines
+
+
 def cmd_watch(args: argparse.Namespace) -> int:
     repo = args.repo or repo_root()
     seen_path = watch_state_path(repo, args.sessions)
     previous = load_seen(seen_path)
     reported: set[str] = set()
+    polls_path = seen_path.with_suffix(".polls.json")
+    try:
+        polls = load_polls(repo)
+    except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError) as exc:
+        print(f"poll config error: {exc}", flush=True)
+        polls = []
+    try:
+        poll_seen: dict[str, str] = json.loads(polls_path.read_text())
+    except (OSError, ValueError):
+        poll_seen = {}
+    poll_due: dict[str, float] = {}
     while True:
         warnings: list[str] = []
         try:
@@ -597,6 +666,14 @@ def cmd_watch(args: argparse.Namespace) -> int:
             previous = current
         except Exception as exc:  # the watch must outlive one bad read
             print(f"fleet error: {exc}", file=sys.stderr, flush=True)
+        changed = poll_tick(polls, repo, poll_seen, poll_due, time.time())
+        for line in changed:
+            print(line, flush=True)
+        if changed:
+            polls_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = polls_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(poll_seen))
+            tmp.replace(polls_path)
         for w in warnings:
             if w not in reported:
                 reported.add(w)
