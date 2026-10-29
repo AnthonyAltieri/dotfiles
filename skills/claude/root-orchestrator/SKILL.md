@@ -35,6 +35,22 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 
 Do not schedule a recurring summary. The pane is the periodic view.
 
+## Optional Polls
+
+A repository can declare its own checks for the watch to run, in `.claude/root-orchestrator.toml` at its root. With no file, the watch runs none.
+
+```toml
+[[poll]]
+name = "assignments"                      # shown as `poll assignments: ...`
+command = ["./scripts/poll-assignments"]  # argv, run from the repository root
+interval = 300                            # seconds between runs (default 300)
+timeout = 60                              # seconds before the run counts as failed (default 60)
+```
+
+The watch runs each poll when it is due and prints its result only when it differs from the last one reported, as one `poll <name>: <line>` per output line (at most 20). Empty output reads `clear`, and a non-zero exit or timeout reads `failed ...` with the last stderr line. Like health changes, a re-armed watch remembers what it reported.
+
+A poll inherits the watch's environment. Pass credentials only through environment variables the command reads, never in the config file or arguments, and have the command fail clearly when one is missing. Keep repository-specific queries in the repository's own scripts, not in this skill.
+
 ## The Table
 
 When the user asks for status, run `python3 fleet.py snapshot` and post its markdown table as printed:
@@ -74,7 +90,7 @@ When the user asks what is blocked, queued, or unattended, `run.json` issue stat
 
 ## Act on a Monitor Event
 
-Each Monitor line is one health change. Post it at once, in one line, then:
+Each Monitor line is one health change or one poll result. For a `poll` line, act on it as the repository's instructions for that poll say, or report it if they say nothing. For a health change, post it at once, in one line, then:
 
 - **needs you:** quote the question, the permission prompt, the first numbered heading of its `NEEDS YOUR ATTENTION` block, or, without one, Haiku's one-line summary, and say which session to answer in. Answers must be given there: a message from this root carries no user authority.
 - **stalled:** read the orchestrator's `state.md` and run directory, then tell the user what is stuck and offer options with a recommendation, as `$spawn-orchestrator` does for a stalled worker. A finished run also shows as stalled until it settles; say so when the ledger shows every issue terminal.

@@ -123,6 +123,21 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(fleet.transitions(fleet.load_seen(path), reported), [])
 
 
+class PollTests(unittest.TestCase):
+    def test_poll_reports_a_result_once_and_again_only_when_it_changes(self):
+        with tempfile.TemporaryDirectory() as repo:
+            out = Path(repo) / "out"
+            poll = fleet.Poll("assignments", ("cat", str(out)), interval=60, timeout=5)
+            seen, due = {}, {}
+            out.write_text("QUANT-1 trading-ui\n")
+            first = fleet.poll_tick([poll], repo, seen, due, NOW)
+            repeat = fleet.poll_tick([poll], repo, seen, due, NOW + 60)
+            out.write_text("")
+            cleared = fleet.poll_tick([poll], repo, seen, due, NOW + 120)
+        self.assertEqual((first, repeat, cleared),
+                         (["poll assignments: QUANT-1 trading-ui"], [], ["poll assignments: clear"]))
+
+
 class LoadTests(unittest.TestCase):
     def test_codex_workers_count_live_pids_and_finished_turns(self):
         with tempfile.TemporaryDirectory() as tmp:
