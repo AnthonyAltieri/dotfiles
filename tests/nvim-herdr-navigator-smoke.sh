@@ -19,8 +19,15 @@ end
 -- Outside herdr: edge moves do nothing.
 vim.env.HERDR_ENV = nil
 vim.env.HERDR_SOCKET_PATH = nil
+vim.env.HC_TERMINAL_ID = nil
 nav.navigate("h", { run = record })
 assert(#calls == 0, "expected no herdr call outside herdr")
+
+-- Inside the Herdr desktop app: an edge move asks herdr-app for the next pane.
+vim.env.HC_TERMINAL_ID = "t7"
+nav.navigate("h", { run = record })
+assert(calls[1] == "herdr-app do pane.go --direction left", "unexpected herdr-app call: " .. tostring(calls[1]))
+calls = {}
 
 -- Inside herdr: a single window at the left edge delegates to herdr.
 vim.env.HERDR_ENV = "1"
@@ -56,4 +63,4 @@ nvim --clean --headless -i NONE \
 	+"lua local ok, err = xpcall(function() dofile('$TMP_DIR/navigator.lua') end, debug.traceback); if not ok then io.stderr:write(err .. '\n'); vim.cmd('cquit') end" \
 	+qa!
 
-echo "ok Neovim Ctrl+h/j/k/l navigates windows and delegates edge moves to herdr"
+echo "ok Neovim Ctrl+h/j/k/l navigates windows and delegates edge moves to herdr or herdr-app"

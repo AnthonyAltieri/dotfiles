@@ -33,4 +33,12 @@ in
       unset herdr_bin
     '';
   };
+
+  # The Herdr desktop app (herdr-app) reloads keys.json itself whenever the
+  # file changes. Only keys.json is linked: the app writes settings.json
+  # (zoom, sounds, fonts) and its other files, so those stay app-owned.
+  xdg.configFile."herdr-app/keys.json" = {
+    source = ../../../home/.config/herdr-app/keys.json;
+    force = overwriteHomeManagerBackups;
+  };
 }

@@ -83,8 +83,53 @@ if rg -q 'text:\\x00' "$ROOT_DIR/home/.config/ghostty/config"; then
   exit 1
 fi
 
+APP_KEYS="$ROOT_DIR/home/.config/herdr-app/keys.json"
+MANAGED_APP_KEYS="$(nix_eval "path:${ROOT_DIR}#darwinConfigurations.personal.config.home-manager.users.${USER}.xdg.configFile.\"herdr-app/keys.json\".source")"
+
+if ! cmp -s "$MANAGED_APP_KEYS" "$APP_KEYS"; then
+  printf 'expected Home Manager to link the repo herdr-app keys.json verbatim\n' >&2
+  exit 1
+fi
+
+# The app ignores the whole file when one keystroke is invalid, and it does
+# not reject unknown commands, so check the ported bindings by value.
+expect_app_key() {
+  local actual
+  actual="$(jq -r --arg key "$1" '.global[$key] // "unbound"' "$APP_KEYS")"
+  if [ "$actual" != "$2" ]; then
+    printf 'expected herdr-app global %s to run %s, got %s\n' "$1" "$2" "$actual" >&2
+    exit 1
+  fi
+}
+
+expect_app_key 'ctrl-space v' 'pane.split:right'
+expect_app_key 'ctrl-space s' 'pane.split:down'
+expect_app_key 'cmd-w' 'pane.close'
+expect_app_key 'ctrl-shift-q' 'pane.close'
+expect_app_key 'ctrl-shift-,' 'tab.rename'
+expect_app_key 'cmd-1' 'space.select:1'
+expect_app_key 'ctrl-9' 'tab.select:9'
+expect_app_key 'alt-h' 'pane.go:left'
+expect_app_key 'ctrl-space l' 'pane.go:right'
+
+if command -v herdr-app >/dev/null 2>&1; then
+  unknown_actions="$(
+    jq -r --slurpfile commands <(herdr-app commands) '
+      ($commands[0] | map(.name)) as $names
+      | [.[] | to_entries[] | .value]
+      | map(select(startswith("send:") or . == "terminal" | not))
+      | map(select((split(":")[0]) as $name | $names | index($name) | not))
+      | .[]
+    ' "$APP_KEYS"
+  )"
+  if [ -n "$unknown_actions" ]; then
+    printf 'expected herdr-app keys.json to bind only known commands, got:\n%s\n' "$unknown_actions" >&2
+    exit 1
+  fi
+fi
+
 if command -v herdr >/dev/null 2>&1; then
   HERDR_CONFIG_PATH="$ROOT_DIR/home/.config/herdr/config.toml" herdr --default-config >/dev/null
 fi
 
-printf 'ok Nix-managed herdr configuration is linked with the ported keybindings\n'
+printf 'ok Nix-managed herdr and herdr-app configuration is linked with the ported keybindings\n'
