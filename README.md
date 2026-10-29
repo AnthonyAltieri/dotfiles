@@ -74,6 +74,14 @@ First-time prerequisite install:
 
 On macOS, activation also ensures your nvm default Node version is installed. It preserves an existing default alias (including an LTS alias), reuses an installed default without upgrading it, and installs an LTS default when none is configured. After the first install, open a new terminal or run `source ~/.zshrc` so the current shell can find Node. Dry runs do not install Node.
 
+On macOS, `--home` applies only the files in your home folder (the Home Manager part of the role), as your user, without sudo:
+
+```bash
+./bootstrap.sh work --home
+```
+
+It builds the same Home Manager package that a full `darwin-rebuild switch` activates and runs it directly. It skips Homebrew, macOS defaults, and `/etc`, so run without `--home` when those change and for the first apply on a new machine. It accepts `--dry-run`, `--diff`, and `--overwrite`. Linux bootstrap always works this way.
+
 Preview without switching:
 
 ```bash

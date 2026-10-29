@@ -12,7 +12,7 @@ usage() {
   cat >&2 <<'EOF'
 Usage:
   ./bootstrap.sh install-dependencies
-  ./bootstrap.sh <personal|work> [--dry-run] [--diff] [--overwrite]
+  ./bootstrap.sh <personal|work> [--home] [--dry-run] [--diff] [--overwrite]
 
 Bootstrap supports macOS and Debian Linux (x86-64 and ARM64).
 It is safe to rerun after pulling changes or editing the flake.
@@ -20,6 +20,10 @@ Run it as your normal user. Installing prerequisites may require sudo.
 macOS uses sudo for darwin-rebuild; Linux activates Home Manager as your user.
 
 Flags:
+  --home     macOS: apply only the files in your home folder (Home Manager), as
+             your user, without sudo. Skips Homebrew, macOS defaults, and /etc,
+             so run without --home when those change or on a new machine.
+             Linux always applies only Home Manager, so the flag changes nothing there.
   --dry-run  Build the target closure but do not switch or install missing prerequisites.
              Requires Nix to already be installed on the machine.
   --diff     Show a closure diff against the current generation before switching.
@@ -35,6 +39,7 @@ EOF
 COMMAND=""
 ROLE=""
 DRY_RUN=0
+HOME_ONLY=0
 SHOW_DIFF=0
 OVERWRITE=0
 ETC_SHELL_CONFLICTS=()
@@ -103,6 +108,9 @@ parse_args() {
       --dry-run)
         DRY_RUN=1
         ;;
+      --home)
+        HOME_ONLY=1
+        ;;
       --diff)
         SHOW_DIFF=1
         ;;
@@ -120,7 +128,7 @@ parse_args() {
   done
 
   if [[ "$COMMAND" == "install-dependencies" ]]; then
-    if (( DRY_RUN || SHOW_DIFF || OVERWRITE )); then
+    if (( DRY_RUN || SHOW_DIFF || OVERWRITE || HOME_ONLY )); then
       echo "install-dependencies does not accept apply flags." >&2
       usage 1
     fi
@@ -375,6 +383,93 @@ EOF
     store diff-closures "$current_system" "$system_path"
 }
 
+show_home_closure_diff() {
+  local home_path="$1"
+  local state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+  local current_home=""
+  local candidate
+
+  for candidate in \
+    "$state_home/home-manager/gcroots/current-home" \
+    "$state_home/nix/profiles/home-manager" \
+    "${NIX_STATE_DIR:-/nix/var/nix}/profiles/per-user/$(id -un)/home-manager" \
+    "$state_home/home-manager/profiles/home-manager"
+  do
+    if [[ -e "$candidate" ]]; then
+      current_home="$candidate"
+      break
+    fi
+  done
+
+  if [[ -z "$current_home" ]]; then
+    log "No active Home Manager generation to compare against (first apply)."
+    return
+  fi
+
+  log "Diffing $current_home -> $home_path"
+  nix --extra-experimental-features "$EXPERIMENTAL_FEATURES" \
+    store diff-closures "$current_home" "$home_path"
+}
+
+# Builds a Home Manager activation package and activates it as the current
+# user. Linux always applies this way; macOS does with --home.
+apply_home_manager() {
+  local flake_attr="$1"
+  local apply_label="$2"
+  local home_path=""
+
+  home_path="$(nix --extra-experimental-features "$EXPERIMENTAL_FEATURES" \
+    build "${FLAKE_REF}#${flake_attr}" \
+    "${FLAKE_EVAL_FLAGS[@]}" --no-link --print-out-paths | tail -n 1)"
+  if [[ -z "$home_path" ]]; then
+    echo "Failed to build the Home Manager closure." >&2
+    exit 1
+  fi
+  log "Built Home Manager closure for $ROLE: $home_path"
+
+  if (( SHOW_DIFF )); then
+    show_home_closure_diff "$home_path"
+  fi
+  if (( DRY_RUN )); then
+    log "Dry-run complete. No changes were applied."
+    return
+  fi
+
+  # Activation's installPackages step runs a bare `nix profile`. Debian's Nix
+  # does not enable nix-command by default (nix-darwin does on macOS), so pass
+  # the features through NIX_CONFIG, keeping any settings the caller set.
+  local activation_nix_config="extra-experimental-features = $EXPERIMENTAL_FEATURES"
+  if [[ -n "${NIX_CONFIG:-}" ]]; then
+    activation_nix_config="$NIX_CONFIG"$'\n'"$activation_nix_config"
+  fi
+
+  log "Applying $apply_label: $ROLE"
+  if (( OVERWRITE )); then
+    log "Overwrite mode enabled. Managed files will be replaced without .hm-backup copies."
+    env -u HOME_MANAGER_BACKUP_EXT NIX_CONFIG="$activation_nix_config" "$home_path/activate"
+  else
+    HOME_MANAGER_BACKUP_EXT=hm-backup NIX_CONFIG="$activation_nix_config" "$home_path/activate"
+  fi
+  log "Done."
+}
+
+# A full darwin-rebuild switch runs this same activation package as the user;
+# sudo is only needed for the system part (Homebrew, defaults, /etc).
+apply_darwin_home() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    echo "Run --home as your normal user, without sudo. Home Manager manages that user's home." >&2
+    exit 1
+  fi
+  if ! load_nix; then
+    echo "--home needs Nix. Run ./bootstrap.sh ${ROLE} first to set up this machine." >&2
+    exit 1
+  fi
+
+  apply_home_manager \
+    "darwinConfigurations.$(darwin_config_name).config.home-manager.users.$(id -un).home.activationPackage" \
+    "Darwin home files for role"
+}
+
 run_as_root() {
   if [[ "$(id -u)" -eq 0 ]]; then
     "$@"
@@ -591,6 +686,11 @@ if [[ "$COMMAND" == "install-dependencies" ]]; then
   ensure_nix
   ensure_homebrew
   log "Dependencies installed."
+  exit 0
+fi
+
+if (( HOME_ONLY )); then
+  apply_darwin_home
   exit 0
 fi
 

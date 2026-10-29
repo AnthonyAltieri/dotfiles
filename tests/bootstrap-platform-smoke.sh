@@ -138,3 +138,24 @@ TEST_OS=Darwin run_bootstrap personal --overwrite --dry-run
 assert_contains "$TEST_LOG" '#darwinConfigurations.personal-overwrite.system --impure --no-link'
 assert_no_activation
 echo 'ok macOS retains its Darwin preview path'
+
+# --home must activate the Darwin role's Home Manager package as the user,
+# never reaching sudo, Homebrew, or darwin-rebuild.
+TEST_OS=Darwin run_bootstrap work --home
+assert_contains "$TEST_LOG" '#darwinConfigurations.work.config.home-manager.users.dotfiles.home.activationPackage --impure --no-link'
+assert_contains "$TEST_LOG" 'activate backup=hm-backup'
+if grep -Eq '^(brew|curl|sudo) |\.system ' "$TEST_LOG"; then
+  cat "$TEST_LOG" >&2
+  echo 'Expected --home to skip the system switch' >&2
+  exit 1
+fi
+TEST_OS=Darwin run_bootstrap personal --home --overwrite
+assert_contains "$TEST_LOG" '#darwinConfigurations.personal-overwrite.config.home-manager.users.dotfiles.home.activationPackage'
+assert_contains "$TEST_LOG" 'activate backup=unset'
+if TEST_OS=Darwin TEST_UID=0 run_bootstrap work --home; then
+  echo 'Expected root --home to fail before mutation' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/output" 'without sudo'
+[[ ! -s "$TEST_LOG" ]]
+echo 'ok macOS --home applies only Home Manager as the user'
