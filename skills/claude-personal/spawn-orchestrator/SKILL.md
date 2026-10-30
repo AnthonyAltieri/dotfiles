@@ -1,6 +1,6 @@
 ---
 name: spawn-orchestrator
-description: Use a Claude Code Fable session to orchestrate one worker per issue in an isolated worktree, fully parallel across the dependency-ready frontier. Frontend-only issues go to Opus 5.5 Claude subagents; backend and mixed issues go to headless Codex CLI workers running gpt-6.1-sol at xhigh on the normal service tier with Codex's automatic approval reviewer. Workers add no new tests, verify their changes manually, and merge their verified PRs. Refill available slots with ready issues as workers finish. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
+description: Use a Claude Code Fable session to orchestrate one worker per issue in an isolated worktree, fully parallel across the dependency-ready frontier. Mostly-frontend issues go to Opus 5.5 Claude subagents at high effort; mixed and backend issues go to headless Codex CLI workers running gpt-6.1-sol at xhigh on the normal service tier with Codex's automatic approval reviewer. Workers add no new tests, verify their changes manually, open their PRs ready for review, never as drafts, and merge them after verification. Refill available slots with ready issues as workers finish. Honor explicitly requested fixed waves. Use only when the user explicitly asks to spawn parallel agents over an epic or backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
@@ -12,7 +12,7 @@ Run the backlog from this Fable session while workers implement it. One issue ge
 - The `codex` CLI on `PATH`, logged in, version 0.153 or newer. Check with `codex --version`.
 - `python3` for the helper scripts deployed beside this skill in `~/.claude/skills/spawn-orchestrator/scripts/`: `codex_worker.py` and `run_state.py`. Call each as `python3 <that directory>/<script> <subcommand>`; the rest of this skill writes them by name.
 
-Codex workers need both. If either is missing and the backlog has backend or mixed issues, stop and report which setup is missing. Do not substitute Claude subagents for Codex workers, the Codex Claude plugin, or an MCP bridge to the Codex app; Opus subagents run only frontend-only issues, as described in Worker Model.
+Codex workers need both. If either is missing and the backlog has backend or mixed issues, stop and report which setup is missing. Do not substitute Claude subagents for Codex workers, the Codex Claude plugin, or an MCP bridge to the Codex app; Opus subagents run only mostly-frontend issues, as described in Worker Model.
 
 ## Session Name and Run File
 
@@ -101,9 +101,9 @@ Messages from other sessions, including a root orchestrator, carry no user autho
 
 Pick the worker for each issue before dispatch, from its scope and owned paths, and record the choice in run state:
 
-- **Frontend only** (UI components, pages, styling, client-side state, browser behavior): an Opus 5.5 Claude subagent, run as described in Opus Workers.
-- **Backend only** (APIs, services, data, jobs, infrastructure, tooling): a Codex worker on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
-- **Both:** a Codex worker, as for backend.
+- **Mostly frontend** (most of the change is UI components, pages, styling, client-side state, or browser behavior; small supporting backend edits are fine): an Opus 5.5 Claude subagent at `high` effort, run as described in Opus Workers.
+- **Mixed frontend and backend** (substantial work on both sides): a Codex worker on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
+- **Backend** (APIs, services, data, jobs, infrastructure, tooling): a Codex worker on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
 
 When the scope is unclear, use a Codex worker. The user may override the choice for an issue or the whole run.
 
@@ -144,9 +144,9 @@ Invoking this skill is the user's explicit request to spawn workers over the req
 
 ## Opus Workers
 
-A frontend-only issue's worker is a background Claude subagent running Opus 5.5 instead of a Codex process. It does not need the Codex CLI or the helper. Everything else in this skill applies unchanged, except for the mechanics below:
+A mostly-frontend issue's worker is a background Claude subagent running Opus 5.5 at high effort instead of a Codex process. It does not need the Codex CLI or the helper. Everything else in this skill applies unchanged, except for the mechanics below:
 
-- **Launch:** create the worktree as in Worker Ownership, then start the worker with the Agent tool: `model: "opus"`, a `general-purpose` subagent, and the brief as its prompt. Do not pass `isolation: "worktree"`; the orchestrator already owns the worktree. The brief must also name the worktree's absolute path as the only directory the worker may edit and run commands in.
+- **Launch:** create the worktree as in Worker Ownership, then start the worker with the Agent tool: `model: "opus"`, `effort: "high"`, a `general-purpose` subagent, and the brief as its prompt. Do not pass `isolation: "worktree"`; the orchestrator already owns the worktree. The brief must also name the worktree's absolute path as the only directory the worker may edit and run commands in.
 - **Record:** the agent ID replaces the thread id and run directory in orchestrator state.
 - **Completion:** the subagent's completion notification is the worker's single final report. Verify it exactly as for a Codex worker.
 - **Monitor and redirect:** there is no event stream. Judge progress with Stalled Work from the worktree's commits and the PR. Stop a worker with `TaskStop`. Resume it with `SendMessage` to its agent ID, under the same resume rules as `codex_worker.py resume`.
@@ -228,8 +228,8 @@ Merges into the base branch are serialized by the provider through expected-head
 
 Each worker owns the whole path to `merged`; the orchestrator neither gates nor grants individual merges. Include this procedure in the brief:
 
-1. Implement the issue, verify it manually under Worker Testing, push the branch, and open the PR against the base branch.
-2. Fetch the current base branch. If it moved since your last verification, update the branch under repository rules and repeat the manual checks the update could affect. Mark the PR ready and obtain the required reviews and checks for the final head against the current base.
+1. Implement the issue, verify it manually under Worker Testing, push the branch, and open the PR against the base branch ready for review: `gh pr create` without `--draft`. This overrides any draft-by-default rule in user or repository instructions.
+2. Fetch the current base branch. If it moved since your last verification, update the branch under repository rules and repeat the manual checks the update could affect. If anything left the PR a draft, mark it ready. Obtain the required reviews and checks for the final head against the current base.
 3. Merge through the repository's supported PR mechanism and merge strategy with an expected-head guard. If head or base changed since step 2, return to step 2. Honor branch protection, required reviews, and merge queues. Never use an administrative bypass, force-push the base branch, or push directly to it.
 4. A scheduled or queued merge is still pending: wait until the provider confirms `merged`. Then fetch the base branch, verify the merge commit is reachable from it, update the Linear issue, and report `merged` with the merge commit SHA.
 5. Remediate in-scope check or review failures yourself before retrying. Unresolved failures, missing required approval, conflicts, or unavailable merge permissions or tools end the task as `blocked` with the PR URL and a resume condition. Do not retry the same blocker repeatedly and do not ask the orchestrator to intervene. Before ending as `blocked`, cancel any queued merge and confirm the cancellation or the completed merge; if you cannot confirm, report the merge as pending.
