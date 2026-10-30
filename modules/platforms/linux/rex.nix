@@ -16,7 +16,11 @@
   services.rex.enable = true;
 
   # On the personal hub the server joins the tailnet as its own node, so other
-  # machines connect to rex.<tailnet>.ts.net with no root login server. Only the
-  # Tailscale account that enrolls the node may connect.
-  services.rex.tailscale.enable = role == "personal";
+  # machines connect to rex-debian.<tailnet>.ts.net with no root login server.
+  # Only the Tailscale account that enrolls the node may connect. Each hostname
+  # keeps its own saved identity, so renaming it means enrolling a new node.
+  services.rex.tailscale = {
+    enable = role == "personal";
+    hostname = "rex-debian";
+  };
 }

@@ -143,7 +143,7 @@ Today `personal.nix` and `work.nix` are intentionally thin. That is deliberate. 
 
 - `default.nix` imports Linux platform modules.
 - `packages.nix` declares the Linux package baseline through Nix packages.
-- `rex.nix` imports the Rex flake's Home Manager module. It installs `rex` with its terminfo entry and ssh guard (which is why it turns on `programs.ssh`, so Home Manager owns `~/.ssh/config`), and runs the personal Rex server as the systemd user service `rex`. On the `personal` role the server also joins the tailnet as its own owner-only node, `rex`.
+- `rex.nix` imports the Rex flake's Home Manager module. It installs `rex` with its terminfo entry and ssh guard (which is why it turns on `programs.ssh`, so Home Manager owns `~/.ssh/config`), and runs the personal Rex server as the systemd user service `rex`. On the `personal` role the server also joins the tailnet as its own owner-only node, `rex-debian`.
 
 ## Managed vs unmanaged state
 
