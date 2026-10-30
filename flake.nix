@@ -21,6 +21,14 @@
     # herdr builds against zig_0_15, which nixpkgs 25.05 does not ship, so it
     # deliberately keeps its own nixpkgs pin instead of following ours.
     herdr.url = "github:herdrdev/herdr/v0.9.5";
+
+    # Rex is not in nixpkgs. The channel URL locks to the release's immutable URL, so
+    # `nix flake update rex` moves to the newest snapshot. Its package patches a prebuilt
+    # binary, so following unstable avoids a third nixpkgs without rebuilding anything.
+    rex = {
+      url = "https://pkgs.superlogical.com/rex/nix/snapshot.tar.gz";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
   };
 
   outputs = inputs@{ self, nixpkgs, ... }: let
