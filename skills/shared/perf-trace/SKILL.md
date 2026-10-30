@@ -7,6 +7,10 @@ description: Find where the time goes when something is slow by measuring it, th
 
 Measure first, then explain. The deliverable is a duration tree the user can read in ten seconds, the one or two steps that dominate it, and a concrete fix with its expected gain.
 
+## 0. Check the Work Before the Time
+
+When compute is abnormally slow, check for a big-O problem before profiling hot frames, porting to a faster language, or adding parallelism. Write down the work the task actually needs (data points × passes) and compare it with the work the code does, from its loops or a profile's call counts. Common blowups: a loop that recomputes a whole window for every output row and keeps one result, a window rebuilt from scratch instead of slid, check passes that rescore everything for each prefix, and quadratic joins. If the done-to-needed ratio is large, the fix is the algorithm, and micro-optimisation comes after it.
+
 ## 1. Pick the Measurement
 
 - **A process is busy now** (a job, a worker, a stuck request): sample it in place. Find it with `ps -eo pid,ppid,etime,pcpu,rss,cmd --sort=-pcpu | head`; for process pools, dump each child to find the one doing the work before recording.
@@ -59,5 +63,6 @@ When the user asks to check every page:
 ## Guardrails
 
 - No fix without a measurement that shows the step matters.
+- Report the necessary-versus-done work ratio alongside the tree when a job is abnormally slow.
 - Never profile with a tool that pauses or stops a production process unless the user agrees; prefer non-blocking sampling.
 - Keep profiles, scripts, and worktrees in the scratchpad; remove temporary worktrees when done.
