@@ -331,4 +331,4 @@ docker build -f tests/docker/debian/Dockerfile -t dotfiles-bootstrap-debian .
 docker run --rm dotfiles-bootstrap-debian
 ```
 
-The Debian test evaluates the production personal/work profiles for both Linux architectures, then exercises preview, diff, backup, and overwrite using a minimal Home Manager payload with the repo's pinned inputs. It does not build the full development package set. Docker does not cover `nix-darwin`, Homebrew integration, or the macOS bootstrap path.
+The Debian test evaluates the production personal/work profiles for both Linux architectures, then exercises preview, diff, backup, overwrite, and the zsh login shell switch using a minimal Home Manager payload with the repo's pinned inputs. It does not build the full development package set. Docker does not cover `nix-darwin`, Homebrew integration, or the macOS bootstrap path.

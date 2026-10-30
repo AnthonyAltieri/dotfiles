@@ -28,12 +28,15 @@ case "$command_name" in
     ;;
   brew|curl|sudo)
     printf '%s %s\n' "$command_name" "$*" >> "$TEST_LOG"
-    [[ "$TEST_OS" == Darwin ]] || exit 43
+    [[ "$TEST_OS" == Darwin || "${TEST_SUDO_OK:-0}" == 1 ]] || exit 43
+    ;;
+  getent)
+    echo "dotfiles:x:1000:1000::$HOME:${TEST_LOGIN_SHELL:-/bin/bash}"
     ;;
 esac
 EOF
 chmod +x "$TMP_DIR/bin/boundary"
-for command_name in uname id nix brew curl sudo; do
+for command_name in uname id nix brew curl sudo getent; do
   ln -s boundary "$TMP_DIR/bin/$command_name"
 done
 cat > "$TEST_CLOSURE/activate" <<'EOF'
@@ -104,6 +107,26 @@ run_bootstrap personal --diff --dry-run
 assert_contains "$TEST_LOG" "store diff-closures $TMP_DIR/state/home-manager/gcroots/current-home $TEST_CLOSURE"
 assert_no_activation
 echo 'ok closure diff and first-generation handling'
+
+# Home Manager cannot change the login shell, so SSH sessions kept starting
+# bash and skipped the managed zsh prompt.
+managed_zsh="$TMP_DIR/home/.nix-profile/bin/zsh"
+mkdir -p "${managed_zsh%/*}"
+printf '#!/bin/sh\n' > "$managed_zsh"
+chmod +x "$managed_zsh"
+TEST_SUDO_OK=1 run_bootstrap personal
+assert_contains "$TEST_LOG" "sudo -- sh -c printf \"%s\\n\" \"\$1\" >> /etc/shells sh $managed_zsh"
+assert_contains "$TEST_LOG" "sudo -- chsh -s $managed_zsh dotfiles"
+TEST_LOGIN_SHELL="$managed_zsh" run_bootstrap personal
+TEST_SUDO_OK=1 run_bootstrap personal --dry-run
+assert_no_activation
+if run_bootstrap personal; then
+  echo 'Expected a failed login shell change to fail bootstrap' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/output" 'Rerun bootstrap with sudo access'
+rm -r "$TMP_DIR/home/.nix-profile"
+echo 'ok Linux login shell switches to the managed zsh once, never in preview'
 
 run_bootstrap install-dependencies
 [[ ! -s "$TEST_LOG" ]]

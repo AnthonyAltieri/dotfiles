@@ -25,6 +25,34 @@ ensure_linux_nix() {
   fi
 }
 
+# Home Manager installs zsh but cannot change the login shell, so SSH sessions
+# would keep starting Debian's bash and skip the managed prompt.
+ensure_linux_login_shell() {
+  local zsh_path="$HOME/.nix-profile/bin/zsh"
+  local user=""
+  local current_shell=""
+
+  if [[ ! -x "$zsh_path" ]]; then
+    return
+  fi
+  user="$(id -un)"
+  current_shell="$(getent passwd "$user" | cut -d: -f7)"
+  if [[ "$current_shell" == "$zsh_path" ]]; then
+    return
+  fi
+
+  log "Setting the login shell for $user to $zsh_path (was ${current_shell:-unset})..."
+  if ! grep -qxF "$zsh_path" /etc/shells \
+    && ! sudo -- sh -c 'printf "%s\n" "$1" >> /etc/shells' sh "$zsh_path"; then
+    echo "Failed to add $zsh_path to /etc/shells. Rerun bootstrap with sudo access." >&2
+    exit 1
+  fi
+  if ! sudo -- chsh -s "$zsh_path" "$user"; then
+    echo "Failed to change the login shell for $user. Rerun bootstrap with sudo access." >&2
+    exit 1
+  fi
+}
+
 bootstrap_linux() {
   local config_name=""
   local architecture
@@ -55,4 +83,7 @@ bootstrap_linux() {
   fi
 
   apply_home_manager "homeConfigurations.${config_name}.activationPackage" "Linux role"
+  if (( ! DRY_RUN )); then
+    ensure_linux_login_shell
+  fi
 }
