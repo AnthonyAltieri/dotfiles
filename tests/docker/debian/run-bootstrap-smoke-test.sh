@@ -39,6 +39,7 @@ cat > "$fixture/flake.nix" <<'EOF'
         home.homeDirectory = "/home/dotfiles";
         home.stateVersion = "25.05";
         home.file."bootstrap-example" = { text = "managed\n"; inherit force; };
+        programs.zsh.enable = true;
       }];
     };
   in {
@@ -57,6 +58,8 @@ printf 'original\n' > "$HOME/bootstrap-example"
 [[ -L "$HOME/bootstrap-example" ]]
 [[ "$(cat "$HOME/bootstrap-example")" == managed ]]
 [[ "$(cat "$HOME/bootstrap-example.hm-backup")" == original ]]
+[[ "$(getent passwd dotfiles | cut -d: -f7)" == "$HOME/.nix-profile/bin/zsh" ]]
+grep -qxF "$HOME/.nix-profile/bin/zsh" /etc/shells
 ./bootstrap.sh personal --dry-run --diff
 
 rm "$HOME/bootstrap-example" "$HOME/bootstrap-example.hm-backup"
@@ -65,4 +68,4 @@ printf 'replace me\n' > "$HOME/bootstrap-example"
 [[ -L "$HOME/bootstrap-example" ]]
 [[ "$(cat "$HOME/bootstrap-example")" == managed ]]
 [[ ! -e "$HOME/bootstrap-example.hm-backup" ]]
-echo 'ok Debian bootstrap install, preview, diff, backup, and overwrite with real Home Manager'
+echo 'ok Debian bootstrap install, preview, diff, backup, overwrite, and zsh login shell with real Home Manager'

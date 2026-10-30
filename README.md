@@ -57,7 +57,7 @@ The user-bound outputs resolve the current login user at evaluation time. `boots
 
 `bootstrap.sh` is the supported apply path on macOS and Debian Linux (x86-64 and ARM64). It is safe to rerun after pulling changes or editing the flake. It reloads Nix when already installed, installs missing prerequisites, then reapplies the selected role using nix-darwin on macOS or Home Manager on Linux.
 
-Run bootstrap as your normal user, without `sudo`. Prerequisite installation may prompt for sudo. macOS also uses sudo for `darwin-rebuild switch`; Linux activates Home Manager without root and does not install Homebrew.
+Run bootstrap as your normal user, without `sudo`. Prerequisite installation may prompt for sudo. macOS also uses sudo for `darwin-rebuild switch`; Linux activates Home Manager without root and does not install Homebrew. After activation, Linux bootstrap makes the managed zsh (`~/.nix-profile/bin/zsh`) your login shell so SSH sessions get the zsh config and prompt: if your login shell is anything else, it adds that path to `/etc/shells` and runs `chsh` through sudo. Dry runs skip this step.
 
 On a fresh Debian machine, your user needs sudo access. If sudo is missing, install it and grant your user access as root before running bootstrap. Bootstrap installs `ca-certificates`, `curl`, `git`, and `xz-utils` through apt before installing Nix. It uses multi-user Nix when systemd is running, or single-user Nix in environments such as containers. Existing Nix installations are reused.
 
