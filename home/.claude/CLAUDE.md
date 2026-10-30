@@ -61,6 +61,10 @@ git switch -c <branch-name> origin/main
 - When `DOTFILES_PROFILE=work`, apply the `ai-authored` GitHub label instead of `human-authored` to PRs you author.
 - To add an image or video to a PR body, follow the `gh-manage-pr` skill and use `gh`'s built-in `--attach` flag; never substitute another upload path.
 
+## PR References
+
+- Whenever you mention a pull request (in chat, PR bodies, review replies, Linear, Slack, or docs), make it a clickable link to its full URL, such as [#212](https://github.com/owner/repo/pull/212), using the destination's own link syntax where Markdown does not render; never a bare `#212` or `PR 212`.
+
 ## GitHub Review Comments
 
 - For reading and working through PR review comments, use `$gh-address-comments`; it owns the evidence-first validate, fix, reply, and resolve loop.
