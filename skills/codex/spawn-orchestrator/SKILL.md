@@ -1,11 +1,11 @@
 ---
 name: spawn-orchestrator
-description: Orchestrate a backlog through separate Codex app threads in isolated worktrees, refilling available slots with ready issues as workers finish. Each issue ends in a draft PR by default; explicit --automerge authorizes verified merges into main from the originating user task. Use --max to fill the dependency-ready frontier beyond the default worker cap and --min-tests to verify only affected code. Honor explicitly requested fixed waves. Use only when the user explicitly invokes spawn-orchestrator or asks to spawn parallel Codex sessions over a backlog; do not use for single-task delegation or read-only fan-out.
+description: Orchestrate a backlog through one worker per issue in an isolated worktree, refilling available slots with ready issues as workers finish. Each issue ends in a draft PR by default; explicit --automerge authorizes verified merges into main from the originating user task. Mostly-frontend issues go to background Claude Code sessions on Opus 5.5 at high effort; mixed and backend issues go to separate Codex app threads on gpt-6.1-sol at xhigh. Use --max to fill the dependency-ready frontier beyond the default worker cap and --min-tests to verify only affected code. Honor explicitly requested fixed waves. Use only when the user explicitly invokes spawn-orchestrator or asks to spawn parallel Codex sessions over a backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
 
-Work a backlog in parallel: one separate Codex app thread per unblocked issue, each in its own worktree, each ending in a draft PR or, with `--automerge`, a verified merge into `main`. This thread stays the orchestrator — it schedules ready work, creates child threads, watches them without interrupting, verifies outcomes at completion, and never implements issues itself. Children run autonomously and in isolation: each receives a complete brief, makes its own routine decisions, and messages back exactly once when it reaches a terminal state. The orchestrator intervenes only for user-directed stops or scope changes, a single completion-time correction, or a genuinely big decision a child has stopped on.
+Work a backlog in parallel: one worker per unblocked issue (a separate Codex app thread, or a background Claude Code session for mostly-frontend work), each in its own worktree, each ending in a draft PR or, with `--automerge`, a verified merge into `main`. This thread stays the orchestrator — it schedules ready work, creates child threads, watches them without interrupting, verifies outcomes at completion, and never implements issues itself. Children run autonomously and in isolation: each receives a complete brief, makes its own routine decisions, and messages back exactly once when it reaches a terminal state. The orchestrator intervenes only for user-directed stops or scope changes, a single completion-time correction, or a genuinely big decision a child has stopped on.
 
 ## Children Are App Threads
 
@@ -20,6 +20,8 @@ Invoking this skill **is** the user's explicit request to create separate tasks,
 
 Subagents are fine in general — this thread may use them for backlog triage, and a child may use them inside its own worktree for reviews it then closes itself — but they are never the unit of orchestration. Every backlog issue gets its own app thread created with `create_thread`, not a subagent (`spawn_agent`, "delegate to agents", custom agents under `.codex/agents/`): subagents run inside the parent thread's workspace and lifetime, so parallel implementation conflicts, the work does not surface as a separate reviewable task in the app, and they cannot be messaged or archived as threads. If the thread tools are unavailable in this context (find them through tool search first), stop and report that — never substitute subagents or headless `codex exec` for the child threads.
 
+Claude Workers, below, are the one exception: a mostly-frontend issue's child is a background Claude Code session instead of an app thread.
+
 ## Inputs and Defaults
 
 - **Work source:** a Linear epic/parent issue (URL or key) or an explicit issue list. Resolve children and relations through the connected Linear tools.
@@ -28,7 +30,17 @@ Subagents are fine in general — this thread may use them for backlog triage, a
 - **Concurrency:** without `--max`, use up to 3 active issue workers unless the user sets a limit, with a ceiling of 5. Explicit `--max` removes the default three-worker limit and five-worker ceiling: fill the current dependency-ready frontier as described below. An explicit numeric concurrency limit still bounds `--max`. Count pending creation/worktree setup and workers in review, remediation, or verification/merge queues as active; host/platform capacity and explicit user task/wave limits still apply.
 - **Advancement:** rolling refill by default — after verifying a completion or safely parking blocked work, fill the available slot with the next eligible issue without waiting for unrelated workers. Explicit fixed waves wait for the whole wave to report and settle before the next starts. Honor user task/wave limits and stop requests in either mode.
 - **Verification mode:** `default` unless the user selects `--min-tests`. With `--min-tests`, workers and their subagents run only tests for affected code, including final verification. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. It combines with `--max` and `--automerge`, and is a skill option conveyed in the brief, not a child-executable flag.
-- **Child model:** `gpt-6.1-sol` with `xhigh` reasoning on the normal service tier (`default`, not fast mode) unless the user names another model or tier. Set all three explicitly in `create_thread` for every child; do not inherit this thread's model or local Codex defaults.
+- **Child model:** chosen per issue as described in Worker Model. For Codex app threads, set `gpt-6.1-sol`, `xhigh` reasoning, and the normal service tier (`default`, not fast mode) explicitly in `create_thread` for every child; do not inherit this thread's model or local Codex defaults.
+
+## Worker Model
+
+Pick the worker for each issue before dispatch, from its scope and owned paths, and record the choice in run state:
+
+- **Mostly frontend** (most of the change is UI components, pages, styling, client-side state, or browser behavior; small supporting backend edits are fine): a background Claude Code session on Opus 5.5 at `high` effort, run as described in Claude Workers.
+- **Mixed frontend and backend** (substantial work on both sides): a Codex app thread on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
+- **Backend** (APIs, services, data, jobs, infrastructure, tooling): a Codex app thread on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
+
+When the scope is unclear, use a Codex app thread. The user may override the choice for an issue or the whole run.
 
 ## Standing Authorization and Merge Ownership
 
@@ -57,7 +69,7 @@ Invoke as `$spawn-orchestrator --max <epic>`, or combine it with `--automerge`. 
 
 ## Dispatch Ready Work
 
-For each eligible issue admitted by the selected concurrency mode and current capacity, call `create_thread` with a worktree environment off the freshly fetched base and a self-contained initial prompt. The prompt is the only communication the child will receive, so it must contain:
+For each eligible issue admitted by the selected concurrency mode and current capacity, start its child with a self-contained initial prompt: for a Codex app thread, call `create_thread` with a worktree environment off the freshly fetched base; for a Claude worker, follow Claude Workers. The prompt is the only communication the child will receive, so it must contain:
 
 - the issue key and URL, the intended outcome, and its acceptance criteria;
 - constraints, non-goals, and the verification the child must run, including any review it must run on its own PR (for example `$adversarial-review` when the user requested it); the child spawns, reads, and closes those reviews itself;
@@ -66,11 +78,29 @@ For each eligible issue admitted by the selected concurrency mode and current ca
 - the common Worker Testing Guidance block and exactly one verification-mode block below, verbatim; include the selected mode in every resume brief and pass it to any worker-created subagents;
 - the branch to work on (`codex/<issue-key>-<slug>`) and the base branch to target;
 - this thread's identity, the original invocation reference and scope, completion mode, and selected merge actor: by default, changes verified under the testing policy, branch pushed, draft PR opened against the base branch, and Linear issue updated; with `--automerge`, include the Optional Automerge procedure below and tell the child who performs the merge;
-- the single final report through `send_message_to_thread`: issue key, PR URL, head SHA, verification evidence, decisions made without guidance, files touched outside owned paths, newly discovered work, and a terminal status (`pr-opened`, `merge-ready`, `merged`, `blocked`, or `failed`). `merge-ready` is the child's terminal status when the orchestrator is the merge actor; `merged` includes the merge commit SHA and applies only when the child is the merge actor.
+- the single final report through `send_message_to_thread` (a Claude worker gives it as its last response instead): issue key, PR URL, head SHA, verification evidence, decisions made without guidance, files touched outside owned paths, newly discovered work, and a terminal status (`pr-opened`, `merge-ready`, `merged`, `blocked`, or `failed`). `merge-ready` is the child's terminal status when the orchestrator is the merge actor; `merged` includes the merge commit SHA and applies only when the child is the merge actor.
 
 Do not include parallel neighbors, concurrency mode, ceilings, or anything that would lead the child to wait for or ask the orchestrator.
 
-Record each child's thread ID against its issue; give each child a title of `<issue-key> <slug>` so the user can find it in the app.
+Record each child's thread ID or Claude session id against its issue; give each child a title of `<issue-key> <slug>` so the user can find it in the app.
+
+## Claude Workers
+
+A mostly-frontend issue's child is a background Claude Code session running Opus 5.5 at high effort instead of a Codex app thread. It needs the `claude` CLI on `PATH` and logged in; if it is missing, stop and report that before dispatching mostly-frontend issues, and do not run them as Codex threads instead. Everything else in this skill applies unchanged, except for the mechanics below:
+
+- **Worktree:** create it yourself from the fetched base. If `git check-ignore .claude/worktrees` is silent, first add `.claude/worktrees/` to `.git/info/exclude`.
+
+  ```bash
+  git fetch origin --prune
+  git worktree add -b codex/<issue-key>-<slug> .claude/worktrees/<issue-key> origin/<base>
+  ```
+
+- **Launch:** write the brief to a file, then from inside the worktree run `claude --bg --model claude-opus-5-5 --effort high --permission-mode auto -n "<issue-key> <slug>" "$(cat <brief file>)"`. It returns at once and prints the session's id; record it against the issue in place of a thread ID. The brief must name the worktree's absolute path as the only directory the worker may edit and run commands in.
+- **Final report:** the child cannot use `send_message_to_thread`. Its brief says to give the single final report as its last response and then end.
+- **Monitor:** `claude agents --json --all` lists each session's short `id`, full `sessionId`, and `state`; a `blocked` state means it is waiting on a permission prompt or input, which Denials below covers. `claude logs <id>` shows its recent output and, once it has finished, its final report. These replace `read_thread` and `list_threads`, under the same passive-monitoring rules.
+- **Message:** stop a running session with `claude stop <id>`. Send a permitted message (see Monitor and Advance) by resuming it: `claude --bg --resume <sessionId> "<message>"`.
+- **Denials:** the session runs under Claude Code's auto mode, not Codex's automatic reviewer. A declined action shows in `claude logs <id>`; raise it with the Sandbox Denials message, putting auto mode's reason in the **Reviewer's reason** row. To allow it once, the user runs `claude attach <id>` and approves it there.
+- **Archive:** after verification, run `claude rm <id>` in place of `set_thread_archived`, then `git worktree remove .claude/worktrees/<issue-key>` once the branch is pushed.
 
 ## Worker Autonomy
 
@@ -155,7 +185,7 @@ Verification mode: --min-tests, selected by the user.
 
 Monitoring is passive. Read; do not message.
 
-- Use `read_thread` and `list_threads` to inspect a child. Never message a child to ask for status, progress, or an ETA, and never answer a question it should decide itself. If a child goes silent, read its thread; a long-running check is not itself a blocker. While reading, also judge progress against Stalled Work below and look for auto-review denials, which Sandbox Denials below turns into a question for the user.
+- Use `read_thread` and `list_threads` to inspect a child (for a Claude worker, the commands in Claude Workers). Never message a child to ask for status, progress, or an ETA, and never answer a question it should decide itself. If a child goes silent, read its thread; a long-running check is not itself a blocker. While reading, also judge progress against Stalled Work below and look for auto-review denials, which Sandbox Denials below turns into a question for the user.
 - Message a child only for: a user-directed stop or scope change; the single completion-time correction described here or in Optional Automerge; the user's answer to a Stalled Work question; or a genuinely big decision the child has stopped on, such as target branch, destructive action, or a scope conflict with another issue. If a child stops on anything smaller, send one message telling it to decide itself and record the decision in the PR description.
 - When a child messages `merge-ready` with automerge enabled, run the orchestrator procedure in Optional Automerge. Without automerge, treat it as `pr-opened`.
 - When a child messages completion:
@@ -230,7 +260,7 @@ Rules for the message and what follows:
 
 ## Report
 
-At meaningful completions or blocker changes, and at the end, return: the epic, base branch, completion mode, and verification mode; a table of issue → thread → branch → PR → status (with merge commit for `merged`); concurrency mode, active count, and effective capacity constraints; ready-frontier size and undispatched issues with reasons; blocked or parked work with resume conditions; any open Sandbox Denials or Stalled Work question; and the next dispatch, review, or merge order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
+At meaningful completions or blocker changes, and at the end, return: the epic, base branch, completion mode, and verification mode; a table of issue → worker model → thread or session id → branch → PR → status (with merge commit for `merged`); concurrency mode, active count, and effective capacity constraints; ready-frontier size and undispatched issues with reasons; blocked or parked work with resume conditions; any open Sandbox Denials or Stalled Work question; and the next dispatch, review, or merge order. For explicit fixed waves, also report the wave boundary. Keep routine updates concise.
 
 ## Composition
 
