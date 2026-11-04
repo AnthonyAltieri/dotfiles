@@ -97,3 +97,25 @@ if [[ "$(<"$NVM_CALLS")" != "$EXPECTED_CALLS" ]]; then
 fi
 
 printf 'ok nvm owns Darwin Node selection for .nvmrc and .node-version projects\n'
+
+# Regression: Rex starts programs with a non-interactive login environment that
+# never reads .zshrc, so Claude Code's Node hooks failed with "node: command not found".
+ENV_HOME="$TMP_DIR/env-home"
+mkdir -p "$ENV_HOME/.nvm/alias"
+printf '22\n' >"$ENV_HOME/.nvm/alias/default"
+for version in v20.19.5 v22.9.0 v22.10.0; do
+  mkdir -p "$ENV_HOME/.nvm/versions/node/$version/bin"
+  printf '#!/bin/sh\n' >"$ENV_HOME/.nvm/versions/node/$version/bin/node"
+  chmod +x "$ENV_HOME/.nvm/versions/node/$version/bin/node"
+done
+
+NODE_PATH_FOUND="$(
+  env -u NVM_DIR HOME="$ENV_HOME" PATH="/usr/bin:/bin" zsh -f -c 'source "$1"; command -v node' _ "$ROOT_DIR/home/.zshenv"
+)"
+if [[ "$NODE_PATH_FOUND" != "$ENV_HOME/.nvm/versions/node/v22.10.0/bin/node" ]]; then
+  printf 'expected .zshenv to put the newest install of the nvm default on PATH\n' >&2
+  printf 'actual: %s\n' "$NODE_PATH_FOUND" >&2
+  exit 1
+fi
+
+printf 'ok non-interactive zsh finds the nvm default Node\n'
