@@ -16,23 +16,22 @@ view costs no model tokens:
 
 Subcommands:
   whoami    print this session's name; exit 2 unless the user named it
-  snapshot  render the fleet as a markdown table, a terminal table, or JSON
-  watch     print one line per health change, forever, and raise a desktop
-            notification when an orchestrator starts needing the user; a
-            re-armed watch resumes from what the last one reported; it also
-            runs any polls the repository declares in .claude/root-orchestrator.toml
-            and prints a poll's result when it changes
-  pane      open a herdr or tmux pane that redraws the terminal table every minute
+  snapshot  render the fleet as a markdown table or JSON
+  watch     print one line per health change, forever, and report each
+            orchestrator's health to this session's terminal as an OSC 7501
+            program status record; a re-armed watch resumes from what the last
+            one reported; it also runs any polls the repository declares in
+            .claude/root-orchestrator.toml and prints a poll's result when it changes
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
-import shlex
-import shutil
+import re
 import subprocess
 import sys
 import time
@@ -65,6 +64,10 @@ WORKER_SILENT_AFTER = 20 * 60
 GROUP_ORDER = ("dead", "hung", "needs-you", "stalled", "ok", "settled")
 GROUP_TITLES = {"dead": "dead", "hung": "hung", "needs-you": "needs you", "stalled": "stalled", "ok": "ok", "settled": "done"}
 COLUMNS = ("Health", "Orchestrator", "Running", "Last finished", "Pace", "Note")
+# OSC 7501 program status (https://www.superlogical.com/rex/docs/build/program-status): what each health tells the terminal.
+STATUS_STATES = {"dead": "error", "hung": "blocked", "needs-you": "blocked", "stalled": "blocked", "ok": "working",
+                 "settled": "done"}
+STATUS_MSG_LIMIT = 2048
 
 
 @dataclass(frozen=True)
@@ -315,17 +318,26 @@ def render_markdown(views: list[View], now: float, title: str) -> str:
     return "\n".join(out)
 
 
-def render_text(views: list[View], now: float, title: str, width: int = 120) -> str:
-    table = [list(COLUMNS)] + [cells for _, cells in rows(views, now)]
-    widths = [max(len(r[i]) for r in table) for i in range(len(COLUMNS) - 1)]
-    note_width = max(20, width - sum(widths) - 2 * len(widths))
-    lines = [title_line(views, now, title), ""]
-    for i, r in enumerate(table):
-        head = "  ".join(cell.rjust(w) if j == 2 else cell.ljust(w) for j, (cell, w) in enumerate(zip(r, widths)))
-        lines.append(f"{head}  {r[-1][:note_width]}")
-        if i == 0:
-            lines.append("  ".join("-" * w for w in widths) + "  " + "-" * min(note_width, 40))
-    return "\n".join(lines)
+def status_id(name: str) -> str:
+    """The record id for one orchestrator, kept inside the protocol's id grammar."""
+    return "fleet/" + (re.sub(r"[^A-Za-z0-9_.+-]", "-", name)[:32] or "-")
+
+
+def status_text(text: str, limit: int) -> str:
+    """Base64 of the text as one control-free line of at most `limit` UTF-8 bytes, as the protocol requires."""
+    line = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", text).encode()[:limit].decode(errors="ignore")
+    return base64.b64encode(line.encode()).decode()
+
+
+def status_report(name: str, health: Health | None) -> str:
+    """One OSC 7501 report for an orchestrator, or a clear when it left scope."""
+    if health is None:
+        return f"\x1b]7501;state=clear:id={status_id(name)}\x1b\\"
+    pairs = [f"state={STATUS_STATES[health.state]}", f"id={status_id(name)}", "app=root-orchestrator"]
+    if health.state == "needs-you":
+        pairs.append("kind=" + ("permission" if health.detail.startswith("permission:") else "question"))
+    pairs += [f"title={status_text(name, 192)}", f"msg={status_text(health.detail, STATUS_MSG_LIMIT)}"]
+    return f"\x1b]7501;{':'.join(pairs)}\x1b\\"
 
 
 # ---- boundary: parse local files ----------------------------------------------
@@ -542,8 +554,6 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     views = collect(repo, args.sessions, now, warnings)
     if args.format == "json":
         print(json.dumps([{"name": v.name, **classify(v, now).__dict__} for v in views], indent=2))
-    elif args.format == "text":
-        print(render_text(views, now, Path(repo).name, args.width))
     else:
         print(render_markdown(views, now, Path(repo).name))
     for w in warnings:
@@ -571,15 +581,32 @@ def save_seen(path: Path, current: dict[str, Health]) -> None:
     tmp.replace(path)
 
 
-def notify(title: str, body: str) -> None:
-    """A desktop notification through herdr or notify-send; the watch sends it, so it costs no tokens."""
-    if os.environ.get("HERDR_ENV") == "1" and shutil.which("herdr"):
-        command = ["herdr", "notification", "show", title, "--body", body, "--sound", "request"]
-    elif shutil.which("notify-send"):
-        command = ["notify-send", title, body]
-    else:
+def session_terminal() -> Path | None:
+    """The terminal of the nearest ancestor that has one: the root Claude Code session's pane.
+
+    The watch runs as a background task with no controlling terminal, so it writes
+    its status reports to the session's terminal device directly.
+    """
+    pid = os.getppid()
+    while pid > 1:
+        fields = subprocess.run(["ps", "-o", "ppid=,tty=", "-p", str(pid)], capture_output=True, text=True).stdout.split()
+        if len(fields) < 2:
+            return None
+        if fields[1] not in ("??", "?"):
+            return Path("/dev") / fields[1]
+        pid = int(fields[0])
+    return None
+
+
+def report_status(terminal: Path | None, reports: list[str]) -> None:
+    """Write OSC 7501 reports to the terminal; terminals without the protocol ignore them."""
+    if terminal is None or not reports:
         return
-    subprocess.run(command, capture_output=True, timeout=10, check=False)
+    try:
+        with terminal.open("w") as tty:
+            tty.write("".join(reports))
+    except OSError as exc:
+        print(f"status error: {terminal}: {exc}", file=sys.stderr, flush=True)
 
 
 @dataclass(frozen=True)
@@ -651,6 +678,10 @@ def cmd_watch(args: argparse.Namespace) -> int:
     except (OSError, ValueError):
         poll_seen = {}
     poll_due: dict[str, float] = {}
+    terminal = session_terminal()
+    # What the terminal already holds. done and error records stay until the user looks, so a re-armed
+    # watch resends only working and blocked ones, which the terminal may have dropped.
+    shown_status = {name: h for name, h in previous.items() if STATUS_STATES[h.state] in ("done", "error")}
     while True:
         warnings: list[str] = []
         try:
@@ -658,9 +689,10 @@ def cmd_watch(args: argparse.Namespace) -> int:
             current = {v.name: classify(v, now) for v in collect(repo, args.sessions, now, warnings)}
             for line in transitions(previous, current):
                 print(line, flush=True)
-            for name, health in current.items():
-                if health.state == "needs-you" and previous.get(name, Health("", "")).state != "needs-you":
-                    notify(f"{name} needs you", health.detail)
+            report_status(terminal, [status_report(name, current.get(name))
+                                     for name in sorted(current.keys() | shown_status.keys())
+                                     if current.get(name) != shown_status.get(name)])
+            shown_status = current
             if current != previous:
                 save_seen(seen_path, current)
             previous = current
@@ -681,56 +713,18 @@ def cmd_watch(args: argparse.Namespace) -> int:
         time.sleep(args.interval)
 
 
-def pane_rows(orchestrators: int) -> int:
-    """Rows the pane needs: title, blank, header, rule, one per orchestrator, two for borders, one to spare."""
-    return orchestrators + 7
-
-
-def herdr_split_ratio(rows: int, total: int) -> float:
-    """The share herdr's --ratio leaves to the current pane, so the new pane gets `rows`."""
-    return min(0.9, max(0.5, 1 - rows / max(total, 1)))
-
-
-def cmd_pane(args: argparse.Namespace) -> int:
-    repo = args.repo or repo_root()
-    now = time.time()
-    rows = pane_rows(len(shown(collect(repo, args.sessions, now, []), now)))
-    table = [sys.executable, os.path.abspath(__file__), "snapshot", "--format", "text", "--repo", repo]
-    if args.sessions:
-        table += ["--sessions", *args.sessions]
-    command = f"watch -t -n {args.interval} {shlex.quote(shlex.join(table))}"
-    if os.environ.get("HERDR_ENV") == "1" and shutil.which("herdr"):
-        current = subprocess.run(["herdr", "pane", "current"], capture_output=True, text=True, check=True)
-        total = int(json.loads(current.stdout)["result"]["pane"]["scroll"]["viewport_rows"])
-        ratio = f"{herdr_split_ratio(rows, total):.2f}"
-        split = subprocess.run(["herdr", "pane", "split", "--current", "--direction", "down", "--ratio", ratio, "--no-focus"],
-                               capture_output=True, text=True, check=True)
-        pane = json.loads(split.stdout)["result"]["pane"]["pane_id"]
-        subprocess.run(["herdr", "pane", "run", pane, command], capture_output=True, text=True, check=True)
-    elif os.environ.get("TMUX") and shutil.which("tmux"):
-        pane = subprocess.run(["tmux", "split-window", "-d", "-v", "-l", str(rows), "-P", "-F", "#{pane_id}", command],
-                              capture_output=True, text=True, check=True).stdout.strip()
-    else:
-        print(f"no herdr or tmux here; run this in a terminal:\n{command}")
-        return 3
-    print(f"pane {pane}: {command}")
-    return 0
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("whoami").set_defaults(func=cmd_whoami)
-    for name, func in (("snapshot", cmd_snapshot), ("watch", cmd_watch), ("pane", cmd_pane)):
+    for name, func in (("snapshot", cmd_snapshot), ("watch", cmd_watch)):
         p = sub.add_parser(name)
         p.add_argument("--repo", help="repository the orchestrators work on (default: this checkout)")
         p.add_argument("--sessions", nargs="*", default=[], help="explicit orchestrator session names")
         p.set_defaults(func=func)
     snapshot = sub.choices["snapshot"]
-    snapshot.add_argument("--format", choices=("markdown", "text", "json"), default="markdown")
-    snapshot.add_argument("--width", type=int, default=int(os.environ.get("COLUMNS", "120")), help="text table width")
+    snapshot.add_argument("--format", choices=("markdown", "json"), default="markdown")
     sub.choices["watch"].add_argument("--interval", type=int, default=60)
-    sub.choices["pane"].add_argument("--interval", type=int, default=60, help="seconds between redraws")
     args = parser.parse_args(argv)
     return args.func(args)
 

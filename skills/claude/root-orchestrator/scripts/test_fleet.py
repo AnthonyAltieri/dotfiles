@@ -1,5 +1,6 @@
 """Unit tests for fleet.py health classification and change detection."""
 
+import base64
 import json
 import os
 import tempfile
@@ -68,10 +69,12 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(fleet.classify(view(s=session(alive=False), run=run), NOW).state, "settled")
 
 
-class PaneTests(unittest.TestCase):
-    def test_herdr_ratio_leaves_the_new_pane_just_the_table_rows(self):
-        self.assertAlmostEqual(fleet.herdr_split_ratio(fleet.pane_rows(5), 54), 1 - 12 / 54)
-        self.assertEqual(fleet.herdr_split_ratio(fleet.pane_rows(40), 54), 0.5)
+class StatusTests(unittest.TestCase):
+    def test_permission_prompt_reaches_the_terminal_as_a_blocked_permission_record(self):
+        report = fleet.status_report("cli identity", fleet.Health("needs-you", "permission: Bash rm -rf\n · 3m"))
+        self.assertEqual(report, "\x1b]7501;state=blocked:id=fleet/cli-identity:app=root-orchestrator:kind=permission"
+                                 f":title={base64.b64encode(b'cli identity').decode()}"
+                                 f":msg={base64.b64encode(b'permission: Bash rm -rf  \xc2\xb7 3m').decode()}\x1b\\")
 
 
 class VelocityTests(unittest.TestCase):

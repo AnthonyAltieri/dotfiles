@@ -1,6 +1,6 @@
 ---
 name: root-orchestrator
-description: Watch every spawn-orchestrator session working on this repository from one named Claude Code session. Open a terminal pane that redraws the fleet table every minute at no token cost, wake only when an orchestrator needs the user, stalls, hangs, or dies, and tell orchestrators about conflicts they cannot see. Use when the user asks for a root orchestrator, an orchestrator of orchestrators, or one view over several orchestrator sessions; do not use to implement, dispatch, or merge work.
+description: Watch every spawn-orchestrator session working on this repository from one named Claude Code session. Report each orchestrator's health to the terminal as OSC 7501 program status at no token cost, wake only when an orchestrator needs the user, stalls, hangs, or dies, and tell orchestrators about conflicts they cannot see. Use when the user asks for a root orchestrator, an orchestrator of orchestrators, or one view over several orchestrator sessions; do not use to implement, dispatch, or merge work.
 ---
 
 # Root Orchestrator
@@ -30,10 +30,11 @@ Run `python3 fleet.py whoami` first. If it exits non-zero, reply `Name this sess
 ## Start
 
 1. Run `python3 fleet.py snapshot` and post the markdown table it prints.
-2. Open the pane: `python3 fleet.py pane` (add the same `--repo`/`--sessions`). It splits a herdr or tmux pane below this one, sized to the table, running `watch` on it every minute. If it exits 3, give the user the command it printed to run in a terminal.
-3. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (same flags), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires, without comment. A re-armed watch resumes from what the last one reported, so it stays silent until something changes; its first run ever lists every orchestrator once. The watch also raises a desktop notification (herdr, or `notify-send`) when an orchestrator starts needing the user, so the user hears about it without watching this session.
+2. Arm the alert monitor: the `Monitor` tool with `python3 fleet.py watch` (add the same `--repo`/`--sessions`), `timeout_ms: 1800000`, description `orchestrator health`. Re-arm it every time it expires, without comment. A re-armed watch resumes from what the last one reported, so it stays silent until something changes; its first run ever lists every orchestrator once.
 
-Do not schedule a recurring summary. The pane is the periodic view.
+The watch also writes each orchestrator's health to this session's terminal as an [OSC 7501 program status](https://www.superlogical.com/rex/docs/build/program-status) record with id `fleet/<name>`, so a terminal that supports the protocol, such as Rex, shows the user which orchestrator is working, blocked on them, done, or failed without their reading this session: `ok` is `working`, `needs you` is `blocked` with kind `question` or `permission`, `stalled` and `hung` are `blocked`, `done` is `done`, and `dead` is `error`. Terminals without the protocol ignore it.
+
+Do not schedule a recurring summary. The status records are the periodic view, and the table is there when the user asks.
 
 ## Optional Polls
 
@@ -115,4 +116,4 @@ Write one short message with the evidence and the source (PR link, commit, run d
 - Read-only on every other session's files.
 - One line per health change and replies to the user; no other unprompted chat, no timers.
 - If `fleet.py` reports a skipped or malformed file, mention it once with its path.
-- When every orchestrator in scope is done, post a final table, stop the Monitor, close the pane, and say the fleet is done.
+- When every orchestrator in scope is done, post a final table, stop the Monitor, and say the fleet is done.
