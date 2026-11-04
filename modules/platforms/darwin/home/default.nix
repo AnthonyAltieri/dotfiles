@@ -3,5 +3,6 @@
     ./ghostty.nix
     ./nvm.nix
     ./pnpm.nix
+    ./rex.nix
   ];
 }
