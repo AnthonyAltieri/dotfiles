@@ -18,6 +18,7 @@ in {
     enableCompletion = true;
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
+    envExtra = builtins.readFile ../../../home/.zshenv;
     initContent = lib.mkOrder 1000 (brewShellInit + builtins.readFile ../../../home/.zshrc);
   };
 }
