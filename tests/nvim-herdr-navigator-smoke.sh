@@ -16,12 +16,19 @@ local function record(cmd)
 	table.insert(calls, table.concat(cmd, " "))
 end
 
--- Outside herdr: edge moves do nothing.
+-- Outside herdr and Rex: edge moves do nothing.
 vim.env.HERDR_ENV = nil
 vim.env.HERDR_SOCKET_PATH = nil
 vim.env.HC_TERMINAL_ID = nil
+vim.env.REX_SESSION = nil
 nav.navigate("h", { run = record })
 assert(#calls == 0, "expected no herdr call outside herdr")
+
+-- Inside Rex: an edge move asks Rex to focus the next pane in this session.
+vim.env.REX_SESSION = "session:abc"
+nav.navigate("h", { run = record })
+assert(calls[1] == "rex focus -s session:abc left", "unexpected rex call: " .. tostring(calls[1]))
+calls = {}
 
 -- Inside the Herdr desktop app: an edge move asks herdr-app for the next pane.
 vim.env.HC_TERMINAL_ID = "t7"
@@ -63,4 +70,4 @@ nvim --clean --headless -i NONE \
 	+"lua local ok, err = xpcall(function() dofile('$TMP_DIR/navigator.lua') end, debug.traceback); if not ok then io.stderr:write(err .. '\n'); vim.cmd('cquit') end" \
 	+qa!
 
-echo "ok Neovim Ctrl+h/j/k/l navigates windows and delegates edge moves to herdr or herdr-app"
+echo "ok Neovim Ctrl+h/j/k/l navigates windows and delegates edge moves to herdr, herdr-app, or Rex"

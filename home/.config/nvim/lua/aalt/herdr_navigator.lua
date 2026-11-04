@@ -4,8 +4,9 @@
 -- when the current window is already at that edge the focus request is handed
 -- to the surrounding pane: `herdr pane focus --direction <dir> --current` in
 -- the herdr TUI, or `herdr-app do pane.go --direction <dir>` in the Herdr
--- desktop app, whose terminals run under herdr-core and get HC_TERMINAL_ID.
--- Outside both the mapping degrades to a plain window move.
+-- desktop app, whose terminals run under herdr-core and get HC_TERMINAL_ID,
+-- or `rex focus -s <session> <dir>` in Rex, which sets REX_SESSION.
+-- Outside all three the mapping degrades to a plain window move.
 
 local M = {}
 
@@ -24,6 +25,10 @@ function M.inside_herdr_app()
 	return vim.env.HC_TERMINAL_ID ~= nil and vim.env.HC_TERMINAL_ID ~= ""
 end
 
+function M.inside_rex()
+	return vim.env.REX_SESSION ~= nil and vim.env.REX_SESSION ~= ""
+end
+
 ---@return string[]|nil
 function M.herdr_command(direction)
 	if M.inside_herdr() then
@@ -31,6 +36,9 @@ function M.herdr_command(direction)
 	end
 	if M.inside_herdr_app() then
 		return { "herdr-app", "do", "pane.go", "--direction", direction }
+	end
+	if M.inside_rex() then
+		return { "rex", "focus", "-s", vim.env.REX_SESSION, direction }
 	end
 	return nil
 end
