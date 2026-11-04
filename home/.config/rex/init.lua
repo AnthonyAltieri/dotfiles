@@ -9,3 +9,12 @@ for i = 1, 9 do
 	rex.unbind("cmd+[Digit" .. i .. "]", "client.tab.goto")
 	rex.bind("ctrl+" .. i, "client.tab.goto", { index = i })
 end
+
+-- Shift+Cmd+h/j/k/l splits toward that side, matching Neovim's directions.
+-- Cmd+D and Shift+Cmd+D no longer split; Shift+Cmd+arrows still do.
+rex.unbind("cmd+d", "pane.split.right")
+rex.unbind("shift+cmd+d", "pane.split.down")
+rex.bind("shift+cmd+h", "pane.split.left")
+rex.bind("shift+cmd+j", "pane.split.down")
+rex.bind("shift+cmd+k", "pane.split.up")
+rex.bind("shift+cmd+l", "pane.split.right")
