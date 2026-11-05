@@ -5,5 +5,6 @@
     ./skill-helpers.nix
     ./claude.nix
     ./codex.nix
+    ./rex.nix
   ];
 }
