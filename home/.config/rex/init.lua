@@ -1,8 +1,31 @@
 -- Rex configuration: https://www.superlogical.com/rex/docs/customize/config
---
--- Pane focus needs nothing here. Rex leaves Ctrl+h/j/k/l to the terminal, so
--- Neovim owns them and calls `rex focus` at a window edge
+
+-- Ctrl+h/j/k/l moves to the pane on that side. When the focused pane runs
+-- Neovim the key passes through instead, so Neovim moves between its own
+-- windows first and calls `rex focus` at an edge
 -- (home/.config/nvim/lua/aalt/herdr_navigator.lua).
+local terminal = "com.superlogical.terminal"
+local editors = { vi = true, vim = true, nvim = true }
+
+local function runs_editor(block_id)
+	local info = rex.block.call(terminal, "process", { block_id = block_id })
+	local fg = info and info.foreground
+	if not fg then
+		return false
+	end
+	local argv0 = (fg.argv0 or ""):match("[^/]*$")
+	return editors[fg.name] or editors[argv0] or false
+end
+
+for key, direction in pairs({ h = "left", j = "down", k = "up", l = "right" }) do
+	rex.bind("ctrl+" .. key, function(ctx)
+		if runs_editor(ctx.block_id) then
+			return false
+		end
+		rex.session.focus_direction({ direction = direction })
+		return true
+	end)
+end
 
 -- Ctrl+1..9 jumps straight to a tab, as in herdr. Cmd+1..9 no longer does.
 for i = 1, 9 do
