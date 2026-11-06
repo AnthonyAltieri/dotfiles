@@ -65,6 +65,11 @@
   in {
     overlays.default = final: prev: {
       gh = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.gh;
+      # nixpkgs 25.05 ships Neovim 0.11 and tree-sitter 0.25; nvim-treesitter's main branch needs
+      # Neovim 0.12 and tree-sitter 0.26.1 or later.
+      neovim = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.neovim;
+      tree-sitter =
+        inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.tree-sitter;
       # nixpkgs 25.05 stops at PostgreSQL 17; the personal trading stack runs 18.
       postgresql_18 =
         inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.postgresql_18;
