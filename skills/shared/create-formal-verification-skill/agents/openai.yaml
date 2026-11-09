@@ -1,0 +1,6 @@
+interface:
+  display_name: "create-formal-verification-skill"
+  short_description: "Generate a project-local formal verification skill"
+  default_prompt: "Use $create-formal-verification-skill to formally verify the riskiest promise in this repo and generate a project-local skill that rechecks it."
+policy:
+  allow_implicit_invocation: false
