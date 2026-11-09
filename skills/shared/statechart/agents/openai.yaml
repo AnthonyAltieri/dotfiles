@@ -1,0 +1,6 @@
+interface:
+  display_name: "statechart"
+  short_description: "Check a TLA+ model and draw it as a statechart"
+  default_prompt: "Use $statechart to model-check the named TLA+ spec and draw it as a Mermaid statechart with the shortest path to each broken rule."
+policy:
+  allow_implicit_invocation: false
