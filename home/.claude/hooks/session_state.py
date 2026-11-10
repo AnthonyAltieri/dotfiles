@@ -18,6 +18,13 @@ main session, ~/.cache/claude-sessions/<session_id>.json:
 It prints nothing, so it adds nothing to any model context, and it always
 exits 0 so a failure here never disturbs the session.
 
+For an orchestrator it also writes the verdict to the session's own terminal as
+an OSC 7501 program status record with id `orchestrator`, beside the root record
+Claude Code keeps itself, so a terminal such as Rex shows when the orchestrator
+needs the user: `you` is `blocked`, `wait` is `working`, `done` is `done`, and
+anything else clears the record. It writes only when the report changes, under
+the state lock, so concurrent hooks cannot reorder reports.
+
 An orchestrator's own attention block (`NEEDS YOUR ATTENTION` with numbered
 headings, or `EVERYTHING IS GOOD`) decides the verdict directly. Without one, triage runs at the end of every orchestrator turn, even with background tasks
 or scheduled jobs left: an orchestrator usually keeps a Monitor running while
@@ -27,6 +34,7 @@ with no tools, settings, or hooks, so the turn never waits on it.
 
 from __future__ import annotations
 
+import base64
 import fcntl
 import json
 import os
@@ -51,6 +59,11 @@ BANNER_CLEAR = "EVERYTHING IS GOOD"
 BANNER_LINE = re.compile(r"^[\s═`]*$|^═.*═$")
 ACTION_HEADING = re.compile(r"^\s*(?:\*\*)?\d+\.\s+(.+?)(?:\*\*)?\s*$")
 VERDICT = re.compile(r"^(YOU|WAIT|DONE)\s*:\s*(.+)$")
+
+# OSC 7501 program status (https://www.superlogical.com/rex/docs/build/program-status): what each verdict tells the terminal.
+STATUS_ID = "orchestrator"
+STATUS_STATES = {"you": "blocked", "wait": "working", "done": "done"}
+STATUS_CLEAR = f"\x1b]7501;state=clear:id={STATUS_ID}\x1b\\"
 
 TRIAGE_GUARD = "SESSION_STATE_TRIAGE"
 TRIAGE_TIMEOUT = 90
@@ -108,6 +121,9 @@ def apply(state: dict, event: dict, now: float) -> dict:
             status("idle")
             state["waiting"] = None
             state["triage"] = None
+            # A new process may run in another pane, which has seen no report yet.
+            state["terminal"] = None
+            state["statusReport"] = None
     elif name == "UserPromptSubmit":
         status("busy")
         state["waiting"] = None
@@ -196,8 +212,59 @@ def parse_verdict(reply: str) -> dict:
     return {"verdict": match.group(1).lower(), "summary": short(match.group(2), 120)}
 
 
+def status_text(text: str, limit: int) -> str:
+    """Base64 of the text as one control-free line of at most `limit` UTF-8 bytes, as the protocol requires."""
+    line = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", text).encode()[:limit].decode(errors="ignore")
+    return base64.b64encode(line.encode()).decode()
+
+
+def status_report(state: dict) -> str:
+    """The OSC 7501 report for an orchestrator's verdict: a clear while it works, waits on triage, or has none."""
+    triage = state.get("triage") or {}
+    verdict = triage.get("verdict")
+    if verdict not in STATUS_STATES:
+        return STATUS_CLEAR
+    pairs = [f"state={STATUS_STATES[verdict]}", f"id={STATUS_ID}", "app=spawn-orchestrator"]
+    if verdict == "you":
+        pairs.append("kind=question")
+    pairs += [f"title={status_text(state.get('name') or 'orchestrator', 192)}", f"msg={status_text(triage.get('summary', ''), 2048)}"]
+    return f"\x1b]7501;{':'.join(pairs)}\x1b\\"
+
+
+def session_terminal() -> str | None:
+    """The terminal of the nearest ancestor that has one: the Claude Code session's pane.
+
+    Hooks run without a controlling terminal, so the report goes to the session's terminal device directly.
+    """
+    pid = os.getpid()
+    while pid > 1:
+        fields = subprocess.run(["ps", "-o", "ppid=,tty=", "-p", str(pid)], capture_output=True, text=True).stdout.split()
+        if len(fields) < 2:
+            return None
+        if fields[1] not in ("??", "?"):
+            return f"/dev/{fields[1]}"
+        pid = int(fields[0])
+    return None
+
+
+def report_status(state: dict) -> dict:
+    """Write an orchestrator's report to its terminal when it changed; terminals without the protocol ignore it."""
+    report = status_report(state)
+    if not state.get("orchestrator") or report == state.get("statusReport", STATUS_CLEAR):
+        return state
+    # The detached triage child has no terminal ancestor, so it uses the one the hook found.
+    terminal = state.get("terminal") or session_terminal()
+    if terminal:
+        try:
+            with open(terminal, "w") as tty:
+                tty.write(report)
+        except OSError as exc:
+            print(f"session-state: status: {terminal}: {exc}", file=sys.stderr)
+    return {**state, "terminal": terminal, "statusReport": report}
+
+
 def update(session_id: str, change) -> dict:
-    """Apply `change` to the session's state under its lock and replace the file atomically."""
+    """Apply `change` to the session's state under its lock, report its status, and replace the file atomically."""
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     path = STATE_DIR / f"{session_id}.json"
     with open(STATE_DIR / f".{session_id}.lock", "w") as lock:
@@ -206,7 +273,7 @@ def update(session_id: str, change) -> dict:
             state = json.loads(path.read_text())
         except (OSError, ValueError):
             state = {}
-        state = change(state)
+        state = report_status(change(state))
         fd, tmp = tempfile.mkstemp(dir=STATE_DIR, prefix=f".{session_id}.")
         with os.fdopen(fd, "w") as out:
             json.dump(state, out)

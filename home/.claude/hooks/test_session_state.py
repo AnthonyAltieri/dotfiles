@@ -1,5 +1,6 @@
 """Unit tests for the session-state hook's event reducer."""
 
+import base64
 import subprocess
 import tempfile
 import unittest
@@ -10,6 +11,13 @@ import session_state
 from session_state import apply, parse_verdict
 
 T = 1_800_000_000.0
+
+
+def setUpModule():
+    # Tests that record an orchestrator must not write status reports to the runner's own terminal.
+    terminal = mock.patch.object(session_state, "session_terminal", return_value=None)
+    terminal.start()
+    unittest.addModuleCleanup(terminal.stop)
 
 
 def ev(name, **fields):
@@ -118,6 +126,34 @@ class TriageTests(unittest.TestCase):
             with mock.patch.object(session_state.subprocess, "run", return_value=reply):
                 session_state.triage("s1", T + 1)
             self.assertIsNone(session_state.update("s1", lambda s: s)["triage"])
+
+
+class ProgramStatusTests(unittest.TestCase):
+    def test_orchestrator_verdict_reaches_its_terminal_once_per_change(self):
+        banner = lambda title, body: f"Status.\n═══ {title} ═══\n{body}\n"
+        you = ev("Stop", last_assistant_message=banner("NEEDS YOUR ATTENTION", "**1. Merge #12 now?**"))
+        waiting = ev("Stop", last_assistant_message=banner("EVERYTHING IS GOOD", "Next: 2 workers running"))
+        finished = ev("Stop", last_assistant_message=banner("EVERYTHING IS GOOD", "Run complete: 3 merged."))
+        tool = ev("PostToolUse", tool_name="Bash", tool_use_id="b1", tool_input={"command": "gh pr view 12"})
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(session_state, "STATE_DIR", Path(tmp) / "state"), \
+                mock.patch.object(session_state, "RUNS_DIR", Path(tmp) / "runs"), \
+                mock.patch.object(session_state, "session_terminal", return_value=str(Path(tmp) / "tty")):
+            tty = Path(tmp) / "tty"
+
+            def written(event, at):
+                tty.write_text("")
+                session_state.record(event, at)
+                return tty.read_text()
+
+            b64 = lambda text: base64.b64encode(text.encode()).decode()
+            self.assertEqual(written({**you, "session_id": "plain"}, T), "")
+            self.assertEqual(written(ev("UserPromptSubmit", prompt="/spawn-orchestrator QUANT-1"), T + 1), "")
+            self.assertEqual(written(you, T + 2), "\x1b]7501;state=blocked:id=orchestrator:app=spawn-orchestrator:kind=question"
+                                                  f":title={b64('orchestrator')}:msg={b64('Merge #12 now?')}\x1b\\")
+            self.assertEqual(written(tool, T + 3), "\x1b]7501;state=clear:id=orchestrator\x1b\\")
+            self.assertEqual(written(tool, T + 4), "")
+            self.assertIn("state=working:", written(waiting, T + 5))
+            self.assertIn("state=done:", written(finished, T + 6))
 
 
 if __name__ == "__main__":
