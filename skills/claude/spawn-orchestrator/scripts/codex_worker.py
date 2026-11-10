@@ -21,6 +21,10 @@ Subcommands:
 
 `start` and `resume` block until the codex process exits, so run them
 through a background shell and treat their exit as the completion signal.
+While a turn runs they report it to the orchestrator's terminal as an OSC 7501
+program status record with id `worker/<issue>`: `working`, then `done` or
+`error` when the turn ends, so a terminal such as Rex shows each Codex worker
+beside the Opus subagents Claude Code reports itself.
 Exit codes: 0 turn completed, 1 turn failed or process error, 2 usage,
 3 Codex opened a different thread than the one recorded (resume only).
 """
@@ -28,6 +32,7 @@ Exit codes: 0 turn completed, 1 turn failed or process error, 2 usage,
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -38,7 +43,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Literal
 
 import run_state
 
@@ -421,6 +426,7 @@ def run_turn(
 ) -> int:
     paths = run_paths(run_dir)
     command = contained(command, run_dir, limits)
+    terminal = session_terminal()
     with stdin_path.open("rb") as stdin, paths["events"].open("a", encoding="utf-8") as events, paths["stderr"].open(
         "a", encoding="utf-8"
     ) as stderr:
@@ -434,6 +440,7 @@ def run_turn(
             start_new_session=True,
         )
         paths["pid"].write_text(str(process.pid), encoding="utf-8")
+        report_status(terminal, status_report(run_dir.name, "working"))
         mismatch = False
         assert process.stdout is not None
         for line in process.stdout:
@@ -463,10 +470,63 @@ def run_turn(
     paths["last"].write_text((final or "") + "\n", encoding="utf-8")
 
     if mismatch:
+        report_status(terminal, status_report(run_dir.name, "error", "opened a different Codex thread"))
         return THREAD_MISMATCH_EXIT
     status = compute_status(all_events, exit_code, False, None)
+    report_status(terminal, worker_report(run_dir.name, status))
     print(format_status(status, run_dir))
     return 0 if status.state == "completed" else 1
+
+
+
+def status_text(text: str, limit: int) -> str:
+    """Base64 of the text as one control-free line of at most `limit` UTF-8 bytes, as the protocol requires."""
+    line = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", text).encode()[:limit].decode(errors="ignore")
+    return base64.b64encode(line.encode()).decode()
+
+
+def status_report(issue: str, state: Literal["working", "done", "error"], msg: str | None = None) -> str:
+    """The OSC 7501 report for one worker (https://www.superlogical.com/rex/docs/build/program-status)."""
+    record_id = "worker/" + (re.sub(r"[^A-Za-z0-9_.+-]", "-", issue)[:32] or "-")
+    pairs = [f"state={state}", f"id={record_id}", "app=codex", f"title={status_text(issue, 192)}"]
+    if msg:
+        pairs.append(f"msg={status_text(msg, 2048)}")
+    return f"\x1b]7501;{':'.join(pairs)}\x1b\\"
+
+def worker_report(issue: str, status: Status) -> str:
+    """The report for a finished turn: `done` with the worker's own status, or `error` when the turn or the worker failed."""
+    if status.state == "completed" and status.worker_status != "failed":
+        return status_report(issue, "done", status.worker_status or "completed")
+    if status.state == "completed":
+        return status_report(issue, "error", "worker reported failed")
+    return status_report(issue, "error", f"turn {status.state}" + (f" (exit {status.exit_code})" if status.exit_code else ""))
+
+
+def session_terminal() -> Path | None:
+    """The terminal of the nearest ancestor that has one: the orchestrator's pane.
+
+    Turns run from a background shell with no controlling terminal, so reports go to the session's terminal device directly.
+    """
+    pid = os.getpid()
+    while pid > 1:
+        fields = subprocess.run(["ps", "-o", "ppid=,tty=", "-p", str(pid)], capture_output=True, text=True).stdout.split()
+        if len(fields) < 2:
+            return None
+        if fields[1] not in ("??", "?"):
+            return Path("/dev") / fields[1]
+        pid = int(fields[0])
+    return None
+
+
+def report_status(terminal: Path | None, report: str) -> None:
+    """Write a status report to the terminal; terminals without the protocol ignore it, and a failure never stops the turn."""
+    if terminal is None:
+        return
+    try:
+        with terminal.open("w") as tty:
+            tty.write(report)
+    except OSError as exc:
+        print(f"status not reported: {terminal}: {exc}", file=sys.stderr)
 
 
 def format_status(status: Status, run_dir: Path) -> str:

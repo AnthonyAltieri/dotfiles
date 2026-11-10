@@ -1,6 +1,7 @@
 """Unit tests for codex_worker.py parsing. Fixtures are trimmed from real
 `codex exec --json` streams and rollout files captured on codex-cli 0.153.4."""
 
+import base64
 import json
 import unittest
 from pathlib import Path
@@ -72,6 +73,14 @@ class StatusTests(unittest.TestCase):
         status = cw.compute_status(parse(COMPLETED_STREAM + second), exit_code=0, pid_alive=False, pid=None)
         self.assertEqual(status.turns, 2)
         self.assertEqual(status.worker_status, "merged")
+
+    def test_finished_turn_reports_done_only_when_the_worker_did_not_fail(self):
+        b64 = lambda text: base64.b64encode(text.encode()).decode()
+        report = lambda stream, code: cw.worker_report("QUANT-7", cw.compute_status(parse(stream), exit_code=code, pid_alive=False, pid=None))
+        failed = COMPLETED_STREAM[:2] + [ev("item.completed", **item("agent_message", text="Status: failed. Tests do not build.")), ev("turn.completed", usage={})]
+        self.assertEqual(report(COMPLETED_STREAM, 0), f"\x1b]7501;state=done:id=worker/QUANT-7:app=codex:title={b64('QUANT-7')}:msg={b64('pr-opened')}\x1b\\")
+        self.assertIn(f"state=error:id=worker/QUANT-7:app=codex:title={b64('QUANT-7')}:msg={b64('worker reported failed')}", report(failed, 0))
+        self.assertIn(f"msg={b64('turn stopped (exit 130)')}", report(COMPLETED_STREAM[:3], 130))
 
 
 class DenialTests(unittest.TestCase):
