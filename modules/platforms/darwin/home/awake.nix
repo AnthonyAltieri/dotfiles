@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 let
   # Menu-bar keep-awake toggle; see pkgs/awake/main.swift. It is built with the
   # Xcode Command Line Tools swiftc because AppKit apps need the macOS SDK.
@@ -20,8 +20,23 @@ let
   );
   app = "/Applications/Awake.app";
   binary = "${app}/Contents/MacOS/awake";
+  # `awake on|off|status` on PATH. The app binary is built outside the Nix
+  # store, so this only forwards to it. With no arguments the binary would
+  # start a second menu-bar app, so print usage instead.
+  cli = pkgs.writeShellScriptBin "awake" ''
+    if [ "$#" -eq 0 ]; then
+      set -- help
+    fi
+    if [ ! -x "${binary}" ]; then
+      echo "awake: ${binary} not found; run a Home Manager switch to build it." >&2
+      exit 1
+    fi
+    exec "${binary}" "$@"
+  '';
 in
 {
+  home.packages = [ cli ];
+
   # Rebuild the bundle only when its inputs change, before launchd loads the
   # agent, then restart a running agent so it picks up the new binary.
   home.activation.dotfilesAwakeBuild = lib.hm.dag.entryBetween [ "setupLaunchAgents" ] [ "writeBoundary" ] ''
