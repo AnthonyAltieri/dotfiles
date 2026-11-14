@@ -109,6 +109,12 @@ export BUN_INSTALL="$HOME/.bun"
 path=("$BUN_INSTALL/bin" "${(@)path:#$BUN_INSTALL/bin}")
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
+# Rex terminals export REX_BIN_DIR and put it on PATH, but nix-darwin's
+# set-environment rebuilds PATH when zsh starts, so restore it here.
+if [[ -n "${REX_BIN_DIR:-}" ]]; then
+  path=("$REX_BIN_DIR" "${(@)path:#$REX_BIN_DIR}")
+fi
+
 # Load ~/.env if it exists and has valid syntax
 if [[ -f "${HOME}/.env" ]]; then
   if zsh -n "${HOME}/.env" 2>/dev/null; then
