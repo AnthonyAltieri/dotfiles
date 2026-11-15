@@ -382,14 +382,38 @@ def rollout_file(thread_id: str | None) -> Path | None:
     return sorted(matches)[-1] if matches else None
 
 
-def approval_overrides(network: bool) -> list[str]:
-    """The `--approve-for-me` triple as -c overrides, valid for both exec and exec resume."""
-    return [
+def git_common_dir(worktree: Path) -> Path | None:
+    """The repository's shared `.git` directory for a linked worktree, or None outside git."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(worktree), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    common = Path(out).resolve() if out else None
+    # A plain checkout's .git sits inside the worktree, which is already writable.
+    if common is None or common.is_relative_to(worktree.resolve()):
+        return None
+    return common
+
+
+def approval_overrides(network: bool, worktree: Path | None = None) -> list[str]:
+    """The `--approve-for-me` triple as -c overrides, valid for both exec and exec resume.
+
+    A linked worktree's commits, fetches and refs live in the repository's shared `.git`
+    directory outside the worktree, so it is added as a writable root (owner decision
+    2026-11-15); without it a Codex worker cannot fetch, commit or push."""
+    overrides = [
         "-c", 'approvals_reviewer="auto_review"',
         "-c", 'approval_policy="on-request"',
         "-c", 'sandbox_mode="workspace-write"',
         "-c", f"sandbox_workspace_write.network_access={'true' if network else 'false'}",
     ]
+    common = git_common_dir(worktree) if worktree is not None else None
+    if common is not None:
+        overrides += ["-c", f"sandbox_workspace_write.writable_roots={json.dumps([str(common)])}"]
+    return overrides
 
 
 def model_overrides(model: str, effort: str, service_tier: str) -> list[str]:
@@ -576,7 +600,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "codex", "exec", "--json",
         "-C", str(worktree),
         *model_overrides(args.model, args.effort, args.service_tier),
-        *approval_overrides(not args.no_network),
+        *approval_overrides(not args.no_network, worktree),
         "--thread-source", "subagent",
         "-",
     ]
@@ -602,7 +626,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
     command = [
         "codex", "exec", "resume", thread_id, "--json",
         *model_overrides(args.model, args.effort, args.service_tier),
-        *approval_overrides(not args.no_network),
+        *approval_overrides(not args.no_network, Path(worktree_text)),
         "-",
     ]
     record_dispatch(run_dir)
