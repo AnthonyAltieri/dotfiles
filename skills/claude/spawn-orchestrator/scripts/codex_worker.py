@@ -438,6 +438,8 @@ def run_turn(
             cwd=str(worktree),
             text=True,
             start_new_session=True,
+            # Rayon-based tools (ruff, ty, oxfmt) otherwise use every core; a caller's own value wins.
+            env={**os.environ, "RAYON_NUM_THREADS": os.environ.get("RAYON_NUM_THREADS", "4")},
         )
         paths["pid"].write_text(str(process.pid), encoding="utf-8")
         report_status(terminal, status_report(run_dir.name, "working"))
