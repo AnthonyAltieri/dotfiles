@@ -1,14 +1,40 @@
 {
   "manifest_version": 3,
   "name": "Go links",
-  "version": "1.0.0",
-  "description": "Type go/name in the address bar and save the current tab as a go link, backed by golink at http://go on your tailnet.",
-  "permissions": ["activeTab", "declarativeNetRequest"],
-  "host_permissions": ["http://go/*", "https://*.ts.net/*", "https://www.google.com/*"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_title": "Save as go link", "default_popup": "popup.html" },
-  "omnibox": { "keyword": "go/" },
-  "declarative_net_request": {
-    "rule_resources": [{ "id": "go-search", "enabled": true, "path": "rules.json" }]
-  }
+  "version": "1.1.0",
+  "description": "Type go/name in the address bar and save the current tab as a go link, backed by golink on your tailnet. Links open only while Tailscale is connected.",
+  "permissions": [
+    "activeTab",
+    "declarativeNetRequest",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://go/*",
+    "https://go/*",
+    "https://*.ts.net/*",
+    "https://www.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Save as go link",
+    "default_popup": "popup.html"
+  },
+  "omnibox": {
+    "keyword": "go/"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "go.html"
+      ],
+      "matches": [
+        "http://go/*",
+        "https://go/*",
+        "https://www.google.com/*"
+      ]
+    }
+  ]
 }

@@ -1,6 +1,41 @@
-// Address-bar keyword: type "go/", press Tab, then part of a link name.
-import { GO, listLinks } from "./golink.js";
+import { listLinks } from "./golink.js";
 
+// Every go/ trip from the address bar goes through go.html, which opens the link only once your
+// go server answers over HTTPS (see go.js). Rules are added at install because the redirect
+// target holds this extension's ID, which differs per unpacked install.
+const GUARD = chrome.runtime.getURL("go.html");
+const guardUrl = (path) => `${GUARD}#p=${encodeURI(path)}`;
+
+const RULES = [
+  {
+    // http://go/<path> and https://go/<path>, typed or from links.
+    id: 1,
+    priority: 1,
+    action: { type: "redirect", redirect: { regexSubstitution: `${GUARD}#p=\\1` } },
+    condition: { regexFilter: "^https?://go/(.*)$", resourceTypes: ["main_frame"] },
+  },
+  {
+    // Chrome sends a typed go/<name> to the default search engine.
+    id: 2,
+    priority: 1,
+    action: { type: "redirect", redirect: { regexSubstitution: `${GUARD}#q=\\1` } },
+    condition: {
+      regexFilter: "^https://www\\.google\\.com/search\\?(?:[^#]*&)?q=go(?:%2F|/)([^&#]*)(?:[&#].*)?$",
+      isUrlFilterCaseSensitive: false,
+      resourceTypes: ["main_frame"],
+    },
+  },
+];
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const old = await chrome.declarativeNetRequest.getDynamicRules();
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: old.map((rule) => rule.id),
+    addRules: RULES,
+  });
+});
+
+// Address-bar keyword: type "go/", press Tab, then part of a link name.
 let links = [];
 
 chrome.omnibox.setDefaultSuggestion({ description: "Open go/%s" });
@@ -34,7 +69,7 @@ chrome.omnibox.onInputChanged.addListener((text, suggest) => {
 });
 
 chrome.omnibox.onInputEntered.addListener((text, disposition) => {
-  const url = `${GO}/${text.trim().replace(/^go\//, "")}`;
+  const url = guardUrl(text.trim().replace(/^go\//, ""));
   if (disposition === "currentTab") chrome.tabs.update({ url });
   else chrome.tabs.create({ url, active: disposition === "newForegroundTab" });
 });

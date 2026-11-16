@@ -1,5 +1,7 @@
 import { LinkExistsError, listLinks, saveLink } from "./golink.js";
 
+document.getElementById("all").href = chrome.runtime.getURL("go.html#p=.all");
+
 const form = document.getElementById("save");
 const shortInput = document.getElementById("short");
 const longInput = document.getElementById("long");
@@ -29,8 +31,8 @@ async function init() {
     const links = await listLinks();
     linksByShort = new Map(links.map((l) => [l.Short.toLowerCase(), l]));
     showExisting(links.filter((l) => l.Long === longInput.value).map((l) => l.Short));
-  } catch {
-    show("Can't reach http://go. Is Tailscale connected?", "error");
+  } catch (err) {
+    show(err.message, "error");
   }
 }
 
