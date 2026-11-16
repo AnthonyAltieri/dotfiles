@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "redirect", "redirect": { "regexSubstitution": "http://go/\\1" } },
+    "condition": {
+      "regexFilter": "^https://www\\.google\\.com/search\\?(?:[^#]*&)?q=go(?:%2F|/)([^&#]*)(?:[&#].*)?$",
+      "isUrlFilterCaseSensitive": false,
+      "resourceTypes": ["main_frame"]
+    }
+  }
+]
