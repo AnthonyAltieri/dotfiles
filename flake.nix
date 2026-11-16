@@ -77,6 +77,8 @@
       pnpm = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.pnpm;
       # nixpkgs 25.05's sccache is older than the 0.18 release agents already build with.
       sccache = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.sccache;
+      # nixpkgs 25.05 ships golink 1.0.0 on tsnet 1.79; unstable tracks current golink and tsnet.
+      golink = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.golink;
       codex-thread-manager = final.callPackage ./pkgs/codex-thread-manager.nix { };
       observe = final.callPackage ./pkgs/observe.nix { };
     };

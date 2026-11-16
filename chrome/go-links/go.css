@@ -1,0 +1,5 @@
+body { width: auto; min-height: 100vh; display: grid; place-items: center; font-size: 15px; }
+main { display: grid; gap: 12px; max-width: 480px; padding: 0 16px; }
+h1 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
+#message.error { color: var(--error); }
+button { justify-self: start; }
