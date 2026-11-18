@@ -47,7 +47,7 @@ from typing import Iterable, Literal
 
 import run_state
 
-DEFAULT_MODEL = "gpt-6.1-sol"
+DEFAULT_MODEL = "gpt-6.2-sol"
 DEFAULT_EFFORT = "xhigh"
 DEFAULT_SERVICE_TIER = "default"
 THREAD_MISMATCH_EXIT = 3

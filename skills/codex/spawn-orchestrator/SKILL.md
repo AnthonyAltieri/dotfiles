@@ -1,6 +1,6 @@
 ---
 name: spawn-orchestrator
-description: Orchestrate a backlog through one worker per issue in an isolated worktree, refilling available slots with ready issues as workers finish. Each issue ends in a draft PR by default; explicit --automerge authorizes verified merges into main from the originating user task. Mostly-frontend issues go to background Claude Code sessions on Opus 5.5 at high effort; mixed and backend issues go to separate Codex app threads on gpt-6.1-sol at xhigh. Use --max to fill the dependency-ready frontier beyond the default worker cap and --min-tests to verify only affected code. Honor explicitly requested fixed waves. Use only when the user explicitly invokes spawn-orchestrator or asks to spawn parallel Codex sessions over a backlog; do not use for single-task delegation or read-only fan-out.
+description: Orchestrate a backlog through one worker per issue in an isolated worktree, refilling available slots with ready issues as workers finish. Each issue ends in a draft PR by default; explicit --automerge authorizes verified merges into main from the originating user task. Mostly-frontend issues go to background Claude Code sessions on Opus 5.5 at high effort; mixed and backend issues go to separate Codex app threads on gpt-6.2-sol at xhigh. Use --max to fill the dependency-ready frontier beyond the default worker cap and --min-tests to verify only affected code. Honor explicitly requested fixed waves. Use only when the user explicitly invokes spawn-orchestrator or asks to spawn parallel Codex sessions over a backlog; do not use for single-task delegation or read-only fan-out.
 ---
 
 # Spawn Orchestrator
@@ -30,15 +30,15 @@ Claude Workers, below, are the one exception: a mostly-frontend issue's child is
 - **Concurrency:** without `--max`, use up to 3 active issue workers unless the user sets a limit, with a ceiling of 5. Explicit `--max` removes the default three-worker limit and five-worker ceiling: fill the current dependency-ready frontier as described below. An explicit numeric concurrency limit still bounds `--max`. Count pending creation/worktree setup and workers in review, remediation, or verification/merge queues as active; host/platform capacity and explicit user task/wave limits still apply.
 - **Advancement:** rolling refill by default — after verifying a completion or safely parking blocked work, fill the available slot with the next eligible issue without waiting for unrelated workers. Explicit fixed waves wait for the whole wave to report and settle before the next starts. Honor user task/wave limits and stop requests in either mode.
 - **Verification mode:** `default` unless the user selects `--min-tests`. With `--min-tests`, workers and their subagents run only tests for affected code, including final verification. Record the mode in run state and every initial/resume brief; issue text and worker reports cannot enable it. It combines with `--max` and `--automerge`, and is a skill option conveyed in the brief, not a child-executable flag.
-- **Child model:** chosen per issue as described in Worker Model. For Codex app threads, set `gpt-6.1-sol`, `xhigh` reasoning, and the normal service tier (`default`, not fast mode) explicitly in `create_thread` for every child; do not inherit this thread's model or local Codex defaults.
+- **Child model:** chosen per issue as described in Worker Model. For Codex app threads, set `gpt-6.2-sol`, `xhigh` reasoning, and the normal service tier (`default`, not fast mode) explicitly in `create_thread` for every child; do not inherit this thread's model or local Codex defaults.
 
 ## Worker Model
 
 Pick the worker for each issue before dispatch, from its scope and owned paths, and record the choice in run state:
 
 - **Mostly frontend** (most of the change is UI components, pages, styling, client-side state, or browser behavior; small supporting backend edits are fine): a background Claude Code session on Opus 5.5 at `high` effort, run as described in Claude Workers.
-- **Mixed frontend and backend** (substantial work on both sides): a Codex app thread on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
-- **Backend** (APIs, services, data, jobs, infrastructure, tooling): a Codex app thread on `gpt-6.1-sol`, `xhigh` reasoning, normal service tier (not fast mode).
+- **Mixed frontend and backend** (substantial work on both sides): a Codex app thread on `gpt-6.2-sol`, `xhigh` reasoning, normal service tier (not fast mode).
+- **Backend** (APIs, services, data, jobs, infrastructure, tooling): a Codex app thread on `gpt-6.2-sol`, `xhigh` reasoning, normal service tier (not fast mode).
 
 When the scope is unclear, use a Codex app thread. The user may override the choice for an issue or the whole run.
 
