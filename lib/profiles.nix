@@ -37,7 +37,9 @@ in {
         then lib.optionals (role != "sandbox") [ ../modules/platforms/darwin/home ]
         else throw "Unsupported platform: ${platform}";
     in
-      sharedHomeModules
-      ++ platformModules
-      ++ (roleHomeModules.${role} or (throw "Unsupported role: ${role}"));
+      if role == "trading-agent"
+      then [ ../modules/roles/trading-agent.nix ]
+      else sharedHomeModules
+        ++ platformModules
+        ++ (roleHomeModules.${role} or (throw "Unsupported role: ${role}"));
 }

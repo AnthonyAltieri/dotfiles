@@ -129,6 +129,20 @@
     };
 
     homeConfigurations = {
+      trading-dev-agent = mkHome {
+        role = "trading-agent";
+        system = "x86_64-linux";
+        username = "trading-dev-agent";
+        homeDirectory = "/home/trading-dev-agent";
+      };
+
+      trading-research-agent = mkHome {
+        role = "trading-agent";
+        system = "x86_64-linux";
+        username = "trading-research-agent";
+        homeDirectory = "/home/trading-research-agent";
+      };
+
       personal-linux = mkHome {
         role = "personal";
         system = "x86_64-linux";
